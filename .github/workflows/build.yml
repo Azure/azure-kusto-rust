@@ -19,15 +19,21 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          args: --all-features0
       - uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --all-features --no-fail-fast
+          command: install
+          args: cargo2junit
+      - name: Test
+        run: cargo test --all-features --no-fail-fast -Z unstable-options --format json --report-time | tee results.json && cat results.json | cargo2junit > results.xml
         env:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
           RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
       - uses: actions-rs/grcov@v0.1
+      - name: Publish Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
+        if: always()
