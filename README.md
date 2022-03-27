@@ -1,4 +1,6 @@
-# Project
+# Azure Kusto Rust
+[![Rust Build, Test, and Lint](https://github.com/Azure/azure-kusto-rust/actions/workflows/build.yml/badge.svg)](https://github.com/Azure/azure-kusto-rust/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/Azure/azure-kusto-rust/branch/main/graph/badge.svg?token=0MDnbSizwx)](https://codecov.io/gh/Azure/azure-kusto-rust)
 
 > This repo has been populated by an initial template to help get you started. Please
 > make sure to update the content to build a great experience for community-building.
