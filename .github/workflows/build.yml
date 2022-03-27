@@ -24,7 +24,7 @@ jobs:
         id: cache-primes
         uses: actions/cache@v3
         with:
-          path: ~/.cargo/cargo2junit
+          path: ~/.cargo/bin/cargo2junit
           key: ${{ runner.os }}-cargo2junit
       - uses: actions-rs/cargo@v1
         with:
