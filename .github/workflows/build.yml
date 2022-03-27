@@ -36,5 +36,6 @@ jobs:
         if: always()
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
-        files: ${{ steps.coverage.outputs.report }}
         if: always()
+        with:
+          files: ${{ steps.coverage.outputs.report }}
