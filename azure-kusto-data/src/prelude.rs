@@ -8,7 +8,7 @@
 //!
 //! ```
 //! # #[allow(unused_imports)]
-//! use azure_data_kusto::prelude::*;
+//! use azure_kusto_data::prelude::*;
 //! ```
 
 pub use crate::client::{KustoClient, KustoClientOptions};

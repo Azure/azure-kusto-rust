@@ -7,7 +7,7 @@ license = "MIT"
 edition = "2021"
 repository = "https://github.com/azure/azure-sdk-for-rust"
 homepage = "https://github.com/azure/azure-sdk-for-rust"
-documentation = "https://docs.rs/azure_data_kusto"
+documentation = "https://docs.rs/azure_kusto_data"
 keywords = ["sdk", "azure", "kusto", "azure-data-explorer"]
 categories = ["api-bindings"]
 
