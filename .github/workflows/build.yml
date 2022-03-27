@@ -4,9 +4,6 @@ name: Rust Build, Test, and Lint
 
 jobs:
   build-data:
-    defaults:
-      run:
-        working-directory: azure-kusto-data
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
