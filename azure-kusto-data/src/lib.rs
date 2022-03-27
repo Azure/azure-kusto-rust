@@ -1,14 +1,6 @@
-fn nothing() -> u32 {
-    return 42;
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::nothing;
-
-    #[test]
-    fn it_works() {
-        let result = 2 + nothing();
-        assert_eq!(result, 44);
-    }
-}
+pub mod authorization_policy;
+pub mod client;
+pub mod connection_string;
+pub mod error;
+mod operations;
+pub mod prelude;
