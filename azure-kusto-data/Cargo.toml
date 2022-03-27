@@ -16,6 +16,7 @@ azure_core = { git = "https://github.com/roeap/azure-sdk-for-rust", branch="kust
   "enable_reqwest",
   "enable_reqwest_gzip",
 ] }
+azure_identity = { git = "https://github.com/roeap/azure-sdk-for-rust", branch="kusto" }
 async-trait = "0.1"
 async-convert = "1"
 bytes = "1"
@@ -33,5 +34,5 @@ tokio = { version = "1", features = ["macros"] }
 
 [features]
 mock_transport_framework = ["azure_core/mock_transport_framework"]
-into_future = []
+#into_future = [] TODO - properly turn it on
 test_e2e = []
