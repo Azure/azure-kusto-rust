@@ -13,7 +13,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v1
-      - uses: LoliGothick/rustfmt-check@v0.2
+      - uses: mbrobbel/rustfmt-check@master
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions-rs/clippy-check@v1
@@ -21,7 +21,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
       - name: Cache cargo2junit
-        id: cache-primes
+        id: cache-cargo2junit
         uses: actions/cache@v3
         with:
           path: ~/.cargo/bin/cargo2junit
