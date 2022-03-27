@@ -1,5 +1,7 @@
 fn nothing() {
     let mut result = 3;
+    let vec: Vec<isize> = Vec::new();
+    if vec.len() <= 0 {}
 }
 
 #[cfg(test)]
