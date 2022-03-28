@@ -1,16 +1,24 @@
-# Azure Kusto Rust
+# Microsoft Azure Kusto  (Azure Data Explorer) SDK for Rust
 [![Rust Build, Test, and Lint](https://github.com/Azure/azure-kusto-rust/actions/workflows/build.yml/badge.svg)](https://github.com/Azure/azure-kusto-rust/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/Azure/azure-kusto-rust/branch/main/graph/badge.svg?token=0MDnbSizwx)](https://codecov.io/gh/Azure/azure-kusto-rust)
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+*This repo is still in the early stages of development, and doesn't yet have an official release - use with caution.*
 
-As the maintainer of this project, please make a few updates:
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+## Best Practices
+See the SDK [best practices guide](https://docs.microsoft.com/azure/data-explorer/kusto/api/netfx/kusto-ingest-best-practices), which though written for the .NET SDK, applies similarly here.
+
+## Need Support?
+- **Have a feature request for SDKs?** Please post it on [User Voice](https://feedback.azure.com/forums/915733-azure-data-explorer) to help us prioritize
+- **Have a technical question?** Ask on [Stack Overflow with tag "azure-data-explorer"](https://stackoverflow.com/questions/tagged/azure-data-explorer)
+- **Need Support?** Every customer with an active Azure subscription has access to [support](https://docs.microsoft.com/en-us/azure/azure-supportability/how-to-create-azure-support-request) with guaranteed response time.  Consider submitting a ticket and get assistance from Microsoft support team
+- **Found a bug?** Please help us fix it by thoroughly documenting it and [filing an issue](https://github.com/Azure/azure-kusto-python/issues/new).
+
+## Looking for SDKs for other languages/platforms?
+- [Node](https://github.com/azure/azure-kusto-node)
+- [Java](https://github.com/azure/azure-kusto-java)
+- [.NET](https://docs.microsoft.com/en-us/azure/kusto/api/netfx/about-the-sdk)
+- [Go](https://github.com/Azure/azure-kusto-go)
 
 ## Contributing
 
