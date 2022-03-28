@@ -6,3 +6,4 @@ pub mod connection_string;
 pub mod error;
 mod operations;
 pub mod prelude;
+mod cloud_info;

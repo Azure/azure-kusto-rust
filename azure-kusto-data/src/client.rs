@@ -63,6 +63,7 @@ fn new_pipeline_from_options(
 #[derive(Clone, Debug)]
 pub struct KustoClient {
     pipeline: Pipeline,
+    service_url: String,
     query_url: String,
     management_url: String,
 }
@@ -76,14 +77,14 @@ impl KustoClient {
     where
         T: Into<String>,
     {
-        let service_url: String = url.into();
-        let service_url = service_url.trim_end_matches('/');
+        let service_url = url.into().trim_end_matches('/').to_string();
         let query_url = format!("{}/v2/rest/query", service_url);
         let management_url = format!("{}/v1/rest/mgmt", service_url);
-        let pipeline = new_pipeline_from_options(credential, service_url, options);
+        let pipeline = new_pipeline_from_options(credential, &service_url, options);
 
         Ok(Self {
             pipeline,
+            service_url,
             query_url,
             management_url,
         })

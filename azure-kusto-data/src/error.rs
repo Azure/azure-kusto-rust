@@ -1,5 +1,6 @@
 //! Defines `KustoRsError` for representing failures in various operations.
 use std::fmt::Debug;
+use http::StatusCode;
 use thiserror;
 
 #[derive(thiserror::Error, Debug)]
@@ -10,6 +11,10 @@ pub enum Error {
     /// Error in external crate
     #[error("Error in external crate {0}")]
     ExternalError(String),
+
+    /// Error in HTTP
+    #[error("Error in HTTP: {0} {1}")]
+    HttpError(StatusCode, String),
 
     /// Error raised when an invalid argument / option is provided.
     #[error("Type conversion not available")]
@@ -30,18 +35,14 @@ pub enum Error {
     /// Errors raised when parsing connection information
     #[error("Configuration error: {0}")]
     ConfigurationError(#[from] crate::connection_string::ConnectionStringError),
+
+    /// Error when streaming
+    #[error(transparent)]
+    StreamError(#[from] azure_core::StreamError),
+
+    /// Error when parsing URI
+    #[error(transparent)]
+    InvalidUri(#[from] http::uri::InvalidUri),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-impl From<azure_core::error::Error> for Error {
-    fn from(err: azure_core::error::Error) -> Self {
-        Self::AzureError(err.into())
-    }
-}
-
-impl From<azure_core::StreamError> for Error {
-    fn from(error: azure_core::StreamError) -> Self {
-        Self::AzureError(azure_core::Error::Stream(error))
-    }
-}
