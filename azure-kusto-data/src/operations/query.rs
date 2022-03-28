@@ -1,5 +1,9 @@
+#[cfg(feature = "arrow")]
+use crate::arrow::convert_table;
 use crate::client::KustoClient;
-use async_convert::{async_trait, TryFrom};
+#[cfg(feature = "arrow")]
+use arrow::record_batch::RecordBatch;
+use async_convert::TryFrom;
 use azure_core::prelude::*;
 use azure_core::setters;
 use azure_core::{collect_pinned_stream, Response as HttpResponse};
@@ -105,14 +109,14 @@ pub struct KustoResponseDataSetV2 {
     pub tables: Vec<ResultTable>,
 }
 
-#[async_trait]
-impl TryFrom<HttpResponse> for KustoResponseDataSetV2 {
+#[async_convert::async_trait]
+impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV2 {
     type Error = crate::error::Error;
 
     async fn try_from(response: HttpResponse) -> Result<Self, crate::error::Error> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
-        let data = collect_pinned_stream(pinned_stream).await.unwrap();
-        let tables: Vec<ResultTable> = serde_json::from_slice(&data.to_vec()).unwrap();
+        let data = collect_pinned_stream(pinned_stream).await?;
+        let tables: Vec<ResultTable> = serde_json::from_slice(&data.to_vec())?;
         Ok(Self { tables })
     }
 }
@@ -120,6 +124,22 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV2 {
 impl KustoResponseDataSetV2 {
     pub fn table_count(&self) -> usize {
         self.tables.len()
+    }
+
+    /// Consumes the response into an iterator over all PrimaryResult tables within the response dataset
+    pub fn into_primary_results(self) -> impl Iterator<Item = DataTable> {
+        self.tables
+            .into_iter()
+            .filter(|t| matches!(t, ResultTable::DataTable(tbl) if tbl.table_kind == TableKind::PrimaryResult))
+            .map(|t| match t {
+                ResultTable::DataTable(tbl) => tbl,
+                _ => unreachable!("All other variants are excluded by filter"),
+            })
+    }
+
+    #[cfg(feature = "arrow")]
+    pub fn into_record_batches(self) -> impl Iterator<Item = RecordBatch> {
+        self.into_primary_results().map(convert_table)
     }
 }
 
