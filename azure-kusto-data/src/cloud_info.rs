@@ -1,10 +1,10 @@
-use std::borrow::Cow;
 use arrow::datatypes::ToByteSlice;
+use std::borrow::Cow;
 
-use azure_core::{collect_pinned_stream, Context, Pipeline, Request};
 use azure_core::prelude::*;
+use azure_core::{collect_pinned_stream, Context, Pipeline, Request};
 use futures::lock::Mutex;
-use hashbrown::hash_map::{EntryRef};
+use hashbrown::hash_map::EntryRef;
 use hashbrown::HashMap;
 use http::Method;
 use http::StatusCode;
@@ -40,7 +40,8 @@ impl Default for CloudInfo {
             kusto_client_app_id: "db662dc1-0cfe-4e1c-a843-19a68e65be58".into(),
             kusto_client_redirect_uri: "https://microsoft/kustoclient".into(),
             kusto_service_resource_id: "https://kusto.kusto.windows.net".into(),
-            first_party_authority_url: "https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a".into(),
+            first_party_authority_url:
+                "https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a".into(),
         }
     }
 }
@@ -62,26 +63,32 @@ impl CloudInfo {
                 Ok(result.azure_ad)
             }
             StatusCode::NOT_FOUND => Ok(Default::default()),
-            _ => Err(crate::error::Error::HttpError(status_code, String::from_utf8_lossy(collect_pinned_stream(pinned_stream).await?.to_byte_slice()).to_string())),
+            _ => Err(crate::error::Error::HttpError(
+                status_code,
+                String::from_utf8_lossy(
+                    collect_pinned_stream(pinned_stream).await?.to_byte_slice(),
+                )
+                .to_string(),
+            )),
         }
     }
 
-    pub async fn get(pipeline: &Pipeline, endpoint: &str) -> Result<CloudInfo, crate::error::Error> {
-        Ok(
-            match CLOUDINFO_CACHE.lock()
-                .await
-                .entry_ref(endpoint) {
-                EntryRef::Occupied(o) => o.get().clone(),
-                EntryRef::Vacant(e) => {
-                    let result = CloudInfo::fetch(pipeline, endpoint).await?;
-                    e.insert(result).clone()
-                }
+    pub async fn get(
+        pipeline: &Pipeline,
+        endpoint: &str,
+    ) -> Result<CloudInfo, crate::error::Error> {
+        Ok(match CLOUDINFO_CACHE.lock().await.entry_ref(endpoint) {
+            EntryRef::Occupied(o) => o.get().clone(),
+            EntryRef::Vacant(e) => {
+                let result = CloudInfo::fetch(pipeline, endpoint).await?;
+                e.insert(result).clone()
             }
-        )
+        })
     }
 
     pub async fn add_to_cache(endpoint: &str, cloud_info: CloudInfo) {
-        CLOUDINFO_CACHE.lock()
+        CLOUDINFO_CACHE
+            .lock()
             .await
             .insert(endpoint.to_string(), cloud_info);
     }
@@ -102,8 +109,18 @@ mod tests {
             Vec::new(),
             Vec::new(),
         );
-        let a= CloudInfo::get(&pipeline, "https://asafdev.westeurope.dev.kusto.windows.net/").await.unwrap();
-        let b= CloudInfo::get(&pipeline, "https://asafdev.westeurope.dev.kusto.windows.net/").await.unwrap();
+        let a = CloudInfo::get(
+            &pipeline,
+            "https://asafdev.westeurope.dev.kusto.windows.net/",
+        )
+        .await
+        .unwrap();
+        let b = CloudInfo::get(
+            &pipeline,
+            "https://asafdev.westeurope.dev.kusto.windows.net/",
+        )
+        .await
+        .unwrap();
         assert_eq!(dbg!(a), dbg!(b));
     }
 }

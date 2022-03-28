@@ -1,6 +1,6 @@
 //! Defines `KustoRsError` for representing failures in various operations.
-use std::fmt::Debug;
 use http::StatusCode;
+use std::fmt::Debug;
 use thiserror;
 
 #[derive(thiserror::Error, Debug)]
