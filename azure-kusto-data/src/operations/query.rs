@@ -95,14 +95,15 @@ impl ExecuteQueryBuilder {
     }
 }
 
-#[cfg(feature = "into_future")]
-impl std::future::IntoFuture for ExecuteQueryBuilder {
-    type IntoFuture = ExecuteQuery;
-    type Output = <ExecuteQuery as std::future::Future>::Output;
-    fn into_future(self) -> Self::IntoFuture {
-        Self::into_future(self)
-    }
-}
+// TODO enable once in stable
+// #[cfg(feature = "into_future")]
+// impl std::future::IntoFuture for ExecuteQueryBuilder {
+//     type IntoFuture = ExecuteQuery;
+//     type Output = <ExecuteQuery as std::future::Future>::Output;
+//     fn into_future(self) -> Self::IntoFuture {
+//         Self::into_future(self)
+//     }
+// }
 
 #[derive(Debug, Clone)]
 pub struct KustoResponseDataSetV2 {
