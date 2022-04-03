@@ -131,15 +131,14 @@ impl KustoResponseDataSetV2 {
     pub fn into_primary_results(self) -> impl Iterator<Item = DataTable> {
         self.tables
             .into_iter()
-            .filter(|t| matches!(t, ResultTable::DataTable(tbl) if tbl.table_kind == TableKind::PrimaryResult))
-            .map(|t| match t {
-                ResultTable::DataTable(tbl) => tbl,
-                _ => unreachable!("All other variants are excluded by filter"),
+            .filter_map(|table| match table {
+                ResultTable::DataTable(table) if table.table_kind == TableKind::PrimaryResult => Some(table),
+                _ => None,
             })
     }
 
     #[cfg(feature = "arrow")]
-    pub fn into_record_batches(self) -> impl Iterator<Item = RecordBatch> {
+    pub fn into_record_batches(self) -> impl Iterator<Item = crate::error::Result<RecordBatch>> {
         self.into_primary_results().map(convert_table)
     }
 }
