@@ -3,6 +3,7 @@ use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use arrow::array::TimestampNanosecondArray;
 use arrow::{
     array::{
         ArrayRef, BooleanArray, DurationNanosecondArray, Float64Array, Int32Array, Int64Array,
@@ -11,30 +12,29 @@ use arrow::{
     datatypes::{DataType, Field, Schema, TimeUnit},
     record_batch::RecordBatch,
 };
-use arrow::array::{TimestampNanosecondArray};
 use azure_core::error::{ErrorKind, ResultExt};
-
-
-
 
 use crate::error::Result;
 use crate::operations::query::*;
 use crate::operations::types::{KustoDateTime, KustoDuration};
 
-
 fn convert_array_string(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let strings: Vec<Option<String>> =
-        serde_json::from_value(serde_json::Value::Array(values))?;
+    let strings: Vec<Option<String>> = serde_json::from_value(serde_json::Value::Array(values))?;
     let strings: Vec<Option<&str>> = strings.iter().map(|opt| opt.as_deref()).collect();
     Ok(Arc::new(StringArray::from(strings)))
 }
-
 
 fn convert_array_datetime(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
     let dates: Vec<String> = serde_json::from_value(serde_json::Value::Array(values))?;
     let timestamps = dates
         .into_iter()
-        .map(|d| KustoDateTime::from_str(&d).ok().map(|d| d.unix_timestamp_nanos()).and_then(|n| n.try_into().ok())).collect::<Vec<Option<i64>>>();
+        .map(|d| {
+            KustoDateTime::from_str(&d)
+                .ok()
+                .map(|d| d.unix_timestamp_nanos())
+                .and_then(|n| n.try_into().ok())
+        })
+        .collect::<Vec<Option<i64>>>();
     let dates_array = Arc::new(TimestampNanosecondArray::from(timestamps));
     Ok(dates_array)
 }
@@ -49,7 +49,10 @@ fn safe_map_f64(value: serde_json::Value) -> Result<Option<f64>> {
 }
 
 fn convert_array_float(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let reals: Vec<Option<f64>> = values.into_iter().map(safe_map_f64).collect::<Result<Vec<_>>>()?;
+    let reals: Vec<Option<f64>> = values
+        .into_iter()
+        .map(safe_map_f64)
+        .collect::<Result<Vec<_>>>()?;
     Ok(Arc::new(Float64Array::from(reals)))
 }
 
@@ -57,14 +60,17 @@ fn convert_array_timespan(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
     let strings: Vec<String> = serde_json::from_value(serde_json::Value::Array(values))?;
     let durations: Vec<Option<i64>> = strings
         .iter()
-        .map(|s| KustoDuration::from_str(s).ok().and_then(|d| i64::try_from(d.whole_nanoseconds()).ok()))
+        .map(|s| {
+            KustoDuration::from_str(s)
+                .ok()
+                .and_then(|d| i64::try_from(d.whole_nanoseconds()).ok())
+        })
         .collect();
     Ok(Arc::new(DurationNanosecondArray::from(durations)))
 }
 
 fn convert_array_bool(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let bools: Vec<Option<bool>> =
-        serde_json::from_value(serde_json::Value::Array(values))?;
+    let bools: Vec<Option<bool>> = serde_json::from_value(serde_json::Value::Array(values))?;
     Ok(Arc::new(BooleanArray::from(bools)))
 }
 
@@ -80,42 +86,56 @@ fn convert_array_i64(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
 
 pub fn convert_column(data: Vec<serde_json::Value>, column: Column) -> Result<(Field, ArrayRef)> {
     match column.column_type {
-        ColumnType::String => convert_array_string(data).map(|data| (
-            Field::new(column.column_name.as_str(), DataType::Utf8, true),
-            data)
-        ),
-        ColumnType::Bool | ColumnType::Boolean => convert_array_bool(data).map(|data| (
-            Field::new(column.column_name.as_str(), DataType::Boolean, true),
-            data)
-        ),
-        ColumnType::Int => convert_array_i32(data).map(|data| (
-            Field::new(column.column_name.as_str(), DataType::Int32, true),
-            data)
-        ),
-        ColumnType::Long => convert_array_i64(data).map(|data| (
-            Field::new(column.column_name.as_str(), DataType::Int64, true),
-            data)
-        ),
-        ColumnType::Real => convert_array_float(data).map(|data| (
-            Field::new(column.column_name.as_str(), DataType::Float64, true),
-            data)
-        ),
-        ColumnType::Datetime => convert_array_datetime(data).map(|data| (
-            Field::new(
-                column.column_name.as_str(),
-                DataType::Timestamp(TimeUnit::Nanosecond, None),
-                true,
-            ),
-            data)
-        ),
-        ColumnType::Timespan => convert_array_timespan(data).map(|data| (
-            Field::new(
-                column.column_name.as_str(),
-                DataType::Duration(TimeUnit::Nanosecond),
-                true,
-            ),
-            data)
-        ),
+        ColumnType::String => convert_array_string(data).map(|data| {
+            (
+                Field::new(column.column_name.as_str(), DataType::Utf8, true),
+                data,
+            )
+        }),
+        ColumnType::Bool | ColumnType::Boolean => convert_array_bool(data).map(|data| {
+            (
+                Field::new(column.column_name.as_str(), DataType::Boolean, true),
+                data,
+            )
+        }),
+        ColumnType::Int => convert_array_i32(data).map(|data| {
+            (
+                Field::new(column.column_name.as_str(), DataType::Int32, true),
+                data,
+            )
+        }),
+        ColumnType::Long => convert_array_i64(data).map(|data| {
+            (
+                Field::new(column.column_name.as_str(), DataType::Int64, true),
+                data,
+            )
+        }),
+        ColumnType::Real => convert_array_float(data).map(|data| {
+            (
+                Field::new(column.column_name.as_str(), DataType::Float64, true),
+                data,
+            )
+        }),
+        ColumnType::Datetime => convert_array_datetime(data).map(|data| {
+            (
+                Field::new(
+                    column.column_name.as_str(),
+                    DataType::Timestamp(TimeUnit::Nanosecond, None),
+                    true,
+                ),
+                data,
+            )
+        }),
+        ColumnType::Timespan => convert_array_timespan(data).map(|data| {
+            (
+                Field::new(
+                    column.column_name.as_str(),
+                    DataType::Duration(TimeUnit::Nanosecond),
+                    true,
+                ),
+                data,
+            )
+        }),
         _ => todo!(),
     }
 }
@@ -145,7 +165,8 @@ pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
         columns.push(data);
     }
 
-    Ok(RecordBatch::try_new(Arc::new(Schema::new(fields)), columns).context(ErrorKind::DataConversion, "Failed to create record batch")?)
+    Ok(RecordBatch::try_new(Arc::new(Schema::new(fields)), columns)
+        .context(ErrorKind::DataConversion, "Failed to create record batch")?)
 }
 
 #[cfg(test)]

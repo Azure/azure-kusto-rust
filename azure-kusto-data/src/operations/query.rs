@@ -129,12 +129,12 @@ impl KustoResponseDataSetV2 {
 
     /// Consumes the response into an iterator over all PrimaryResult tables within the response dataset
     pub fn into_primary_results(self) -> impl Iterator<Item = DataTable> {
-        self.tables
-            .into_iter()
-            .filter_map(|table| match table {
-                ResultTable::DataTable(table) if table.table_kind == TableKind::PrimaryResult => Some(table),
-                _ => None,
-            })
+        self.tables.into_iter().filter_map(|table| match table {
+            ResultTable::DataTable(table) if table.table_kind == TableKind::PrimaryResult => {
+                Some(table)
+            }
+            _ => None,
+        })
     }
 
     #[cfg(feature = "arrow")]
