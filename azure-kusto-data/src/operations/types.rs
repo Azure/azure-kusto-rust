@@ -1,12 +1,12 @@
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref};
 use std::str::FromStr;
 use azure_core::error::{ErrorKind, ResultExt};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use time::{Duration, OffsetDateTime};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
-use serde::{Serialize, Deserialize};
+
 use time::format_description::well_known::Rfc3339;
 use crate::error::Error;
 
@@ -23,7 +23,7 @@ impl FromStr for KustoDateTime {
 
 impl Display for KustoDateTime {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.format(&Rfc3339).unwrap_or("".into()))?;
+        write!(f, "{}", self.0.format(&Rfc3339).unwrap_or_else(|_| "".into()))?;
         Ok(())
     }
 }

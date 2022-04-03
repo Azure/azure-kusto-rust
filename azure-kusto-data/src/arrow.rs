@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-use std::ops::Deref;
+
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -8,15 +8,14 @@ use arrow::{
         ArrayRef, BooleanArray, DurationNanosecondArray, Float64Array, Int32Array, Int64Array,
         StringArray,
     },
-    compute::cast,
     datatypes::{DataType, Field, Schema, TimeUnit},
     record_batch::RecordBatch,
 };
-use arrow::array::{Date32Array, Date64Array, TimestampNanosecondArray};
+use arrow::array::{TimestampNanosecondArray};
 use azure_core::error::{ErrorKind, ResultExt};
-use lazy_static::lazy_static;
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
+
+
+
 
 use crate::error::Result;
 use crate::operations::query::*;
@@ -55,11 +54,10 @@ fn convert_array_float(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
 }
 
 fn convert_array_timespan(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let strings: Vec<KustoDuration> =
-        serde_json::from_value(serde_json::Value::Array(values))?;
+    let strings: Vec<String> = serde_json::from_value(serde_json::Value::Array(values))?;
     let durations: Vec<Option<i64>> = strings
         .iter()
-        .map((|s| i64::try_from(s.whole_nanoseconds()).ok()))
+        .map(|s| KustoDuration::from_str(s).ok().and_then(|d| i64::try_from(d.whole_nanoseconds()).ok()))
         .collect();
     Ok(Arc::new(DurationNanosecondArray::from(durations)))
 }
@@ -136,14 +134,12 @@ pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
             .for_each(|(idx, value)| buffer[idx].push(value))
     });
 
-    // TODO with capacity
     let iter = buffer
         .into_iter()
         .zip(table.columns.into_iter())
         .map(|(data, column)| convert_column(data, column));
 
     for result in iter {
-        dbg!(&result);
         let (field, data) = result?;
         fields.push(field);
         columns.push(data);
