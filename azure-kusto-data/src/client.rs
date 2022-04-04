@@ -9,10 +9,10 @@ use azure_identity::token_credentials::{
     AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
     ImdsManagedIdentityCredential, TokenCredentialOptions,
 };
+use http::Uri;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
-use http::Uri;
 
 const API_VERSION: &str = "2019-02-13";
 
