@@ -8,6 +8,7 @@ use std::str::FromStr;
 use time::{Duration, OffsetDateTime};
 
 use crate::error::Error;
+use crate::error::Error::InvalidArgumentError;
 use time::format_description::well_known::Rfc3339;
 
 #[derive(PartialEq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
@@ -103,10 +104,9 @@ impl FromStr for KustoDuration {
                     + time::Duration::nanoseconds(nanos * 100)); // Ticks
             Ok(KustoDuration(duration))
         } else {
-            Err(crate::error::Error::InvalidArgumentError(format!(
-                "{} is not a valid duration",
-                s
-            )))
+            Err(Error::InvalidArgumentError {
+                source: format!("{} is not a valid duration", s).into(),
+            })
         }
     }
 }

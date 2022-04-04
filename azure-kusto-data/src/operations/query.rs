@@ -64,7 +64,7 @@ impl ExecuteQueryBuilder {
 
         Box::pin(async move {
             let url = this.client.query_url();
-            let mut request = this.client.prepare_request(url, http::Method::POST);
+            let mut request = this.client.prepare_request(url.parse()?, http::Method::POST);
 
             if let Some(request_id) = &this.client_request_id {
                 request.insert_headers(request_id);
