@@ -154,16 +154,16 @@ pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
             .for_each(|(idx, value)| buffer[idx].push(value))
     });
 
-    let iter = buffer
+    buffer
         .into_iter()
         .zip(table.columns.into_iter())
-        .map(|(data, column)| convert_column(data, column));
-
-    for result in iter {
-        let (field, data) = result?;
-        fields.push(field);
-        columns.push(data);
-    }
+        .map(|(data, column)| convert_column(data, column))
+        .try_for_each::<_, Result<()>>(|result| {
+            let (field, data) = result?;
+            fields.push(field);
+            columns.push(data);
+            Ok(())
+        })?;
 
     Ok(RecordBatch::try_new(Arc::new(Schema::new(fields)), columns)
         .context(ErrorKind::DataConversion, "Failed to create record batch")?)
