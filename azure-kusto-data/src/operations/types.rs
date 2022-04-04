@@ -8,7 +8,6 @@ use std::str::FromStr;
 use time::{Duration, OffsetDateTime};
 
 use crate::error::Error;
-use crate::error::Error::InvalidArgumentError;
 use time::format_description::well_known::Rfc3339;
 
 #[derive(PartialEq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
