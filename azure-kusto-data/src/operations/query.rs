@@ -3,12 +3,17 @@ use crate::arrow::convert_table;
 use crate::client::KustoClient;
 #[cfg(feature = "arrow")]
 use arrow::record_batch::RecordBatch;
-use async_convert::TryFrom;
+use std::io::ErrorKind;
+
 use azure_core::prelude::*;
 use azure_core::setters;
 use azure_core::{collect_pinned_stream, Response as HttpResponse};
 use futures::future::BoxFuture;
+use futures::io::BufReader;
+use futures::{io, pin_mut, stream, AsyncRead, AsyncReadExt, Stream, TryStreamExt};
 use serde::{Deserialize, Serialize};
+
+use std::pin::Pin;
 
 type ExecuteQuery = BoxFuture<'static, crate::error::Result<KustoResponseDataSetV2>>;
 
@@ -58,44 +63,65 @@ impl ExecuteQueryBuilder {
         context: Context => context,
     }
 
+    pub async fn into_response(self) -> crate::error::Result<HttpResponse> {
+        let url = self.client.query_url();
+        let mut request = self
+            .client
+            .prepare_request(url.parse()?, http::Method::POST);
+
+        if let Some(request_id) = &self.client_request_id {
+            request.insert_headers(request_id);
+        };
+        if let Some(app) = &self.app {
+            request.insert_headers(app);
+        };
+        if let Some(user) = &self.user {
+            request.insert_headers(user);
+        };
+
+        let body = QueryBody {
+            db: self.database,
+            csl: self.query,
+        };
+        let bytes = bytes::Bytes::from(serde_json::to_string(&body)?);
+        request.insert_headers(&ContentLength::new(bytes.len() as i32));
+        request.set_body(bytes.into());
+
+        let response = self
+            .client
+            .pipeline()
+            .send(&mut self.context.clone(), &mut request)
+            .await?;
+
+        Ok(response)
+    }
+
+    pub async fn into_stream(
+        self,
+    ) -> crate::error::Result<impl Stream<Item = Result<ResultTable, io::Error>>> {
+        let response = self.into_response().await?;
+        let (_status_code, _header_map, pinned_stream) = response.deconstruct();
+        let reader = pinned_stream
+            .map_err(|e| std::io::Error::new(ErrorKind::Other, e))
+            .into_async_read();
+
+        Ok(async_deserializer::iter_results::<ResultTable, _>(reader))
+    }
+
     pub fn into_future(self) -> ExecuteQuery {
-        let this = self.clone();
-        let ctx = self.context.clone();
+        let this = self;
 
         Box::pin(async move {
-            let url = this.client.query_url();
-            let mut request = this
-                .client
-                .prepare_request(url.parse()?, http::Method::POST);
-
-            if let Some(request_id) = &this.client_request_id {
-                request.insert_headers(request_id);
-            };
-            if let Some(app) = &this.app {
-                request.insert_headers(app);
-            };
-            if let Some(user) = &this.user {
-                request.insert_headers(user);
-            };
-
-            let body = QueryBody {
-                db: this.database,
-                csl: this.query,
-            };
-            let bytes = bytes::Bytes::from(serde_json::to_string(&body)?);
-            request.insert_headers(&ContentLength::new(bytes.len() as i32));
-            request.set_body(bytes.into());
-
-            let response = self
-                .client
-                .pipeline()
-                .send(&mut ctx.clone(), &mut request)
-                .await?;
-
-            <KustoResponseDataSetV2 as TryFrom<HttpResponse>>::try_from(response).await
+            let response = this.into_response().await?;
+            <KustoResponseDataSetV2 as async_convert::TryFrom<HttpResponse>>::try_from(response)
+                .await
         })
     }
 }
+
+use crate::operations::async_deserializer;
+use serde::de::DeserializeOwned;
+use serde_json::{self};
 
 // TODO enable once in stable
 // #[cfg(feature = "into_future")]
