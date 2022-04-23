@@ -1,4 +1,5 @@
 //! Defines `KustoRsError` for representing failures in various operations.
+use http::uri::InvalidUri;
 use std::fmt::Debug;
 use thiserror;
 
@@ -12,8 +13,11 @@ pub enum Error {
     ExternalError(String),
 
     /// Error raised when an invalid argument / option is provided.
-    #[error("Type conversion not available")]
-    InvalidArgumentError(String),
+    #[error("Invalid argument {source}")]
+    InvalidArgumentError {
+        #[source]
+        source: Box<dyn std::error::Error>,
+    },
 
     /// Error raised when specific functionality is not (yet) implemented
     #[error("Feature not implemented")]
@@ -40,8 +44,10 @@ impl From<azure_core::error::Error> for Error {
     }
 }
 
-impl From<azure_core::StreamError> for Error {
-    fn from(error: azure_core::StreamError) -> Self {
-        Self::AzureError(azure_core::Error::Stream(error))
+impl From<InvalidUri> for Error {
+    fn from(error: InvalidUri) -> Self {
+        Self::InvalidArgumentError {
+            source: Box::new(error),
+        }
     }
 }

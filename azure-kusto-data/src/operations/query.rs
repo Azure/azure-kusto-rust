@@ -64,7 +64,9 @@ impl ExecuteQueryBuilder {
 
         Box::pin(async move {
             let url = this.client.query_url();
-            let mut request = this.client.prepare_request(url, http::Method::POST);
+            let mut request = this
+                .client
+                .prepare_request(url.parse()?, http::Method::POST);
 
             if let Some(request_id) = &this.client_request_id {
                 request.insert_headers(request_id);
@@ -129,17 +131,16 @@ impl KustoResponseDataSetV2 {
 
     /// Consumes the response into an iterator over all PrimaryResult tables within the response dataset
     pub fn into_primary_results(self) -> impl Iterator<Item = DataTable> {
-        self.tables
-            .into_iter()
-            .filter(|t| matches!(t, ResultTable::DataTable(tbl) if tbl.table_kind == TableKind::PrimaryResult))
-            .map(|t| match t {
-                ResultTable::DataTable(tbl) => tbl,
-                _ => unreachable!("All other variants are excluded by filter"),
-            })
+        self.tables.into_iter().filter_map(|table| match table {
+            ResultTable::DataTable(table) if table.table_kind == TableKind::PrimaryResult => {
+                Some(table)
+            }
+            _ => None,
+        })
     }
 
     #[cfg(feature = "arrow")]
-    pub fn into_record_batches(self) -> impl Iterator<Item = RecordBatch> {
+    pub fn into_record_batches(self) -> impl Iterator<Item = crate::error::Result<RecordBatch>> {
         self.into_primary_results().map(convert_table)
     }
 }

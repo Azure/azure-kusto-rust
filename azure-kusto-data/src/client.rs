@@ -9,6 +9,7 @@ use azure_identity::token_credentials::{
     AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
     ImdsManagedIdentityCredential, TokenCredentialOptions,
 };
+use http::Uri;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -112,8 +113,8 @@ impl KustoClient {
         ExecuteQueryBuilder::new(self.clone(), database.into(), query.into(), Context::new())
     }
 
-    pub(crate) fn prepare_request(&self, uri: &str, http_method: http::Method) -> Request {
-        let mut request = Request::new(uri.parse().unwrap(), http_method);
+    pub(crate) fn prepare_request(&self, uri: Uri, http_method: http::Method) -> Request {
+        let mut request = Request::new(uri, http_method);
         request.insert_headers(&Version::from(API_VERSION));
         request.insert_headers(&Accept::from("application/json"));
         request.insert_headers(&ContentType::new("application/json; charset=utf-8"));
