@@ -103,8 +103,7 @@ impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV1 {
     async fn try_from(response: HttpResponse) -> Result<Self, crate::error::Error> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
         let data = collect_pinned_stream(pinned_stream).await?;
-        let tables: Vec<TableV1> = serde_json::from_slice(&data.to_vec())?;
-        Ok(Self { tables })
+        Ok(serde_json::from_slice(&data.to_vec())?)
     }
 }
 
