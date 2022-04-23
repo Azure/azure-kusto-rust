@@ -1,6 +1,7 @@
 use crate::authorization_policy::AuthorizationPolicy;
 use crate::connection_string::{ConnectionString, ConnectionStringBuilder};
 use crate::error::Result;
+use crate::operations::mgmt::ManagementQueryBuilder;
 use crate::operations::query::ExecuteQueryBuilder;
 use azure_core::auth::TokenCredential;
 use azure_core::prelude::*;
@@ -111,6 +112,14 @@ impl KustoClient {
         Q: Into<String>,
     {
         ExecuteQueryBuilder::new(self.clone(), database.into(), query.into(), Context::new())
+    }
+
+    pub fn execute_command<DB, Q>(&self, database: DB, query: Q) -> ManagementQueryBuilder
+    where
+        DB: Into<String>,
+        Q: Into<String>,
+    {
+        ManagementQueryBuilder::new(self.clone(), database.into(), query.into(), Context::new())
     }
 
     pub(crate) fn prepare_request(&self, uri: Uri, http_method: http::Method) -> Request {
