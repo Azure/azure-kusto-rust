@@ -39,11 +39,14 @@ time = { version = "0.3.9", features = [
 ] }
 
 [dev-dependencies]
+dotenv = "*"
 env_logger = "0.9"
 tokio = { version = "1", features = ["macros"] }
+chrono = "*"
+oauth2 = "*"
 
 [features]
-default = ["arrow"]
+default = ["arrow", "mock_transport_framework"]
 mock_transport_framework = ["azure_core/mock_transport_framework"]
 #into_future = [] TODO - properly turn it on
 test_e2e = []

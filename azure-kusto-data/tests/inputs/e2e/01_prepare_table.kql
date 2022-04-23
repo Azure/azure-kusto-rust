@@ -1,0 +1,3 @@
+.set KustoRsTest <|
+let text="Hello, World!";
+print str=text

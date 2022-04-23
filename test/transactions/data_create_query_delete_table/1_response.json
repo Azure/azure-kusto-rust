@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "date": "Sat, 23 Apr 2022 23:01:55 GMT",
+    "server": "Microsoft-HTTPAPI/2.0",
+    "strict-transport-security": "max-age=15724800; includeSubDomains",
+    "transfer-encoding": "chunked",
+    "vary": "Accept-Encoding",
+    "x-ms-activity-id": "3fa85740-2a34-4fbb-b048-defd4483a2b5",
+    "x-ms-client-request-id": "unspecified;c0407779-644b-49b2-a8ff-37ab1c327f06"
+  },
+  "body": "eyJUYWJsZXMiOlt7IlRhYmxlTmFtZSI6IlRhYmxlXzAiLCJDb2x1bW5zIjpbeyJDb2x1bW5OYW1lIjoiVGFibGVOYW1lIiwiRGF0YVR5cGUiOiJTdHJpbmciLCJDb2x1bW5UeXBlIjoic3RyaW5nIn0seyJDb2x1bW5OYW1lIjoiRGF0YWJhc2VOYW1lIiwiRGF0YVR5cGUiOiJTdHJpbmciLCJDb2x1bW5UeXBlIjoic3RyaW5nIn0seyJDb2x1bW5OYW1lIjoiRm9sZGVyIiwiRGF0YVR5cGUiOiJTdHJpbmciLCJDb2x1bW5UeXBlIjoic3RyaW5nIn0seyJDb2x1bW5OYW1lIjoiRG9jU3RyaW5nIiwiRGF0YVR5cGUiOiJTdHJpbmciLCJDb2x1bW5UeXBlIjoic3RyaW5nIn1dLCJSb3dzIjpbXX1dfQ=="
+}
