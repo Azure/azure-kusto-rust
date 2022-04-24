@@ -112,22 +112,23 @@ impl FromStr for KustoDuration {
 
 impl Display for KustoDuration {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.is_negative() {
+        let neg = if self.is_negative() {
             write!(f, "-")?;
-        }
-        if self.whole_days() > 0 {
-            write!(f, "{}.", self.whole_days())?;
+            -1
+        } else {
+            1
+        };
+        if self.whole_days().abs() > 0 {
+            write!(f, "{}.", self.whole_days().abs())?;
         }
         write!(
             f,
-            "{:02}:{:02}:{:02}",
-            self.whole_hours(),
-            self.whole_minutes(),
-            self.whole_seconds()
+            "{:02}:{:02}:{:02}.{:07}",
+            neg * (self.whole_hours() - self.whole_days() * 24),
+            neg * (self.whole_minutes() - self.whole_hours() * 60),
+            neg * (self.whole_seconds() - self.whole_minutes() * 60),
+            neg as i128 * (self.whole_nanoseconds() - self.whole_microseconds() * 1_000) / 100
         )?;
-        if self.whole_nanoseconds() > 0 {
-            write!(f, ".{:07}", self.whole_nanoseconds())?;
-        }
 
         Ok(())
     }
@@ -139,22 +140,43 @@ impl Debug for KustoDuration {
     }
 }
 
-#[test]
-fn string_conversion() {
-    let refs: Vec<(&str, i64)> = vec![
-        ("1.00:00:00.0000000", 86400000000000),
-        ("01:00:00.0000000", 3600000000000),
-        ("01:00:00", 3600000000000),
-        ("00:05:00.0000000", 300000000000),
-        ("00:00:00.0000001", 100),
-        ("-01:00:00", -3600000000000),
-        ("-1.00:00:00.0000000", -86400000000000),
-    ];
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    for (from, to) in refs {
-        assert_eq!(
-            KustoDuration::from_str(from).unwrap().whole_nanoseconds(),
-            to as i128
-        );
+    #[test]
+    fn string_conversion() {
+        let refs: Vec<(&str, i64)> = vec![
+            ("1.00:00:00.0000000", 86400000000000),
+            ("01:00:00.0000000", 3600000000000),
+            ("01:00:00", 3600000000000),
+            ("00:05:00.0000000", 300000000000),
+            ("00:00:00.0000001", 100),
+            ("-01:00:00", -3600000000000),
+            ("-1.00:00:00.0000000", -86400000000000),
+        ];
+
+        for (from, to) in refs {
+            assert_eq!(
+                KustoDuration::from_str(from).unwrap().whole_nanoseconds(),
+                to as i128
+            );
+        }
+    }
+
+    #[test]
+    fn format_duration() {
+        let refs: Vec<&str> = vec![
+            "1.00:00:00.0000001",
+            "01:00:00.0000000",
+            "00:05:00.0000000",
+            "00:00:00.0000001",
+            "-1.00:00:00.0000000",
+        ];
+
+        for duration in refs {
+            let parsed = KustoDuration::from_str(duration).unwrap();
+            assert_eq!(format!("{:?}", parsed), duration);
+        }
     }
 }
