@@ -16,7 +16,7 @@ pub enum Error {
     #[error("Invalid argument {source}")]
     InvalidArgumentError {
         #[source]
-        source: Box<dyn std::error::Error>,
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
     },
 
     /// Error raised when specific functionality is not (yet) implemented
