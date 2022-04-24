@@ -127,7 +127,8 @@ impl Display for KustoDuration {
             neg * (self.whole_hours() - self.whole_days() * 24),
             neg * (self.whole_minutes() - self.whole_hours() * 60),
             neg * (self.whole_seconds() - self.whole_minutes() * 60),
-            neg as i128 * (self.whole_nanoseconds() - self.whole_microseconds() * 1_000) / 100
+            neg as i128 * (self.whole_nanoseconds() - self.whole_seconds() as i128 * 1_000_000_000)
+                / 100 // Ticks
         )?;
 
         Ok(())
@@ -154,6 +155,7 @@ mod tests {
             ("00:00:00.0000001", 100),
             ("-01:00:00", -3600000000000),
             ("-1.00:00:00.0000000", -86400000000000),
+            ("00:00:00.1234567", 123456700),
         ];
 
         for (from, to) in refs {
@@ -172,6 +174,7 @@ mod tests {
             "00:05:00.0000000",
             "00:00:00.0000001",
             "-1.00:00:00.0000000",
+            "00:00:00.1234567",
         ];
 
         for duration in refs {
