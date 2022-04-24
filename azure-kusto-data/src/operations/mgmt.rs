@@ -122,6 +122,7 @@ impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV1 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn load_response_data() {
@@ -139,5 +140,16 @@ mod tests {
 
         let parsed = serde_json::from_str::<KustoResponseDataSetV1>(data);
         assert!(parsed.is_ok())
+    }
+
+    #[test]
+    fn load_adminthenquery_response() {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("tests/inputs/adminthenquery.json");
+
+        let data = std::fs::read_to_string(path).unwrap();
+
+        let parsed = serde_json::from_str::<KustoResponseDataSetV1>(&data).unwrap();
+        assert_eq!(parsed.table_count(), 4)
     }
 }

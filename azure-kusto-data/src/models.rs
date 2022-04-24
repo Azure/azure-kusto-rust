@@ -30,7 +30,7 @@ pub enum ColumnType {
 #[serde(rename_all = "PascalCase")]
 pub struct ColumnV1 {
     pub column_name: String,
-    pub column_type: ColumnType,
+    pub column_type: Option<ColumnType>,
     pub data_type: String,
 }
 
