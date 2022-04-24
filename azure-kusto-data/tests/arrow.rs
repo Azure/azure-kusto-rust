@@ -29,9 +29,21 @@ async fn arrow_roundtrip() {
         .await
         .unwrap();
 
-    let query_path =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/inputs/alltypes.kql");
-    let query = std::fs::read_to_string(query_path).unwrap();
+    let query = "
+        datatable(
+            id:int,
+            string_col:string,
+            bool_col:bool,
+            int_col:int,
+            bigint_col:long,
+            float_col:real,
+            timestamp_col:datetime,
+            duration_col:timespan
+        ) [
+            6, 'Hello', true, 0, 0, 0, datetime(2009-04-01 00:00:00), timespan(1.00:00:00.0000001),
+            7, 'World', false, 1, 10, 1.1, datetime(2009-04-01 00:01:00), timespan(-00:01:00.0001001),
+        ]
+    ";
     let response = client
         .execute_query(&database, query)
         .into_future()
@@ -44,6 +56,7 @@ async fn arrow_roundtrip() {
 
     let expected_schema = Arc::new(Schema::new(vec![
         Field::new("id", DataType::Int32, true),
+        Field::new("string_col", DataType::Utf8, true),
         Field::new("bool_col", DataType::Boolean, true),
         Field::new("int_col", DataType::Int32, true),
         Field::new("bigint_col", DataType::Int64, true),
@@ -53,15 +66,24 @@ async fn arrow_roundtrip() {
             DataType::Timestamp(TimeUnit::Nanosecond, None),
             true,
         ),
+        Field::new(
+            "duration_col",
+            DataType::Duration(TimeUnit::Nanosecond),
+            true,
+        ),
     ]));
     let expected = vec![
-        "+----+----------+---------+------------+-----------+---------------------+",
-        "| id | bool_col | int_col | bigint_col | float_col | timestamp_col       |",
-        "+----+----------+---------+------------+-----------+---------------------+",
-        "| 6  | true     | 0       | 0          | 0         | 2009-04-01 00:00:00 |",
-        "| 7  | false    | 1       | 10         | 1.1       | 2009-04-01 00:01:00 |",
-        "+----+----------+---------+------------+-----------+---------------------+",
+        "+----+------------+----------+---------+------------+-----------+---------------------+",
+        "| id | string_col | bool_col | int_col | bigint_col | float_col | timestamp_col       |",
+        "+----+------------+----------+---------+------------+-----------+---------------------+",
+        "| 6  | Hello      | true     | 0       | 0          | 0         | 2009-04-01 00:00:00 |",
+        "| 7  | World      | false    | 1       | 10         | 1.1       | 2009-04-01 00:01:00 |",
+        "+----+------------+----------+---------+------------+-----------+---------------------+",
     ];
-    assert_batches_eq!(expected, &batches);
+    assert_batches_eq!(
+        expected,
+        // we have to de-select the duration column, since pretty printing is not supported in arrow
+        &[batches[0].project(&[0, 1, 2, 3, 4, 5, 6]).unwrap()]
+    );
     assert_eq!(expected_schema, batches[0].schema())
 }
