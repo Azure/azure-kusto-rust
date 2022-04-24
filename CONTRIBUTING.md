@@ -63,5 +63,5 @@ We welcome contributions. In order to make the PR process efficient, please foll
 ## Code of Conduct
 
 This project's code of conduct can be found in the
-[CODE_OF_CONDUCT.md file](https://github.com/Azure/azure-sdk-for-rust/blob/master/CODE_OF_CONDUCT.md)
+[CODE_OF_CONDUCT.md file](https://github.com/Azure/azure-kusto-rust/blob/main/CODE_OF_CONDUCT.md)
 (v1.4.0 of the http://contributor-covenant.org/ CoC).
