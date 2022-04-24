@@ -25,8 +25,10 @@ impl TokenCredential for DummyCredential {
 pub async fn create_kusto_client(
     transaction_name: &str,
 ) -> Result<(KustoClient, String), Box<dyn Error + Send + Sync>> {
-    let db_path = Path::new(&workspace_root().unwrap())
-        .join(format!("test/transactions/{}/_db", transaction_name));
+    let transaction_path = Path::new(&workspace_root().unwrap())
+        .join(format!("test/transactions/{}", transaction_name));
+    std::fs::create_dir_all(&transaction_path).unwrap();
+    let db_path = transaction_path.join("_db");
 
     let (service_url, credential, database): (String, Arc<dyn TokenCredential>, String) =
         if std::env::var(azure_core::mock::TESTING_MODE_KEY).as_deref()

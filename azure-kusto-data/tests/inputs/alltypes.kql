@@ -1,0 +1,4 @@
+datatable(id:int, bool_col:bool, int_col:int, bigint_col:long, float_col:real, timestamp_col:datetime) [
+    6, true, 0, 0, 0, datetime(2009-04-01 00:00:00),
+    7, false, 1, 10, 1.1, datetime(2009-04-01 00:01:00),
+]
