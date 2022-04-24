@@ -1,8 +1,7 @@
 #![cfg(feature = "mock_transport_framework")]
 use azure_core::auth::{TokenCredential, TokenResponse};
 use azure_core::Error as CoreError;
-use azure_identity::token_credentials::{ClientSecretCredential, TokenCredentialOptions};
-use azure_kusto_data::client::{KustoClient, KustoClientOptions};
+use azure_kusto_data::prelude::*;
 use chrono::Utc;
 use dotenv::dotenv;
 use oauth2::AccessToken;
