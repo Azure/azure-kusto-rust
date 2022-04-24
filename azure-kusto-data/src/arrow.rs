@@ -16,7 +16,7 @@ use azure_core::error::{ErrorKind, ResultExt};
 
 use crate::error::Result;
 use crate::models::ColumnType;
-use crate::operations::query::*;
+use crate::models::*;
 use crate::types::{KustoDateTime, KustoDuration};
 
 fn convert_array_string(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
@@ -173,6 +173,8 @@ pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::operations::query::{KustoResponseDataSetV2, ResultTable};
+    use std::path::PathBuf;
 
     #[test]
     fn deserialize_column() {
@@ -217,5 +219,22 @@ mod tests {
             rows: vec![],
         };
         assert_eq!(t, ref_tbl)
+    }
+
+    #[test]
+    fn read_data_types() {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("tests/inputs/dataframe.json");
+
+        let data = std::fs::read_to_string(path).unwrap();
+        let tables: Vec<ResultTable> = serde_json::from_str(&data).unwrap();
+        let response = KustoResponseDataSetV2 { tables };
+        let record_batches = response
+            .into_record_batches()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert!(record_batches[0].num_columns() > 0);
+        assert!(record_batches[0].num_rows() > 0)
     }
 }

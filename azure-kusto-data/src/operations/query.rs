@@ -1,7 +1,7 @@
 #[cfg(feature = "arrow")]
 use crate::arrow::convert_table;
 use crate::client::KustoClient;
-use crate::models::{ColumnType, QueryBody};
+use crate::models::{DataSetCompletion, DataSetHeader, DataTable, QueryBody, TableKind};
 #[cfg(feature = "arrow")]
 use arrow::record_batch::RecordBatch;
 use async_convert::TryFrom;
@@ -90,31 +90,18 @@ impl ExecuteQueryBuilder {
     }
 }
 
-// TODO enable once in stable
-// #[cfg(feature = "into_future")]
-// impl std::future::IntoFuture for ExecuteQueryBuilder {
-//     type IntoFuture = ExecuteQuery;
-//     type Output = <ExecuteQuery as std::future::Future>::Output;
-//     fn into_future(self) -> Self::IntoFuture {
-//         Self::into_future(self)
-//     }
-// }
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase", tag = "FrameType")]
+#[allow(clippy::enum_variant_names)]
+pub enum ResultTable {
+    DataSetHeader(DataSetHeader),
+    DataTable(DataTable),
+    DataSetCompletion(DataSetCompletion),
+}
 
 #[derive(Debug, Clone)]
 pub struct KustoResponseDataSetV2 {
     pub tables: Vec<ResultTable>,
-}
-
-#[async_convert::async_trait]
-impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV2 {
-    type Error = crate::error::Error;
-
-    async fn try_from(response: HttpResponse) -> Result<Self, crate::error::Error> {
-        let (_status_code, _header_map, pinned_stream) = response.deconstruct();
-        let data = collect_pinned_stream(pinned_stream).await?;
-        let tables: Vec<ResultTable> = serde_json::from_slice(&data.to_vec())?;
-        Ok(Self { tables })
-    }
 }
 
 impl KustoResponseDataSetV2 {
@@ -138,55 +125,24 @@ impl KustoResponseDataSetV2 {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "PascalCase", tag = "FrameType")]
-#[allow(clippy::enum_variant_names)]
-pub enum ResultTable {
-    DataSetHeader(DataSetHeader),
-    DataTable(DataTable),
-    DataSetCompletion(DataSetCompletion),
+#[async_convert::async_trait]
+impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV2 {
+    type Error = crate::error::Error;
+
+    async fn try_from(response: HttpResponse) -> Result<Self, crate::error::Error> {
+        let (_status_code, _header_map, pinned_stream) = response.deconstruct();
+        let data = collect_pinned_stream(pinned_stream).await?;
+        let tables: Vec<ResultTable> = serde_json::from_slice(&data.to_vec())?;
+        Ok(Self { tables })
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct DataSetHeader {
-    pub is_progressive: bool,
-    pub version: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct DataTable {
-    pub table_id: i32,
-    pub table_name: String,
-    pub table_kind: TableKind,
-    pub columns: Vec<Column>,
-    pub rows: Vec<Vec<serde_json::Value>>,
-}
-
-/// Categorizes data tables according to the role they play in the data set that a Kusto query returns.
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub enum TableKind {
-    PrimaryResult,
-    QueryCompletionInformation,
-    QueryTraceLog,
-    QueryPerfLog,
-    TableOfContents,
-    QueryProperties,
-    QueryPlan,
-    Unknown,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct Column {
-    pub column_name: String,
-    pub column_type: ColumnType,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct DataSetCompletion {
-    pub has_errors: bool,
-    pub cancelled: bool,
-}
+// TODO enable once in stable
+// #[cfg(feature = "into_future")]
+// impl std::future::IntoFuture for ExecuteQueryBuilder {
+//     type IntoFuture = ExecuteQuery;
+//     type Output = <ExecuteQuery as std::future::Future>::Output;
+//     fn into_future(self) -> Self::IntoFuture {
+//         Self::into_future(self)
+//     }
+// }

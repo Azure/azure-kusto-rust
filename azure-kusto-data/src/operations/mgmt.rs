@@ -1,5 +1,5 @@
 use crate::client::KustoClient;
-use crate::models::{ColumnType, QueryBody};
+use crate::models::{QueryBody, TableV1};
 use async_convert::TryFrom;
 use azure_core::prelude::*;
 use azure_core::setters;
@@ -86,27 +86,6 @@ impl ManagementQueryBuilder {
     }
 }
 
-// TODO enable once in stable
-// #[cfg(feature = "into_future")]
-// impl std::future::IntoFuture for ManagementQueryBuilder {
-//     type IntoFuture = ManagementQuery;
-//     type Output = <ManagementQuery as std::future::Future>::Output;
-//     fn into_future(self) -> Self::IntoFuture {
-//         Self::into_future(self)
-//     }
-// }
-
-#[async_convert::async_trait]
-impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV1 {
-    type Error = crate::error::Error;
-
-    async fn try_from(response: HttpResponse) -> Result<Self, crate::error::Error> {
-        let (_status_code, _header_map, pinned_stream) = response.deconstruct();
-        let data = collect_pinned_stream(pinned_stream).await?;
-        Ok(serde_json::from_slice(&data.to_vec())?)
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct KustoResponseDataSetV1 {
@@ -119,21 +98,26 @@ impl KustoResponseDataSetV1 {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct ColumnV1 {
-    pub column_name: String,
-    pub column_type: ColumnType,
-    pub data_type: String,
+#[async_convert::async_trait]
+impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV1 {
+    type Error = crate::error::Error;
+
+    async fn try_from(response: HttpResponse) -> Result<Self, crate::error::Error> {
+        let (_status_code, _header_map, pinned_stream) = response.deconstruct();
+        let data = collect_pinned_stream(pinned_stream).await?;
+        Ok(serde_json::from_slice(&data.to_vec())?)
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct TableV1 {
-    pub table_name: String,
-    pub columns: Vec<ColumnV1>,
-    pub rows: Vec<Vec<serde_json::Value>>,
-}
+// TODO enable once in stable
+// #[cfg(feature = "into_future")]
+// impl std::future::IntoFuture for ManagementQueryBuilder {
+//     type IntoFuture = ManagementQuery;
+//     type Output = <ManagementQuery as std::future::Future>::Output;
+//     fn into_future(self) -> Self::IntoFuture {
+//         Self::into_future(self)
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
