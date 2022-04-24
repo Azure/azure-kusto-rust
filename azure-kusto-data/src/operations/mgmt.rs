@@ -110,7 +110,7 @@ impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV1 {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct KustoResponseDataSetV1 {
-    tables: Vec<TableV1>,
+    pub tables: Vec<TableV1>,
 }
 
 impl KustoResponseDataSetV1 {
@@ -132,7 +132,7 @@ pub struct ColumnV1 {
 pub struct TableV1 {
     pub table_name: String,
     pub columns: Vec<ColumnV1>,
-    pub rows: serde_json::Value,
+    pub rows: Vec<Vec<serde_json::Value>>,
 }
 
 #[cfg(test)]

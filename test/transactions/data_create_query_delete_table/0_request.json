@@ -5,11 +5,11 @@
     "accept": "application/json",
     "accept-encoding": "gzip",
     "authorization": "<<STRIPPED>>",
-    "content-length": "86",
+    "content-length": "84",
     "content-type": "application/json; charset=utf-8",
     "user-agent": "azsdk-rust-azure-kusto-data/0.1.0 (1.59.0; linux; x86_64)",
     "x-ms-client-version": "Kusto.Rust.Client:0.1.0",
     "x-ms-version": "2019-02-13"
   },
-  "body": "eyJkYiI6ImN0bmEiLCJjc2wiOiIuc2V0IEt1c3RvUnNUZXN0IDx8XG5sZXQgdGV4dD1cIkhlbGxvLCBXb3JsZCFcIjtcbnByaW50IHN0cj10ZXh0In0="
+  "body": "eyJkYiI6ImN0bmEiLCJjc2wiOiIuc2V0IEt1c3RvUnNUZXN0IDx8IGxldCB0ZXh0PVwiSGVsbG8sIFdvcmxkIVwiOyBwcmludCBzdHI9dGV4dCJ9"
 }

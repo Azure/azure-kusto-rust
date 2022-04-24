@@ -46,7 +46,8 @@ pub async fn create_kusto_client(
     let database = (std::env::var(azure_core::mock::TESTING_MODE_KEY).as_deref()
         == Ok(azure_core::mock::TESTING_MODE_RECORD))
     .then(get_database)
-    .unwrap_or_else(String::new);
+    // TODO This name is hardcoded in CI/CD - this this will only work until a new run is recorded
+    .unwrap_or_else(|| String::from("ctna"));
 
     let options = KustoClientOptions::new_with_transaction_name(transaction_name.to_string());
 

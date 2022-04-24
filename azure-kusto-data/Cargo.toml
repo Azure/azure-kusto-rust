@@ -46,7 +46,7 @@ chrono = "*"
 oauth2 = "*"
 
 [features]
-default = ["arrow", "mock_transport_framework"]
+default = ["arrow"]
 mock_transport_framework = ["azure_core/mock_transport_framework"]
 #into_future = [] TODO - properly turn it on
 test_e2e = []

@@ -1,38 +1,49 @@
 #![cfg(feature = "mock_transport_framework")]
 use dotenv::dotenv;
-use std::fs;
-use std::path::Path;
 mod setup;
 
 #[tokio::test]
-#[ignore]
 async fn create_query_delete_table() {
     dotenv().ok();
-
-    let cargo_root = std::env::var("CARGO_MANIFEST_DIR").expect("Set by cargo");
-    let kql_root = Path::new(&cargo_root).join("tests/inputs/e2e");
 
     let (client, database) = setup::create_kusto_client("data_create_query_delete_table")
         .await
         .unwrap();
 
-    let filename = kql_root.join("01_prepare_table.kql");
-    let query = fs::read_to_string(filename).expect("Something went wrong reading the file");
+    let query = ".set KustoRsTest <| let text=\"Hello, World!\"; print str=text";
     let response = client
         .execute_command(&database, query)
         .into_future()
         .await
         .unwrap();
 
-    println!("{:?}", response);
+    assert_eq!(response.table_count(), 1);
 
-    let filename = kql_root.join("02_drop_table.kql");
-    let query = fs::read_to_string(filename).expect("Something went wrong reading the file");
+    let query = ".show tables | where TableName == \"KustoRsTest\"";
     let response = client
         .execute_command(&database, query)
         .into_future()
         .await
         .unwrap();
 
-    println!("{:?}", response)
+    assert_eq!(response.table_count(), 4);
+
+    let query = "KustoRsTest | take 1";
+    let response = client
+        .execute_query(&database, query)
+        .into_future()
+        .await
+        .unwrap();
+
+    let results = response.into_primary_results().collect::<Vec<_>>();
+    assert_eq!(results[0].rows.len(), 1);
+
+    let query = ".drop table KustoRsTest | where TableName == \"KustoRsTest\"";
+    let response = client
+        .execute_command(&database, query)
+        .into_future()
+        .await
+        .unwrap();
+
+    assert_eq!(response.tables[0].rows.len(), 0)
 }
