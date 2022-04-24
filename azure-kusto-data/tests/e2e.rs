@@ -1,11 +1,8 @@
 #![cfg(feature = "mock_transport_framework")]
-use dotenv::dotenv;
 mod setup;
 
 #[tokio::test]
 async fn create_query_delete_table() {
-    dotenv().ok();
-
     let (client, database) = setup::create_kusto_client("data_create_query_delete_table")
         .await
         .unwrap();
