@@ -18,5 +18,6 @@ pub use crate::operations::query::{KustoResponseDataSetV2, ResultTable};
 // Token credentials are re-exported for user convenience
 pub use azure_identity::token_credentials::{
     AutoRefreshingTokenCredential, AzureCliCredential, ClientSecretCredential,
-    EnvironmentCredential, ManagedIdentityCredentialError, TokenCredentialOptions,
+    DefaultAzureCredential, DefaultAzureCredentialBuilder, EnvironmentCredential,
+    ManagedIdentityCredentialError, TokenCredentialOptions,
 };
