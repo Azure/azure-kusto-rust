@@ -95,7 +95,7 @@ impl KustoClient {
         &self.query_url
     }
 
-    pub fn management_url(&self) -> &str {
+    pub(crate) fn management_url(&self) -> &str {
         &self.management_url
     }
 
