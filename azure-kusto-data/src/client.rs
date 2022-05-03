@@ -1,6 +1,7 @@
 use crate::authorization_policy::AuthorizationPolicy;
 use crate::connection_string::{ConnectionString, ConnectionStringBuilder};
 use crate::error::Result;
+use crate::operations::mgmt::ManagementQueryBuilder;
 use crate::operations::query::ExecuteQueryBuilder;
 use azure_core::auth::TokenCredential;
 use azure_core::prelude::*;
@@ -9,6 +10,7 @@ use azure_identity::token_credentials::{
     AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
     ImdsManagedIdentityCredential, TokenCredentialOptions,
 };
+use http::Uri;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -93,7 +95,7 @@ impl KustoClient {
         &self.query_url
     }
 
-    pub fn management_url(&self) -> &str {
+    pub(crate) fn management_url(&self) -> &str {
         &self.management_url
     }
 
@@ -112,8 +114,16 @@ impl KustoClient {
         ExecuteQueryBuilder::new(self.clone(), database.into(), query.into(), Context::new())
     }
 
-    pub(crate) fn prepare_request(&self, uri: &str, http_method: http::Method) -> Request {
-        let mut request = Request::new(uri.parse().unwrap(), http_method);
+    pub fn execute_command<DB, Q>(&self, database: DB, query: Q) -> ManagementQueryBuilder
+    where
+        DB: Into<String>,
+        Q: Into<String>,
+    {
+        ManagementQueryBuilder::new(self.clone(), database.into(), query.into(), Context::new())
+    }
+
+    pub(crate) fn prepare_request(&self, uri: Uri, http_method: http::Method) -> Request {
+        let mut request = Request::new(uri, http_method);
         request.insert_headers(&Version::from(API_VERSION));
         request.insert_headers(&Accept::from("application/json"));
         request.insert_headers(&ContentType::new("application/json; charset=utf-8"));

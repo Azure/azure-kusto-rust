@@ -1,0 +1,15 @@
+{
+  "uri": "/v2/rest/query",
+  "method": "POST",
+  "headers": {
+    "accept": "application/json",
+    "accept-encoding": "gzip",
+    "authorization": "<<STRIPPED>>",
+    "content-length": "499",
+    "content-type": "application/json; charset=utf-8",
+    "user-agent": "azsdk-rust-azure-kusto-data/0.1.0 (1.59.0; linux; x86_64)",
+    "x-ms-client-version": "Kusto.Rust.Client:0.1.0",
+    "x-ms-version": "2019-02-13"
+  },
+  "body": "eyJkYiI6ImN0bmEiLCJjc2wiOiJkYXRhdGFibGUoXG4gICAgICAgICAgICBpZDppbnQsXG4gICAgICAgICAgICBzdHJpbmdfY29sOnN0cmluZyxcbiAgICAgICAgICAgIGJvb2xfY29sOmJvb2wsXG4gICAgICAgICAgICBpbnRfY29sOmludCxcbiAgICAgICAgICAgIGJpZ2ludF9jb2w6bG9uZyxcbiAgICAgICAgICAgIGZsb2F0X2NvbDpyZWFsLFxuICAgICAgICAgICAgdGltZXN0YW1wX2NvbDpkYXRldGltZSxcbiAgICAgICAgICAgIGR1cmF0aW9uX2NvbDp0aW1lc3BhblxuICAgICAgICApIFtcbiAgICAgICAgICAgIDYsICdIZWxsbycsIHRydWUsIDAsIDAsIDAsIGRhdGV0aW1lKDIwMDktMDQtMDEgMDA6MDA6MDApLCB0aW1lc3BhbigxLjAwOjAwOjAwLjAwMDAwMDEpLFxuICAgICAgICAgICAgNywgJ1dvcmxkJywgZmFsc2UsIDEsIDEwLCAxLjEsIGRhdGV0aW1lKDIwMDktMDQtMDEgMDA6MDE6MDApLCB0aW1lc3BhbigtMDA6MDE6MDAuMDAwMTAwMSksXG4gICAgICAgIF0ifQ=="
+}
