@@ -1,11 +1,13 @@
 use crate::client::KustoClient;
-use crate::models::{QueryBody, TableV1};
+use crate::models::{QueryBody, RequestProperties, TableV1};
+use crate::request_options::RequestOptions;
 use async_convert::TryFrom;
 use azure_core::prelude::*;
 use azure_core::setters;
 use azure_core::{collect_pinned_stream, Response as HttpResponse};
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 type ManagementQuery = BoxFuture<'static, crate::error::Result<KustoResponseDataSetV1>>;
 
@@ -17,6 +19,8 @@ pub struct ManagementQueryBuilder {
     client_request_id: Option<ClientRequestId>,
     app: Option<App>,
     user: Option<User>,
+    parameters: Option<HashMap<String, serde_json::Value>>,
+    options: Option<RequestOptions>,
     context: Context,
 }
 
@@ -34,6 +38,8 @@ impl ManagementQueryBuilder {
             client_request_id: None,
             app: None,
             user: None,
+            parameters: None,
+            options: None,
             context,
         }
     }
@@ -42,6 +48,8 @@ impl ManagementQueryBuilder {
         client_request_id: ClientRequestId => Some(client_request_id),
         app: App => Some(app),
         user: User => Some(user),
+        options: RequestOptions => Some(options),
+        parameters: HashMap<String, serde_json::Value> => Some(parameters),
         query: String => query,
         database: String => database,
         context: Context => context,
@@ -70,6 +78,10 @@ impl ManagementQueryBuilder {
             let body = QueryBody {
                 db: this.database,
                 csl: this.query,
+                Properties: Some(RequestProperties {
+                    options: this.options,
+                    parameters: this.parameters,
+                }),
             };
             let bytes = bytes::Bytes::from(serde_json::to_string(&body)?);
             request.insert_headers(&ContentLength::new(bytes.len() as i32));
