@@ -12,7 +12,7 @@ keywords = ["sdk", "azure", "kusto", "azure-data-explorer"]
 categories = ["api-bindings"]
 
 [dependencies]
-arrow = { version = "12", optional = true }
+arrow = { version = "13", optional = true }
 azure_core = { git = "https://github.com/Azure/azure-sdk-for-rust", rev = "66db4b485ce56b68be148708d9c810960a50be51", features = [
   "enable_reqwest",
   "enable_reqwest_gzip",
@@ -39,7 +39,7 @@ time = { version = "0.3.9", features = [
 ] }
 
 [dev-dependencies]
-arrow = { version = "12", features = ["prettyprint"] }
+arrow = { version = "13", features = ["prettyprint"] }
 dotenv = "*"
 env_logger = "0.9"
 tokio = { version = "1", features = ["macros"] }
