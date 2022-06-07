@@ -1,73 +1,72 @@
 #[cfg(feature = "arrow")]
 use crate::arrow::convert_table;
-use crate::client::KustoClient;
-use crate::error::InvalidArgumentError;
+use crate::client::{KustoClient, QueryKind};
+use crate::error::{Error, InvalidArgumentError};
 use crate::models::{
-    DataSetCompletion, DataSetHeader, DataTable, QueryBody, RequestProperties, TableKind,
+    DataSetCompletion, DataSetHeader, DataTable, QueryBody, RequestProperties, TableKind, TableV1,
 };
 use crate::request_options::RequestOptions;
 #[cfg(feature = "arrow")]
 use arrow::record_batch::RecordBatch;
 use async_convert::TryFrom;
 use azure_core::prelude::*;
-use azure_core::setters;
 use azure_core::{collect_pinned_stream, Response as HttpResponse};
 use futures::future::BoxFuture;
+use futures::TryFutureExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-type ExecuteQuery = BoxFuture<'static, crate::error::Result<KustoResponseDataSetV2>>;
+type QueryRun = BoxFuture<'static, crate::error::Result<KustoResponse>>;
+type V1QueryRun = BoxFuture<'static, crate::error::Result<KustoResponseDataSetV1>>;
+type V2QueryRun = BoxFuture<'static, crate::error::Result<KustoResponseDataSetV2>>;
 
-#[derive(Debug, Clone)]
-pub struct ExecuteQueryBuilder {
+#[derive(Debug, Clone, derive_builder::Builder)]
+#[builder(setter(into, strip_option, prefix = "with"))]
+pub struct QueryRunner {
     client: KustoClient,
     database: String,
     query: String,
+    kind: QueryKind,
+    #[builder(default)]
     client_request_id: Option<ClientRequestId>,
+    #[builder(default)]
     app: Option<App>,
+    #[builder(default)]
     user: Option<User>,
+    #[builder(default)]
     parameters: Option<HashMap<String, serde_json::Value>>,
+    #[builder(default)]
     options: Option<RequestOptions>,
     context: Context,
 }
+pub struct V1QueryRunner(pub QueryRunner);
 
-impl ExecuteQueryBuilder {
-    pub(crate) fn new(
-        client: KustoClient,
-        database: String,
-        query: String,
-        context: Context,
-    ) -> Self {
-        Self {
-            client,
-            database,
-            query: query.trim().into(),
-            client_request_id: None,
-            app: None,
-            user: None,
-            parameters: None,
-            options: None,
-            context,
-        }
+pub struct V2QueryRunner(pub QueryRunner);
+
+impl V1QueryRunner {
+    pub fn into_future(self) -> V1QueryRun {
+        let V1QueryRunner(query_runner) = self;
+        Box::pin(query_runner.into_future().map_ok(|e| e.try_into().unwrap()))
     }
+}
 
-    setters! {
-        client_request_id: ClientRequestId => Some(client_request_id),
-        app: App => Some(app),
-        user: User => Some(user),
-        options: RequestOptions => Some(options),
-        parameters: HashMap<String, serde_json::Value> => Some(parameters),
-        query: String => query,
-        database: String => database,
-        context: Context => context,
+impl V2QueryRunner {
+    pub fn into_future(self) -> V2QueryRun {
+        let V2QueryRunner(query_runner) = self;
+        Box::pin(query_runner.into_future().map_ok(|e| e.try_into().unwrap()))
     }
+}
 
-    pub fn into_future(self) -> ExecuteQuery {
+impl QueryRunner {
+    pub fn into_future(self) -> QueryRun {
         let this = self.clone();
         let ctx = self.context.clone();
 
         Box::pin(async move {
-            let url = this.client.query_url();
+            let url = match this.kind {
+                QueryKind::Management => this.client.management_url(),
+                QueryKind::Query => this.client.query_url(),
+            };
             let mut request = this.client.prepare_request(
                 url.parse().map_err(InvalidArgumentError::InvalidUri)?,
                 http::Method::POST,
@@ -101,7 +100,18 @@ impl ExecuteQueryBuilder {
                 .send(&mut ctx.clone(), &mut request)
                 .await?;
 
-            <KustoResponseDataSetV2 as TryFrom<HttpResponse>>::try_from(response).await
+            Ok(match this.kind {
+                QueryKind::Management => {
+                    <KustoResponseDataSetV1 as TryFrom<HttpResponse>>::try_from(response)
+                        .map_ok(KustoResponse::V1)
+                        .await?
+                }
+                QueryKind::Query => {
+                    <KustoResponseDataSetV2 as TryFrom<HttpResponse>>::try_from(response)
+                        .map_ok(KustoResponse::V2)
+                        .await?
+                }
+            })
         })
     }
 }
@@ -116,8 +126,36 @@ pub enum ResultTable {
 }
 
 #[derive(Debug, Clone)]
+pub enum KustoResponse {
+    V1(KustoResponseDataSetV1),
+    V2(KustoResponseDataSetV2),
+}
+
+#[derive(Debug, Clone)]
 pub struct KustoResponseDataSetV2 {
     pub tables: Vec<ResultTable>,
+}
+
+impl std::convert::TryFrom<KustoResponse> for KustoResponseDataSetV2 {
+    type Error = Error;
+
+    fn try_from(value: KustoResponse) -> Result<Self, Self::Error> {
+        match value {
+            KustoResponse::V2(v2) => Ok(v2),
+            _ => Err(Error::ConversionError("KustoResponseDataSetV2".to_string())),
+        }
+    }
+}
+
+impl std::convert::TryFrom<KustoResponse> for KustoResponseDataSetV1 {
+    type Error = Error;
+
+    fn try_from(value: KustoResponse) -> Result<Self, Self::Error> {
+        match value {
+            KustoResponse::V1(v1) => Ok(v1),
+            _ => Err(Error::ConversionError("KustoResponseDataSetV2".to_string())),
+        }
+    }
 }
 
 impl KustoResponseDataSetV2 {
@@ -141,15 +179,38 @@ impl KustoResponseDataSetV2 {
     }
 }
 
-#[async_convert::async_trait]
-impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV2 {
-    type Error = crate::error::Error;
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct KustoResponseDataSetV1 {
+    pub tables: Vec<TableV1>,
+}
 
-    async fn try_from(response: HttpResponse) -> Result<Self, crate::error::Error> {
+impl KustoResponseDataSetV1 {
+    pub fn table_count(&self) -> usize {
+        self.tables.len()
+    }
+}
+
+#[async_convert::async_trait]
+impl TryFrom<HttpResponse> for KustoResponseDataSetV2 {
+    type Error = Error;
+
+    async fn try_from(response: HttpResponse) -> Result<Self, Error> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
         let data = collect_pinned_stream(pinned_stream).await?;
         let tables: Vec<ResultTable> = serde_json::from_slice(&data.to_vec())?;
         Ok(Self { tables })
+    }
+}
+
+#[async_convert::async_trait]
+impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
+    type Error = Error;
+
+    async fn try_from(response: HttpResponse) -> Result<Self, Error> {
+        let (_status_code, _header_map, pinned_stream) = response.deconstruct();
+        let data = collect_pinned_stream(pinned_stream).await?;
+        Ok(serde_json::from_slice(&data.to_vec())?)
     }
 }
 
@@ -162,3 +223,38 @@ impl async_convert::TryFrom<HttpResponse> for KustoResponseDataSetV2 {
 //         Self::into_future(self)
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn load_response_data() {
+        let data = r#"{
+            "Tables": [{
+                "TableName": "Table_0",
+                "Columns": [{
+                    "ColumnName": "Text",
+                    "DataType": "String",
+                    "ColumnType": "string"
+                }],
+                "Rows": [["Hello, World!"]]
+            }]
+        }"#;
+
+        let parsed = serde_json::from_str::<KustoResponseDataSetV1>(data);
+        assert!(parsed.is_ok())
+    }
+
+    #[test]
+    fn load_adminthenquery_response() {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("tests/inputs/adminthenquery.json");
+
+        let data = std::fs::read_to_string(path).unwrap();
+
+        let parsed = serde_json::from_str::<KustoResponseDataSetV1>(&data).unwrap();
+        assert_eq!(parsed.table_count(), 4)
+    }
+}
