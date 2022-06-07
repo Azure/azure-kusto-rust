@@ -7,7 +7,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 use time::{Duration, OffsetDateTime};
 
-use crate::error::Error;
+use crate::error::{Error, InvalidArgumentError};
 use time::format_description::well_known::Rfc3339;
 
 #[derive(PartialEq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
@@ -55,16 +55,16 @@ impl Deref for KustoDateTime {
 }
 
 #[derive(PartialEq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
-pub struct KustoDuration(pub time::Duration);
+pub struct KustoDuration(pub Duration);
 
-impl From<time::Duration> for KustoDuration {
+impl From<Duration> for KustoDuration {
     fn from(duration: Duration) -> Self {
         KustoDuration(duration)
     }
 }
 
 impl Deref for KustoDuration {
-    type Target = time::Duration;
+    type Target = Duration;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -79,7 +79,7 @@ fn parse_regex_segment(captures: &Captures, name: &str) -> i64 {
 }
 
 impl FromStr for KustoDuration {
-    type Err = crate::error::Error;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         lazy_static! {
@@ -96,16 +96,14 @@ impl FromStr for KustoDuration {
             let seconds = parse_regex_segment(&captures, "seconds");
             let nanos = parse_regex_segment(&captures, "nanos");
             let duration = neg
-                * (time::Duration::days(days)
-                    + time::Duration::hours(hours)
-                    + time::Duration::minutes(minutes)
-                    + time::Duration::seconds(seconds)
-                    + time::Duration::nanoseconds(nanos * 100)); // Ticks
+                * (Duration::days(days)
+                    + Duration::hours(hours)
+                    + Duration::minutes(minutes)
+                    + Duration::seconds(seconds)
+                    + Duration::nanoseconds(nanos * 100)); // Ticks
             Ok(KustoDuration(duration))
         } else {
-            Err(Error::InvalidArgumentError {
-                source: format!("{} is not a valid duration", s).into(),
-            })
+            Err(InvalidArgumentError::InvalidDuration(s.to_string()).into())
         }
     }
 }

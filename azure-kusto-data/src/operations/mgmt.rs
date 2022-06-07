@@ -1,4 +1,5 @@
 use crate::client::KustoClient;
+use crate::error::InvalidArgumentError;
 use crate::models::{QueryBody, RequestProperties, TableV1};
 use crate::request_options::RequestOptions;
 use async_convert::TryFrom;
@@ -61,9 +62,10 @@ impl ManagementQueryBuilder {
 
         Box::pin(async move {
             let url = this.client.management_url();
-            let mut request = this
-                .client
-                .prepare_request(url.parse()?, http::Method::POST);
+            let mut request = this.client.prepare_request(
+                url.parse().map_err(InvalidArgumentError::InvalidUri)?,
+                http::Method::POST,
+            );
 
             if let Some(request_id) = &this.client_request_id {
                 request.insert_headers(request_id);

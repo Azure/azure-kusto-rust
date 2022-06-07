@@ -13,11 +13,8 @@ pub enum Error {
     ExternalError(String),
 
     /// Error raised when an invalid argument / option is provided.
-    #[error("Invalid argument {source}")]
-    InvalidArgumentError {
-        #[source]
-        source: Box<dyn std::error::Error + Send + Sync + 'static>,
-    },
+    #[error("Invalid argument {0}")]
+    InvalidArgumentError(#[from] InvalidArgumentError),
 
     /// Error raised when specific functionality is not (yet) implemented
     #[error("Feature not implemented")]
@@ -29,25 +26,19 @@ pub enum Error {
 
     /// Error occurring within core azure crates
     #[error(transparent)]
-    AzureError(#[from] azure_core::Error),
+    AzureError(#[from] azure_core::error::Error),
 
     /// Errors raised when parsing connection information
     #[error("Configuration error: {0}")]
     ConfigurationError(#[from] crate::connection_string::ConnectionStringError),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum InvalidArgumentError {
+    #[error(transparent)]
+    InvalidUri(#[from] InvalidUri),
+    #[error("{0} is not a valid duration")]
+    InvalidDuration(String),
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
-
-impl From<azure_core::error::Error> for Error {
-    fn from(err: azure_core::error::Error) -> Self {
-        Self::AzureError(err.into())
-    }
-}
-
-impl From<InvalidUri> for Error {
-    fn from(error: InvalidUri) -> Self {
-        Self::InvalidArgumentError {
-            source: Box::new(error),
-        }
-    }
-}

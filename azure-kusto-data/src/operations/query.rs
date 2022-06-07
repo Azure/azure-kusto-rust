@@ -1,6 +1,7 @@
 #[cfg(feature = "arrow")]
 use crate::arrow::convert_table;
 use crate::client::KustoClient;
+use crate::error::InvalidArgumentError;
 use crate::models::{
     DataSetCompletion, DataSetHeader, DataTable, QueryBody, RequestProperties, TableKind,
 };
@@ -67,9 +68,10 @@ impl ExecuteQueryBuilder {
 
         Box::pin(async move {
             let url = this.client.query_url();
-            let mut request = this
-                .client
-                .prepare_request(url.parse()?, http::Method::POST);
+            let mut request = this.client.prepare_request(
+                url.parse().map_err(InvalidArgumentError::InvalidUri)?,
+                http::Method::POST,
+            );
 
             if let Some(request_id) = &this.client_request_id {
                 request.insert_headers(request_id);
