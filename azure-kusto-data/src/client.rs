@@ -1,8 +1,7 @@
 use crate::authorization_policy::AuthorizationPolicy;
 use crate::connection_string::{ConnectionString, ConnectionStringBuilder};
 use crate::error::Result;
-use crate::operations::mgmt::ManagementQueryBuilder;
-use crate::operations::query::ExecuteQueryBuilder;
+use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V2QueryRunner};
 use azure_core::auth::TokenCredential;
 use azure_core::prelude::*;
 use azure_core::{ClientOptions, Context, Pipeline, Request};
@@ -69,6 +68,12 @@ pub struct KustoClient {
     management_url: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueryKind {
+    Management,
+    Query,
+}
+
 impl KustoClient {
     pub fn new_with_options<T>(
         url: T,
@@ -99,6 +104,21 @@ impl KustoClient {
         &self.management_url
     }
 
+    pub fn execute<DB, Q>(&self, database: DB, query: Q, kind: QueryKind) -> QueryRunner
+    where
+        DB: Into<String>,
+        Q: Into<String>,
+    {
+        QueryRunnerBuilder::default()
+            .with_kind(kind)
+            .with_client(self.clone())
+            .with_database(database.into())
+            .with_query(query.into())
+            .with_context(Context::new())
+            .build()
+            .unwrap()
+    }
+
     /// Execute a KQL query.
     /// To learn more about KQL go to https://docs.microsoft.com/en-us/azure/kusto/query/
     ///
@@ -106,20 +126,20 @@ impl KustoClient {
     ///
     /// * `database` - Name of the database in scope that is the target of the query
     /// * `query` - Text of the query to execute
-    pub fn execute_query<DB, Q>(&self, database: DB, query: Q) -> ExecuteQueryBuilder
+    pub fn execute_query<DB, Q>(&self, database: DB, query: Q) -> V2QueryRunner
     where
         DB: Into<String>,
         Q: Into<String>,
     {
-        ExecuteQueryBuilder::new(self.clone(), database.into(), query.into(), Context::new())
+        V2QueryRunner(self.execute(database, query, QueryKind::Query))
     }
 
-    pub fn execute_command<DB, Q>(&self, database: DB, query: Q) -> ManagementQueryBuilder
+    pub fn execute_command<DB, Q>(&self, database: DB, query: Q) -> V1QueryRunner
     where
         DB: Into<String>,
         Q: Into<String>,
     {
-        ManagementQueryBuilder::new(self.clone(), database.into(), query.into(), Context::new())
+        V1QueryRunner(self.execute(database, query, QueryKind::Management))
     }
 
     pub(crate) fn prepare_request(&self, uri: Uri, http_method: http::Method) -> Request {
