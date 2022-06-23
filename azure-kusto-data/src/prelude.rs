@@ -17,8 +17,8 @@ pub use crate::operations::query::{
     KustoResponse, KustoResponseDataSetV1, KustoResponseDataSetV2, ResultTable,
 };
 // Token credentials are re-exported for user convenience
-pub use azure_identity::token_credentials::{
+pub use azure_identity::{
     AutoRefreshingTokenCredential, AzureCliCredential, ClientSecretCredential,
     DefaultAzureCredential, DefaultAzureCredentialBuilder, EnvironmentCredential,
-    ManagedIdentityCredentialError, TokenCredentialOptions,
+    TokenCredentialOptions,
 };

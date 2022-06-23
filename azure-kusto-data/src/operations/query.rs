@@ -1,6 +1,7 @@
 #[cfg(feature = "arrow")]
 use crate::arrow::convert_table;
 use crate::client::{KustoClient, QueryKind};
+
 use crate::error::{Error, InvalidArgumentError};
 use crate::models::{
     DataSetCompletion, DataSetHeader, DataTable, QueryBody, RequestProperties, TableKind, TableV1,
@@ -9,8 +10,9 @@ use crate::request_options::RequestOptions;
 #[cfg(feature = "arrow")]
 use arrow::record_batch::RecordBatch;
 use async_convert::TryFrom;
+use azure_core::error::Error as CoreError;
 use azure_core::prelude::*;
-use azure_core::{collect_pinned_stream, Response as HttpResponse};
+use azure_core::{collect_pinned_stream, Request, Response as HttpResponse, Url};
 use futures::future::BoxFuture;
 use futures::TryFutureExt;
 use serde::{Deserialize, Serialize};
@@ -45,15 +47,25 @@ pub struct V2QueryRunner(pub QueryRunner);
 
 impl V1QueryRunner {
     pub fn into_future(self) -> V1QueryRun {
-        let V1QueryRunner(query_runner) = self;
-        Box::pin(query_runner.into_future().map_ok(|e| e.try_into().unwrap()))
+        Box::pin(async {
+            let V1QueryRunner(query_runner) = self;
+            let future = query_runner.into_future().await?;
+            Ok(
+                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV1 - please report this issue to the Kusto team")
+            )
+        })
     }
 }
 
 impl V2QueryRunner {
     pub fn into_future(self) -> V2QueryRun {
-        let V2QueryRunner(query_runner) = self;
-        Box::pin(query_runner.into_future().map_ok(|e| e.try_into().unwrap()))
+        Box::pin(async {
+            let V2QueryRunner(query_runner) = self;
+            let future = query_runner.into_future().await?;
+            Ok(
+                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV2 - please report this issue to the Kusto team")
+            )
+        })
     }
 }
 
@@ -67,10 +79,8 @@ impl QueryRunner {
                 QueryKind::Management => this.client.management_url(),
                 QueryKind::Query => this.client.query_url(),
             };
-            let mut request = this.client.prepare_request(
-                url.parse().map_err(InvalidArgumentError::InvalidUri)?,
-                http::Method::POST,
-            );
+            let mut request =
+                prepare_request(url.parse().map_err(CoreError::from)?, http::Method::POST);
 
             if let Some(request_id) = &this.client_request_id {
                 request.insert_headers(request_id);
@@ -91,8 +101,10 @@ impl QueryRunner {
                 }),
             };
             let bytes = bytes::Bytes::from(serde_json::to_string(&body)?);
-            request.insert_headers(&ContentLength::new(bytes.len() as i32));
-            request.set_body(bytes.into());
+            request.insert_headers(&ContentLength::new(
+                std::convert::TryInto::try_into(bytes.len()).map_err(InvalidArgumentError::from)?,
+            ));
+            request.set_body(bytes);
 
             let response = self
                 .client
@@ -159,11 +171,12 @@ impl std::convert::TryFrom<KustoResponse> for KustoResponseDataSetV1 {
 }
 
 impl KustoResponseDataSetV2 {
+    #[must_use]
     pub fn table_count(&self) -> usize {
         self.tables.len()
     }
 
-    /// Consumes the response into an iterator over all PrimaryResult tables within the response dataset
+    /// Consumes the response into an iterator over all `PrimaryResult` tables within the response dataset
     pub fn into_primary_results(self) -> impl Iterator<Item = DataTable> {
         self.tables.into_iter().filter_map(|table| match table {
             ResultTable::DataTable(table) if table.table_kind == TableKind::PrimaryResult => {
@@ -186,6 +199,7 @@ pub struct KustoResponseDataSetV1 {
 }
 
 impl KustoResponseDataSetV1 {
+    #[must_use]
     pub fn table_count(&self) -> usize {
         self.tables.len()
     }
@@ -224,6 +238,21 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
 //     }
 // }
 
+pub fn prepare_request(uri: Url, http_method: http::Method) -> Request {
+    const API_VERSION: &str = "2019-02-13";
+
+    let mut request = Request::new(uri, http_method);
+    request.insert_headers(&Version::from(API_VERSION));
+    request.insert_headers(&Accept::from("application/json"));
+    request.insert_headers(&ContentType::new("application/json; charset=utf-8"));
+    request.insert_headers(&AcceptEncoding::from("gzip"));
+    request.insert_headers(&ClientVersion::from(format!(
+        "Kusto.Rust.Client:{}",
+        env!("CARGO_PKG_VERSION"),
+    )));
+    request
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,7 +273,7 @@ mod tests {
         }"#;
 
         let parsed = serde_json::from_str::<KustoResponseDataSetV1>(data);
-        assert!(parsed.is_ok())
+        assert!(parsed.is_ok());
     }
 
     #[test]
@@ -252,9 +281,11 @@ mod tests {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("tests/inputs/adminthenquery.json");
 
-        let data = std::fs::read_to_string(path).unwrap();
+        let data = std::fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("Failed to read {}", path.display()));
 
-        let parsed = serde_json::from_str::<KustoResponseDataSetV1>(&data).unwrap();
-        assert_eq!(parsed.table_count(), 4)
+        let parsed = serde_json::from_str::<KustoResponseDataSetV1>(&data)
+            .expect("Failed to parse response");
+        assert_eq!(parsed.table_count(), 4);
     }
 }
