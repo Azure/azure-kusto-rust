@@ -29,13 +29,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         &client_secret,
     );
 
-    let client = KustoClient::try_from(kcsb).unwrap();
+    let client = KustoClient::try_from(kcsb).expect("Failed to create Kusto client");
 
     let response = client
         .execute_query(database, query)
         .into_future()
         .await
-        .unwrap();
+        .expect("Failed to execute query");
 
     for table in &response.tables {
         match table {

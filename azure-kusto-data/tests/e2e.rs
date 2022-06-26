@@ -3,16 +3,14 @@ mod setup;
 
 #[tokio::test]
 async fn create_query_delete_table() {
-    let (client, database) = setup::create_kusto_client("data_create_query_delete_table")
-        .await
-        .unwrap();
+    let (client, database) = setup::create_kusto_client("data_create_query_delete_table");
 
     let query = ".set KustoRsTest <| let text=\"Hello, World!\"; print str=text";
     let response = client
         .execute_command(&database, query)
         .into_future()
         .await
-        .unwrap();
+        .expect("Failed to run query");
 
     assert_eq!(response.table_count(), 1);
 
@@ -21,7 +19,7 @@ async fn create_query_delete_table() {
         .execute_command(&database, query)
         .into_future()
         .await
-        .unwrap();
+        .expect("Failed to run query");
 
     assert_eq!(response.table_count(), 4);
 
@@ -30,7 +28,7 @@ async fn create_query_delete_table() {
         .execute_query(&database, query)
         .into_future()
         .await
-        .unwrap();
+        .expect("Failed to run query");
 
     let results = response.into_primary_results().collect::<Vec<_>>();
     assert_eq!(results[0].rows.len(), 1);
@@ -40,7 +38,7 @@ async fn create_query_delete_table() {
         .execute_command(&database, query)
         .into_future()
         .await
-        .unwrap();
+        .expect("Failed to run query");
 
-    assert_eq!(response.tables[0].rows.len(), 0)
+    assert_eq!(response.tables[0].rows.len(), 0);
 }

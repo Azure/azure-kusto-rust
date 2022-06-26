@@ -25,9 +25,7 @@ macro_rules! assert_batches_eq {
 
 #[tokio::test]
 async fn arrow_roundtrip() {
-    let (client, database) = setup::create_kusto_client("data_arrow_roundtrip")
-        .await
-        .unwrap();
+    let (client, database) = setup::create_kusto_client("data_arrow_roundtrip");
 
     let query = "
         datatable(
@@ -48,11 +46,11 @@ async fn arrow_roundtrip() {
         .execute_query(&database, query)
         .into_future()
         .await
-        .unwrap();
+        .expect("Failed to run query");
     let batches = response
         .into_record_batches()
         .collect::<Result<Vec<_>, _>>()
-        .unwrap();
+        .expect("Failed to collect batches");
 
     let expected_schema = Arc::new(Schema::new(vec![
         Field::new("id", DataType::Int32, true),
@@ -83,7 +81,9 @@ async fn arrow_roundtrip() {
     assert_batches_eq!(
         expected,
         // we have to de-select the duration column, since pretty printing is not supported in arrow
-        &[batches[0].project(&[0, 1, 2, 3, 4, 5, 6]).unwrap()]
+        &[batches[0]
+            .project(&[0, 1, 2, 3, 4, 5, 6])
+            .expect("Failed to project numbers")]
     );
-    assert_eq!(expected_schema, batches[0].schema())
+    assert_eq!(expected_schema, batches[0].schema());
 }
