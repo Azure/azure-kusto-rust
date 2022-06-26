@@ -10,7 +10,8 @@ pub(crate) struct QueryBody {
     /// Text of the query or control command to execute
     pub csl: String,
     /// Additional parameters and options for fine-grained control of the request behavior
-    pub Properties: Option<RequestProperties>,
+    #[serde(rename = "Properties")]
+    pub properties: Option<RequestProperties>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

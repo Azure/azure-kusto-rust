@@ -96,7 +96,7 @@ impl QueryRunner {
             let body = QueryBody {
                 db: this.database,
                 csl: this.query,
-                Properties: Some(RequestProperties {
+                properties: Some(RequestProperties {
                     options: this.options,
                     parameters: this.parameters,
                 }),
