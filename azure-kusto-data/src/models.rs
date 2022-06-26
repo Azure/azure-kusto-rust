@@ -21,7 +21,7 @@ pub(crate) struct RequestProperties {
     pub(crate) options: Option<RequestOptions>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ColumnType {
     Bool,
@@ -55,7 +55,7 @@ pub struct TableV1 {
     pub rows: Vec<Vec<serde_json::Value>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct DataSetHeader {
     pub is_progressive: bool,
@@ -73,7 +73,7 @@ pub struct DataTable {
 }
 
 /// Categorizes data tables according to the role they play in the data set that a Kusto query returns.
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum TableKind {
     PrimaryResult,
     QueryCompletionInformation,
@@ -92,7 +92,7 @@ pub struct Column {
     pub column_type: ColumnType,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct DataSetCompletion {
     pub has_errors: bool,
