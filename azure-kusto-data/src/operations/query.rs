@@ -12,9 +12,10 @@ use arrow::record_batch::RecordBatch;
 use async_convert::TryFrom;
 use azure_core::error::Error as CoreError;
 use azure_core::prelude::*;
-use azure_core::{collect_pinned_stream, Request, Response as HttpResponse, Url};
+use azure_core::{collect_pinned_stream, Request, Response as HttpResponse};
 use futures::future::BoxFuture;
 use futures::TryFutureExt;
+use http::Uri;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -238,7 +239,7 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
 //     }
 // }
 
-pub fn prepare_request(uri: Url, http_method: http::Method) -> Request {
+pub fn prepare_request(uri: Uri, http_method: http::Method) -> Request {
     const API_VERSION: &str = "2019-02-13";
 
     let mut request = Request::new(uri, http_method);

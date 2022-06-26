@@ -1,9 +1,10 @@
 #![cfg(feature = "mock_transport_framework")]
-use azure_core::auth::{AccessToken, TokenCredential, TokenResponse};
+use azure_core::auth::{TokenCredential, TokenResponse};
 use azure_core::error::Error as CoreError;
 use azure_kusto_data::prelude::*;
 use chrono::Utc;
 use dotenv::dotenv;
+use oauth2::AccessToken;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -19,6 +20,7 @@ impl TokenCredential for DummyCredential {
     }
 }
 
+#[must_use]
 pub fn create_kusto_client(transaction_name: &str) -> (KustoClient, String) {
     let transaction_path = Path::new(&workspace_root().expect("Failed to get workspace root"))
         .join(format!("test/transactions/{}", transaction_name));
@@ -57,7 +59,7 @@ pub fn create_kusto_client(transaction_name: &str) -> (KustoClient, String) {
             let credential = Arc::new(DummyCredential {});
             let database = String::from_utf8_lossy(
                 &std::fs::read(&db_path)
-                    .expect(&format!("Could not read db path {}", db_path.display())),
+                    .unwrap_or_else(|_| panic!("Could not read db path {}", db_path.display())),
             )
             .to_string();
             (String::new(), credential, database)

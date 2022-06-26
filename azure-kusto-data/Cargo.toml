@@ -13,11 +13,11 @@ categories = ["api-bindings"]
 
 [dependencies]
 arrow = { version = "15.0.0", optional = true }
-azure_core = { git = "https://github.com/Azure/azure-sdk-for-rust", rev = "8586a66b20fba463c39156f0390e583ec305ab2d", features = [
+azure_core = { version = "0.3.0", features = [
   "enable_reqwest",
   "enable_reqwest_gzip",
 ] }
-azure_identity = { git = "https://github.com/Azure/azure-sdk-for-rust", rev = "8586a66b20fba463c39156f0390e583ec305ab2d" }
+azure_identity = "0.4.0"
 async-trait = "0.1.56"
 async-convert = "1.0.0"
 bytes = "1.1.0"
