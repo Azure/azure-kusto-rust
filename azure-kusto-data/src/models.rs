@@ -39,7 +39,7 @@ pub enum ColumnType {
     Decimal,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct ColumnV1 {
     pub column_name: String,
@@ -85,7 +85,7 @@ pub enum TableKind {
     Unknown,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct Column {
     pub column_name: String,

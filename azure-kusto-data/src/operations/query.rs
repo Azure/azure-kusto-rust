@@ -213,7 +213,7 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV2 {
     async fn try_from(response: HttpResponse) -> Result<Self, Error> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
         let data = collect_pinned_stream(pinned_stream).await?;
-        let tables: Vec<ResultTable> = serde_json::from_slice(&data.to_vec())?;
+        let tables: Vec<ResultTable> = serde_json::from_slice(&data)?;
         Ok(Self { tables })
     }
 }
@@ -225,7 +225,7 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
     async fn try_from(response: HttpResponse) -> Result<Self, Error> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
         let data = collect_pinned_stream(pinned_stream).await?;
-        Ok(serde_json::from_slice(&data.to_vec())?)
+        Ok(serde_json::from_slice(&data)?)
     }
 }
 

@@ -10,7 +10,7 @@ use time::{Duration, OffsetDateTime};
 use crate::error::{Error, InvalidArgumentError};
 use time::format_description::well_known::Rfc3339;
 
-#[derive(PartialEq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
+#[derive(PartialEq, Eq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
 pub struct KustoDateTime(pub OffsetDateTime);
 
 impl FromStr for KustoDateTime {
@@ -54,7 +54,7 @@ impl Deref for KustoDateTime {
     }
 }
 
-#[derive(PartialEq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
+#[derive(PartialEq, Eq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
 pub struct KustoDuration(pub Duration);
 
 impl From<Duration> for KustoDuration {
