@@ -1,11 +1,10 @@
 #![cfg(feature = "mock_transport_framework")]
 use azure_core::auth::{TokenCredential, TokenResponse};
-use azure_core::Error as CoreError;
+use azure_core::error::Error as CoreError;
 use azure_kusto_data::prelude::*;
 use chrono::Utc;
 use dotenv::dotenv;
 use oauth2::AccessToken;
-use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -21,12 +20,11 @@ impl TokenCredential for DummyCredential {
     }
 }
 
-pub async fn create_kusto_client(
-    transaction_name: &str,
-) -> Result<(KustoClient, String), Box<dyn Error + Send + Sync>> {
-    let transaction_path = Path::new(&workspace_root().unwrap())
+#[must_use]
+pub fn create_kusto_client(transaction_name: &str) -> (KustoClient, String) {
+    let transaction_path = Path::new(&workspace_root().expect("Failed to get workspace root"))
         .join(format!("test/transactions/{}", transaction_name));
-    std::fs::create_dir_all(&transaction_path).unwrap();
+    std::fs::create_dir_all(&transaction_path).expect("Failed to create transaction directory");
     let db_path = transaction_path.join("_db");
 
     let (service_url, credential, database): (String, Arc<dyn TokenCredential>, String) =
@@ -48,27 +46,32 @@ pub async fn create_kusto_client(
 
             // Wee need to persist the database name as well, since it may change per recording run depending on who
             // records it, is part of the request, and as such validated against.
-            std::fs::write(db_path, &database).unwrap();
+            std::fs::write(db_path, &database).expect("Failed to write database name to file");
 
             let credential = Arc::new(ClientSecretCredential::new(
-                tenant_id.to_string(),
-                client_id.to_string(),
-                client_secret.to_string(),
+                tenant_id,
+                client_id,
+                client_secret,
                 TokenCredentialOptions::default(),
             ));
             (service_url, credential, database)
         } else {
             let credential = Arc::new(DummyCredential {});
-            let database = String::from_utf8_lossy(&std::fs::read(db_path).unwrap()).to_string();
+            let database = String::from_utf8_lossy(
+                &std::fs::read(&db_path)
+                    .unwrap_or_else(|_| panic!("Could not read db path {}", db_path.display())),
+            )
+            .to_string();
             (String::new(), credential, database)
         };
 
     let options = KustoClientOptions::new_with_transaction_name(transaction_name.to_string());
 
-    Ok((
-        KustoClient::new_with_options(service_url, credential, options).unwrap(),
+    (
+        KustoClient::new_with_options(service_url, credential, options)
+            .expect("Failed to create KustoClient"),
         database,
-    ))
+    )
 }
 
 /// Run cargo to get the root of the workspace
@@ -82,10 +85,10 @@ fn workspace_root() -> Result<String, Box<dyn std::error::Error>> {
     let key = "workspace_root\":\"";
     let index = output
         .find(key)
-        .ok_or_else(|| format!("workspace_root key not found in metadata"))?;
+        .ok_or_else(|| "workspace_root key not found in metadata".to_string())?;
     let value = &output[index + key.len()..];
     let end = value
-        .find("\"")
-        .ok_or_else(|| format!("workspace_root value was malformed"))?;
+        .find('\"')
+        .ok_or_else(|| "workspace_root value was malformed".to_string())?;
     Ok(value[..end].into())
 }
