@@ -1,20 +1,18 @@
 use crate::authorization_policy::AuthorizationPolicy;
 use crate::connection_string::{ConnectionString, ConnectionStringBuilder};
 use crate::error::Result;
-use crate::operations::query::ExecuteQueryBuilder;
+use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V2QueryRunner};
 use azure_core::auth::TokenCredential;
-use azure_core::prelude::*;
-use azure_core::{ClientOptions, Context, Pipeline, Request};
-use azure_identity::token_credentials::{
+
+use azure_core::{ClientOptions, Context, Pipeline};
+use azure_identity::{
     AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
     ImdsManagedIdentityCredential, TokenCredentialOptions,
 };
-use http::Uri;
+
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
-
-const API_VERSION: &str = "2019-02-13";
 
 /// Options for specifying how a Kusto client will behave
 #[derive(Clone, Default)]
@@ -24,6 +22,7 @@ pub struct KustoClientOptions {
 
 impl KustoClientOptions {
     /// Create new options
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -57,7 +56,7 @@ fn new_pipeline_from_options(
 
 /// Kusto client for Rust.
 /// The client is a wrapper around the Kusto REST API.
-/// To read more about it, go to https://docs.microsoft.com/en-us/azure/kusto/api/rest/
+/// To read more about it, go to [https://docs.microsoft.com/en-us/azure/kusto/api/rest/](https://docs.microsoft.com/en-us/azure/kusto/api/rest/)
 ///
 /// The primary methods are:
 /// `execute_query`:  executes a KQL query against the Kusto service.
@@ -66,6 +65,12 @@ pub struct KustoClient {
     pipeline: Pipeline,
     query_url: String,
     management_url: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueryKind {
+    Management,
+    Query,
 }
 
 impl KustoClient {
@@ -94,39 +99,49 @@ impl KustoClient {
         &self.query_url
     }
 
-    pub fn management_url(&self) -> &str {
+    pub(crate) fn management_url(&self) -> &str {
         &self.management_url
     }
 
+    pub fn execute<DB, Q>(&self, database: DB, query: Q, kind: QueryKind) -> QueryRunner
+    where
+        DB: Into<String>,
+        Q: Into<String>,
+    {
+        QueryRunnerBuilder::default()
+            .with_kind(kind)
+            .with_client(self.clone())
+            .with_database(database.into())
+            .with_query(query.into())
+            .with_context(Context::new())
+            .build()
+            .expect("Unexpected error when building query runner - please report this issue to the Kusto team")
+    }
+
     /// Execute a KQL query.
-    /// To learn more about KQL go to https://docs.microsoft.com/en-us/azure/kusto/query/
+    /// To learn more about KQL go to [https://docs.microsoft.com/en-us/azure/kusto/query/](https://docs.microsoft.com/en-us/azure/kusto/query)
     ///
     /// # Arguments
     ///
     /// * `database` - Name of the database in scope that is the target of the query
     /// * `query` - Text of the query to execute
-    pub fn execute_query<DB, Q>(&self, database: DB, query: Q) -> ExecuteQueryBuilder
+    pub fn execute_query<DB, Q>(&self, database: DB, query: Q) -> V2QueryRunner
     where
         DB: Into<String>,
         Q: Into<String>,
     {
-        ExecuteQueryBuilder::new(self.clone(), database.into(), query.into(), Context::new())
+        V2QueryRunner(self.execute(database, query, QueryKind::Query))
     }
 
-    pub(crate) fn prepare_request(&self, uri: Uri, http_method: http::Method) -> Request {
-        let mut request = Request::new(uri, http_method);
-        request.insert_headers(&Version::from(API_VERSION));
-        request.insert_headers(&Accept::from("application/json"));
-        request.insert_headers(&ContentType::new("application/json; charset=utf-8"));
-        request.insert_headers(&AcceptEncoding::from("gzip"));
-        request.insert_headers(&ClientVersion::from(format!(
-            "Kusto.Rust.Client:{}",
-            env!("CARGO_PKG_VERSION"),
-        )));
-        request
+    pub fn execute_command<DB, Q>(&self, database: DB, query: Q) -> V1QueryRunner
+    where
+        DB: Into<String>,
+        Q: Into<String>,
+    {
+        V1QueryRunner(self.execute(database, query, QueryKind::Management))
     }
 
-    pub(crate) fn pipeline(&self) -> &Pipeline {
+    pub(crate) const fn pipeline(&self) -> &Pipeline {
         &self.pipeline
     }
 }
@@ -154,7 +169,7 @@ impl<'a> TryFrom<ConnectionString<'a>> for KustoClient {
             ConnectionString {
                 msi_auth: Some(true),
                 ..
-            } => Arc::new(ImdsManagedIdentityCredential {}),
+            } => Arc::new(ImdsManagedIdentityCredential::default()),
             ConnectionString {
                 az_cli: Some(true), ..
             } => Arc::new(AzureCliCredential {}),

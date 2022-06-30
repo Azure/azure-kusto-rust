@@ -15,12 +15,13 @@ use arrow::{
 use azure_core::error::{ErrorKind, ResultExt};
 
 use crate::error::Result;
-use crate::operations::query::*;
-use crate::operations::types::{KustoDateTime, KustoDuration};
+use crate::models::ColumnType;
+use crate::models::{Column, DataTable};
+use crate::types::{KustoDateTime, KustoDuration};
 
 fn convert_array_string(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
     let strings: Vec<Option<String>> = serde_json::from_value(serde_json::Value::Array(values))?;
-    let strings: Vec<Option<&str>> = strings.iter().map(|opt| opt.as_deref()).collect();
+    let strings: Vec<Option<&str>> = strings.iter().map(Option::as_deref).collect();
     Ok(Arc::new(StringArray::from(strings)))
 }
 
@@ -84,42 +85,23 @@ fn convert_array_i64(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
     Ok(Arc::new(Int64Array::from(ints)))
 }
 
-pub fn convert_column(data: Vec<serde_json::Value>, column: Column) -> Result<(Field, ArrayRef)> {
+pub fn convert_column(data: Vec<serde_json::Value>, column: &Column) -> Result<(Field, ArrayRef)> {
+    let column_name = &column.column_name;
     match column.column_type {
-        ColumnType::String => convert_array_string(data).map(|data| {
-            (
-                Field::new(column.column_name.as_str(), DataType::Utf8, true),
-                data,
-            )
-        }),
-        ColumnType::Bool | ColumnType::Boolean => convert_array_bool(data).map(|data| {
-            (
-                Field::new(column.column_name.as_str(), DataType::Boolean, true),
-                data,
-            )
-        }),
-        ColumnType::Int => convert_array_i32(data).map(|data| {
-            (
-                Field::new(column.column_name.as_str(), DataType::Int32, true),
-                data,
-            )
-        }),
-        ColumnType::Long => convert_array_i64(data).map(|data| {
-            (
-                Field::new(column.column_name.as_str(), DataType::Int64, true),
-                data,
-            )
-        }),
-        ColumnType::Real => convert_array_float(data).map(|data| {
-            (
-                Field::new(column.column_name.as_str(), DataType::Float64, true),
-                data,
-            )
-        }),
+        ColumnType::String => convert_array_string(data)
+            .map(|data| (Field::new(column_name, DataType::Utf8, true), data)),
+        ColumnType::Bool | ColumnType::Boolean => convert_array_bool(data)
+            .map(|data| (Field::new(column_name, DataType::Boolean, true), data)),
+        ColumnType::Int => convert_array_i32(data)
+            .map(|data| (Field::new(column_name, DataType::Int32, true), data)),
+        ColumnType::Long => convert_array_i64(data)
+            .map(|data| (Field::new(column_name, DataType::Int64, true), data)),
+        ColumnType::Real => convert_array_float(data)
+            .map(|data| (Field::new(column_name, DataType::Float64, true), data)),
         ColumnType::Datetime => convert_array_datetime(data).map(|data| {
             (
                 Field::new(
-                    column.column_name.as_str(),
+                    column_name,
                     DataType::Timestamp(TimeUnit::Nanosecond, None),
                     true,
                 ),
@@ -128,11 +110,7 @@ pub fn convert_column(data: Vec<serde_json::Value>, column: Column) -> Result<(F
         }),
         ColumnType::Timespan => convert_array_timespan(data).map(|data| {
             (
-                Field::new(
-                    column.column_name.as_str(),
-                    DataType::Duration(TimeUnit::Nanosecond),
-                    true,
-                ),
+                Field::new(column_name, DataType::Duration(TimeUnit::Nanosecond), true),
                 data,
             )
         }),
@@ -172,6 +150,9 @@ pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::TableKind;
+    use crate::operations::query::{KustoResponseDataSetV2, ResultTable};
+    use std::path::PathBuf;
 
     #[test]
     fn deserialize_column() {
@@ -185,7 +166,7 @@ mod tests {
             column_name: "int_col".to_string(),
             column_type: ColumnType::Int,
         };
-        assert_eq!(c, ref_col)
+        assert_eq!(c, ref_col);
     }
 
     #[test]
@@ -215,6 +196,24 @@ mod tests {
             }],
             rows: vec![],
         };
-        assert_eq!(t, ref_tbl)
+        assert_eq!(t, ref_tbl);
+    }
+
+    #[test]
+    fn read_data_types() {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("tests/inputs/dataframe.json");
+
+        let data = std::fs::read_to_string(path).expect("Failed to read file");
+        let tables: Vec<ResultTable> =
+            serde_json::from_str(&data).expect("Failed to deserialize result table");
+        let response = KustoResponseDataSetV2 { tables };
+        let record_batches = response
+            .into_record_batches()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .expect("Failed to convert to record batches");
+
+        assert!(record_batches[0].num_columns() > 0);
+        assert!(record_batches[0].num_rows() > 0);
     }
 }
