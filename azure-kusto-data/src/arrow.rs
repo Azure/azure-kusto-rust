@@ -209,7 +209,7 @@ mod tests {
             serde_json::from_str(&data).expect("Failed to deserialize result table");
         let response = KustoResponseDataSetV2 { tables };
         let record_batches = response
-            .into_record_batches()
+            .record_batches()
             .collect::<std::result::Result<Vec<_>, _>>()
             .expect("Failed to convert to record batches");
 

@@ -48,7 +48,7 @@ async fn arrow_roundtrip() {
         .await
         .expect("Failed to run query");
     let batches = response
-        .into_record_batches()
+        .record_batches()
         .collect::<Result<Vec<_>, _>>()
         .expect("Failed to collect batches");
 

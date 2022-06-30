@@ -45,13 +45,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let client = KustoClient::try_from(kcsb).unwrap();
 
+    println!("Querying {} with regular client", args.query);
+
     let response = client
         .execute_query_with_options(
             args.database.clone(),
             args.query.clone(),
             Some(
                 RequestOptionsBuilder::default()
-                    .with_results_progressive_enabled(true)
+                    .with_results_progressive_enabled(false) // change to true to enable progressive results
                     .build()
                     .expect("Failed to create request options"),
             ),
@@ -60,7 +62,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .unwrap();
 
-    /*for table in &response.tables {
+    println!("All results:");
+
+    for table in &response.tables {
         match table {
             V2QueryResult::DataSetHeader(header) => println!("header: {:#?}", header),
             V2QueryResult::DataTable(table) => println!("table: {:#?}", table),
@@ -74,12 +78,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("completion: {:#?}", completion)
             }
         }
-    }*/
+    }
 
-    let primary_results = response.into_primary_results().collect::<Vec<_>>();
+    // Print the primary tables
+    let primary_results = response.primary_results().collect::<Vec<_>>();
     println!("primary results: {:#?}", primary_results);
 
-    /*let stream = client
+    println!("Querying {} with streaming client", args.query);
+
+    let stream = client
         .execute_query_with_options(
             args.database,
             args.query,
@@ -90,21 +97,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .expect("Failed to create request options"),
             ),
         )
-        .into_progressive_stream()
+        .into_stream()
         .await?;
+
+    println!("Printing all streaming results");
 
     pin_mut!(stream);
 
     while let Some(table) = stream.try_next().await? {
         match table {
-            V2ProgressiveResult::DataSetHeader(header) => println!("header: {:#?}", header),
-            V2ProgressiveResult::DataTable(table) => println!("table: {:#?}", table),
-            V2ProgressiveResult::DataSetCompletion(completion) => {
+            V2QueryResult::DataSetHeader(header) => println!("header: {:#?}", header),
+            V2QueryResult::DataTable(table) => println!("table: {:#?}", table),
+            V2QueryResult::DataSetCompletion(completion) => {
+                println!("completion: {:#?}", completion)
+            }
+            V2QueryResult::TableHeader(header) => println!("header: {:#?}", header),
+            V2QueryResult::TableFragment(fragment) => println!("fragment: {:#?}", fragment),
+            V2QueryResult::TableProgress(progress) => println!("progress: {:#?}", progress),
+            V2QueryResult::TableCompletion(completion) => {
                 println!("completion: {:#?}", completion)
             }
         }
-        sleep(std::time::Duration::from_secs(1)).await;
-    }*/
+    }
 
     Ok(())
 }

@@ -71,11 +71,9 @@ impl V2QueryRunner {
         })
     }
 
-    pub async fn into_progressive_stream(
-        self,
-    ) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
+    pub async fn into_stream(self) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
         let V2QueryRunner(query_runner) = self;
-        Ok(query_runner.into_progressive_stream().await?)
+        Ok(query_runner.into_stream().await?)
     }
 }
 
@@ -141,9 +139,7 @@ impl QueryRunner {
         Ok(response)
     }
 
-    pub async fn into_progressive_stream(
-        self,
-    ) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
+    pub async fn into_stream(self) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
         if self.kind != QueryKind::Query {
             return Err(Error::UnsupportedOperation(
                 "Progressive streaming is only supported for queries".to_string(),
@@ -194,37 +190,34 @@ impl std::convert::TryFrom<KustoResponse> for KustoResponseDataSetV1 {
     }
 }
 
-struct KustoResponseDataSetV2TableIterator {
-    tables: Vec<V2QueryResult>,
-    index: usize,
+struct KustoResponseDataSetV2TableIterator<'a, T: Iterator<Item = &'a V2QueryResult>> {
+    tables: T,
     finished: bool,
 }
 
-impl KustoResponseDataSetV2TableIterator {
-    fn new(tables: Vec<V2QueryResult>) -> Self {
+impl<'a, T: Iterator<Item = &'a V2QueryResult>> KustoResponseDataSetV2TableIterator<'a, T> {
+    fn new(tables: T) -> Self {
         Self {
             tables,
-            index: 0,
             finished: false,
         }
     }
 }
 
-impl Iterator for KustoResponseDataSetV2TableIterator {
+impl<'a, T: Iterator<Item = &'a V2QueryResult>> Iterator
+    for KustoResponseDataSetV2TableIterator<'a, T>
+{
     type Item = DataTable;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.finished || self.index >= self.tables.len() {
+        if self.finished {
             return None;
         }
-        let mut iter = self.tables[self.index..].iter().enumerate();
-        let next_table = iter.find_map(|(i, t)| match t {
-            V2QueryResult::DataTable(_) | V2QueryResult::TableHeader(_) => {
-                self.index += i + 1;
-                Some(t)
-            }
+        let next_table = self.tables.find_map(|t| match t {
+            V2QueryResult::DataTable(_) | V2QueryResult::TableHeader(_) => Some(t),
             _ => None,
         });
+
         if let Some(V2QueryResult::DataTable(t)) = next_table {
             return Some(t.clone());
         }
@@ -249,18 +242,21 @@ impl Iterator for KustoResponseDataSetV2TableIterator {
 
         let mut finished_table = false;
 
-        for (i, result) in iter {
+        for result in &mut self.tables {
             match result {
                 V2QueryResult::TableFragment(fragment) => {
+                    assert_eq!(fragment.table_id, table.table_id);
                     match fragment.table_fragment_type {
                         TableFragmentType::DataAppend => table.rows.extend(fragment.rows.clone()),
                         TableFragmentType::DataReplace => table.rows = fragment.rows.clone(),
                     };
                 }
-                V2QueryResult::TableProgress(_) => {}
-                V2QueryResult::TableCompletion(_) => {
-                    //todo assert row count and id for all types
-                    self.index += i;
+                V2QueryResult::TableProgress(progress) => {
+                    assert_eq!(progress.table_id, table.table_id);
+                }
+                V2QueryResult::TableCompletion(completion) => {
+                    assert_eq!(completion.table_id, table.table_id);
+                    assert_eq!(completion.row_count, table.rows.len());
                     finished_table = true;
                     break;
                 }
@@ -282,19 +278,19 @@ impl KustoResponseDataSetV2 {
         self.tables.len()
     }
 
-    pub fn into_parsed_data_tables(self) -> impl Iterator<Item = DataTable> {
-        KustoResponseDataSetV2TableIterator::new(self.tables)
+    pub fn parsed_data_tables<'a>(&'a self) -> impl Iterator<Item = DataTable> + 'a {
+        KustoResponseDataSetV2TableIterator::new(self.tables.iter())
     }
 
     /// Consumes the response into an iterator over all PrimaryResult tables within the response dataset
-    pub fn into_primary_results(self) -> impl Iterator<Item = DataTable> {
-        self.into_parsed_data_tables()
+    pub fn primary_results<'a>(&'a self) -> impl Iterator<Item = DataTable> + 'a {
+        self.parsed_data_tables()
             .filter(|t| t.table_kind == TableKind::PrimaryResult)
     }
 
     #[cfg(feature = "arrow")]
-    pub fn into_record_batches(self) -> impl Iterator<Item = Result<RecordBatch>> {
-        self.into_primary_results().map(convert_table)
+    pub fn record_batches<'a>(&'a self) -> impl Iterator<Item = Result<RecordBatch>> + 'a {
+        self.primary_results().map(convert_table)
     }
 }
 
