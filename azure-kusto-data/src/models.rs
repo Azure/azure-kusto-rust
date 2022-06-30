@@ -63,6 +63,15 @@ pub struct DataSetHeader {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase", tag = "FrameType")]
+#[allow(clippy::enum_variant_names)]
+pub enum V2ProgressiveResult {
+    DataSetHeader(DataSetHeader),
+    DataTable(DataTable),
+    DataSetCompletion(DataSetCompletion),
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct DataTable {
     pub table_id: i32,
@@ -73,7 +82,7 @@ pub struct DataTable {
 }
 
 /// Categorizes data tables according to the role they play in the data set that a Kusto query returns.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum TableKind {
     PrimaryResult,
     QueryCompletionInformation,
@@ -85,14 +94,14 @@ pub enum TableKind {
     Unknown,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct Column {
     pub column_name: String,
     pub column_type: ColumnType,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct DataSetCompletion {
     pub has_errors: bool,

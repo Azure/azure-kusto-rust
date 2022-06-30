@@ -10,6 +10,7 @@ use azure_identity::{
     ImdsManagedIdentityCredential, TokenCredentialOptions,
 };
 
+use crate::request_options::RequestOptions;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -103,7 +104,13 @@ impl KustoClient {
         &self.management_url
     }
 
-    pub fn execute<DB, Q>(&self, database: DB, query: Q, kind: QueryKind) -> QueryRunner
+    pub fn execute_with_options<DB, Q>(
+        &self,
+        database: DB,
+        query: Q,
+        kind: QueryKind,
+        options: Option<RequestOptions>,
+    ) -> QueryRunner
     where
         DB: Into<String>,
         Q: Into<String>,
@@ -114,8 +121,17 @@ impl KustoClient {
             .with_database(database.into())
             .with_query(query.into())
             .with_context(Context::new())
+            .with_options(options)
             .build()
             .expect("Unexpected error when building query runner - please report this issue to the Kusto team")
+    }
+
+    pub fn execute<DB, Q>(&self, database: DB, query: Q, kind: QueryKind) -> QueryRunner
+    where
+        DB: Into<String>,
+        Q: Into<String>,
+    {
+        self.execute_with_options(database, query, kind, None)
     }
 
     /// Execute a KQL query.
@@ -125,12 +141,38 @@ impl KustoClient {
     ///
     /// * `database` - Name of the database in scope that is the target of the query
     /// * `query` - Text of the query to execute
+    pub fn execute_query_with_options<DB, Q>(
+        &self,
+        database: DB,
+        query: Q,
+        options: Option<RequestOptions>,
+    ) -> V2QueryRunner
+    where
+        DB: Into<String>,
+        Q: Into<String>,
+    {
+        V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, options))
+    }
+
     pub fn execute_query<DB, Q>(&self, database: DB, query: Q) -> V2QueryRunner
     where
         DB: Into<String>,
         Q: Into<String>,
     {
-        V2QueryRunner(self.execute(database, query, QueryKind::Query))
+        V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, None))
+    }
+
+    pub fn execute_command_with_options<DB, Q>(
+        &self,
+        database: DB,
+        query: Q,
+        options: Option<RequestOptions>,
+    ) -> V1QueryRunner
+    where
+        DB: Into<String>,
+        Q: Into<String>,
+    {
+        V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, options))
     }
 
     pub fn execute_command<DB, Q>(&self, database: DB, query: Q) -> V1QueryRunner
@@ -138,7 +180,7 @@ impl KustoClient {
         DB: Into<String>,
         Q: Into<String>,
     {
-        V1QueryRunner(self.execute(database, query, QueryKind::Management))
+        V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, None))
     }
 
     pub(crate) const fn pipeline(&self) -> &Pipeline {

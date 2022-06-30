@@ -135,7 +135,7 @@ pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
     buffer
         .into_iter()
         .zip(table.columns.into_iter())
-        .map(|(data, column)| convert_column(data, column))
+        .map(|(data, column)| convert_column(data, &column))
         .try_for_each::<_, Result<()>>(|result| {
             let (field, data) = result?;
             fields.push(field);
