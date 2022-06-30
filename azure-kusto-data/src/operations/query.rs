@@ -256,7 +256,7 @@ impl<'a, T: Iterator<Item = &'a V2QueryResult>> Iterator
                 }
                 V2QueryResult::TableCompletion(completion) => {
                     assert_eq!(completion.table_id, table.table_id);
-                    assert_eq!(completion.row_count, table.rows.len());
+                    assert_eq!(completion.row_count, table.rows.len() as i32);
                     finished_table = true;
                     break;
                 }

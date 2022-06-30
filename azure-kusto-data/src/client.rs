@@ -63,9 +63,9 @@ fn new_pipeline_from_options(
 /// `execute_query`:  executes a KQL query against the Kusto service.
 #[derive(Clone, Debug)]
 pub struct KustoClient {
-    pipeline: Pipeline,
-    query_url: String,
-    management_url: String,
+    pipeline: Arc<Pipeline>,
+    query_url: Arc<String>,
+    management_url: Arc<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,9 +90,9 @@ impl KustoClient {
         let pipeline = new_pipeline_from_options(credential, service_url, options);
 
         Ok(Self {
-            pipeline,
-            query_url,
-            management_url,
+            pipeline: pipeline.into(),
+            query_url: query_url.into(),
+            management_url: management_url.into(),
         })
     }
 
@@ -183,7 +183,7 @@ impl KustoClient {
         V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, None))
     }
 
-    pub(crate) const fn pipeline(&self) -> &Pipeline {
+    pub(crate) fn pipeline(&self) -> &Pipeline {
         &self.pipeline
     }
 }

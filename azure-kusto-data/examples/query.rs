@@ -4,7 +4,6 @@ use azure_kusto_data::request_options::RequestOptionsBuilder;
 use clap::Parser;
 use futures::{pin_mut, TryStreamExt};
 use std::error::Error;
-use tokio::time::sleep;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
