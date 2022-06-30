@@ -79,7 +79,8 @@ pub struct RequestOptions {
     /// List of table names that should be scoped to cursor_after_default .. cursor_before_or_at_default (upper bound is optional).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query_cursor_scoped_tables: Option<Vec<String>>,
-    // Controls the query's datascope -- whether the query applies to all data or just part of it.
+    /// Controls the query's datascope -- whether the query applies to all data or just part of it.
+    #[serde(skip_serializing_if = "Option::is_none")]
     query_datascope: Option<DataScope>,
     /// Controls the column name for the query's datetime scope (query_datetimescope_to / query_datetimescope_from).
     #[serde(skip_serializing_if = "Option::is_none")]

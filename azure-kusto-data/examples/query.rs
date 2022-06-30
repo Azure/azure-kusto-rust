@@ -1,4 +1,4 @@
-use azure_kusto_data::models::V2ProgressiveResult;
+use azure_kusto_data::models::V2QueryResult;
 use azure_kusto_data::prelude::*;
 use azure_kusto_data::request_options::RequestOptionsBuilder;
 use clap::Parser;
@@ -45,24 +45,41 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let client = KustoClient::try_from(kcsb).unwrap();
 
-    /*    let response = client
-        .execute_query(args.database.clone(), args.query.clone())
+    let response = client
+        .execute_query_with_options(
+            args.database.clone(),
+            args.query.clone(),
+            Some(
+                RequestOptionsBuilder::default()
+                    .with_results_progressive_enabled(true)
+                    .build()
+                    .expect("Failed to create request options"),
+            ),
+        )
         .into_future()
         .await
         .unwrap();
 
-    for table in &response.tables {
+    /*for table in &response.tables {
         match table {
-            ResultTable::DataSetHeader(header) => println!("header: {:#?}", header),
-            ResultTable::DataTable(table) => println!("table: {:#?}", table),
-            ResultTable::DataSetCompletion(completion) => println!("completion: {:#?}", completion),
+            V2QueryResult::DataSetHeader(header) => println!("header: {:#?}", header),
+            V2QueryResult::DataTable(table) => println!("table: {:#?}", table),
+            V2QueryResult::DataSetCompletion(completion) => {
+                println!("completion: {:#?}", completion)
+            }
+            V2QueryResult::TableHeader(header) => println!("header: {:#?}", header),
+            V2QueryResult::TableFragment(fragment) => println!("fragment: {:#?}", fragment),
+            V2QueryResult::TableProgress(progress) => println!("progress: {:#?}", progress),
+            V2QueryResult::TableCompletion(completion) => {
+                println!("completion: {:#?}", completion)
+            }
         }
-    }
+    }*/
 
     let primary_results = response.into_primary_results().collect::<Vec<_>>();
-    println!("primary results: {:#?}", primary_results);*/
+    println!("primary results: {:#?}", primary_results);
 
-    let stream = client
+    /*let stream = client
         .execute_query_with_options(
             args.database,
             args.query,
@@ -87,7 +104,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         sleep(std::time::Duration::from_secs(1)).await;
-    }
+    }*/
 
     Ok(())
 }

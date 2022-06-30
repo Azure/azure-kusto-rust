@@ -4,8 +4,7 @@ use crate::client::{KustoClient, QueryKind};
 
 use crate::error::{Error, InvalidArgumentError, Result};
 use crate::models::{
-    DataSetCompletion, DataSetHeader, DataTable, QueryBody, RequestProperties, TableKind, TableV1,
-    V2ProgressiveResult,
+    DataTable, QueryBody, RequestProperties, TableFragmentType, TableKind, TableV1, V2QueryResult,
 };
 use crate::operations::async_deserializer;
 use crate::request_options::RequestOptions;
@@ -74,7 +73,7 @@ impl V2QueryRunner {
 
     pub async fn into_progressive_stream(
         self,
-    ) -> Result<impl Stream<Item = Result<V2ProgressiveResult>>> {
+    ) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
         let V2QueryRunner(query_runner) = self;
         Ok(query_runner.into_progressive_stream().await?)
     }
@@ -144,23 +143,11 @@ impl QueryRunner {
 
     pub async fn into_progressive_stream(
         self,
-    ) -> Result<impl Stream<Item = Result<V2ProgressiveResult>>> {
+    ) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
         if self.kind != QueryKind::Query {
             return Err(Error::UnsupportedOperation(
                 "Progressive streaming is only supported for queries".to_string(),
             ));
-        }
-
-        match self.options {
-            Some(RequestOptions {
-                results_progressive_enabled: Some(true),
-                ..
-            }) => {}
-            _ => {
-                return Err(Error::UnsupportedOperation(
-                    "Progressive streaming is only supported for queries with results_progressive_enabled set to true".to_string(),
-                ));
-            }
         }
 
         let response = self.into_response().await?;
@@ -168,19 +155,10 @@ impl QueryRunner {
         let reader = pinned_stream
             .map_err(|e| std::io::Error::new(ErrorKind::Other, e))
             .into_async_read();
-        Ok(async_deserializer::iter_results::<V2ProgressiveResult, _>(
+        Ok(async_deserializer::iter_results::<V2QueryResult, _>(
             reader,
         ).map_err(|e| (*e.into_inner().expect("Unexpected error from async_deserializer - please report this issue to the Kusto team").downcast::<azure_core::error::Error>().expect("Unexpected error from async_deserializer - please report this issue to the Kusto team")).into()  ))
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "PascalCase", tag = "FrameType")]
-#[allow(clippy::enum_variant_names)]
-pub enum ResultTable {
-    DataSetHeader(DataSetHeader),
-    DataTable(DataTable),
-    DataSetCompletion(DataSetCompletion),
 }
 
 #[derive(Debug, Clone)]
@@ -191,7 +169,7 @@ pub enum KustoResponse {
 
 #[derive(Debug, Clone)]
 pub struct KustoResponseDataSetV2 {
-    pub tables: Vec<ResultTable>,
+    pub tables: Vec<V2QueryResult>,
 }
 
 impl std::convert::TryFrom<KustoResponse> for KustoResponseDataSetV2 {
@@ -216,20 +194,102 @@ impl std::convert::TryFrom<KustoResponse> for KustoResponseDataSetV1 {
     }
 }
 
+struct KustoResponseDataSetV2TableIterator {
+    tables: Vec<V2QueryResult>,
+    index: usize,
+    finished: bool,
+}
+
+impl KustoResponseDataSetV2TableIterator {
+    fn new(tables: Vec<V2QueryResult>) -> Self {
+        Self {
+            tables,
+            index: 0,
+            finished: false,
+        }
+    }
+}
+
+impl Iterator for KustoResponseDataSetV2TableIterator {
+    type Item = DataTable;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished || self.index >= self.tables.len() {
+            return None;
+        }
+        let mut iter = self.tables[self.index..].iter().enumerate();
+        let next_table = iter.find_map(|(i, t)| match t {
+            V2QueryResult::DataTable(_) | V2QueryResult::TableHeader(_) => {
+                self.index += i + 1;
+                Some(t)
+            }
+            _ => None,
+        });
+        if let Some(V2QueryResult::DataTable(t)) = next_table {
+            return Some(t.clone());
+        }
+
+        let mut table = DataTable {
+            table_id: 0,
+            table_name: "".to_string(),
+            table_kind: TableKind::Unknown,
+            columns: vec![],
+            rows: vec![],
+        };
+
+        if let Some(V2QueryResult::TableHeader(header)) = next_table {
+            table.table_id = header.table_id;
+            table.table_kind = header.table_kind.clone();
+            table.table_name = header.table_name.clone();
+            table.columns = header.columns.clone();
+        } else {
+            self.finished = true;
+            return None;
+        }
+
+        let mut finished_table = false;
+
+        for (i, result) in iter {
+            match result {
+                V2QueryResult::TableFragment(fragment) => {
+                    match fragment.table_fragment_type {
+                        TableFragmentType::DataAppend => table.rows.extend(fragment.rows.clone()),
+                        TableFragmentType::DataReplace => table.rows = fragment.rows.clone(),
+                    };
+                }
+                V2QueryResult::TableProgress(_) => {}
+                V2QueryResult::TableCompletion(_) => {
+                    //todo assert row count and id for all types
+                    self.index += i;
+                    finished_table = true;
+                    break;
+                }
+                _ => unreachable!("Unexpected result type"),
+            }
+        }
+
+        if finished_table {
+            Some(table)
+        } else {
+            None
+        }
+    }
+}
+
 impl KustoResponseDataSetV2 {
     #[must_use]
     pub fn table_count(&self) -> usize {
         self.tables.len()
     }
 
+    pub fn into_parsed_data_tables(self) -> impl Iterator<Item = DataTable> {
+        KustoResponseDataSetV2TableIterator::new(self.tables)
+    }
+
     /// Consumes the response into an iterator over all PrimaryResult tables within the response dataset
     pub fn into_primary_results(self) -> impl Iterator<Item = DataTable> {
-        self.tables.into_iter().filter_map(|table| match table {
-            ResultTable::DataTable(table) if table.table_kind == TableKind::PrimaryResult => {
-                Some(table)
-            }
-            _ => None,
-        })
+        self.into_parsed_data_tables()
+            .filter(|t| t.table_kind == TableKind::PrimaryResult)
     }
 
     #[cfg(feature = "arrow")]
@@ -258,7 +318,7 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV2 {
     async fn try_from(response: HttpResponse) -> Result<Self> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
         let data = collect_pinned_stream(pinned_stream).await?;
-        let tables: Vec<ResultTable> = serde_json::from_slice(&data)?;
+        let tables: Vec<V2QueryResult> = serde_json::from_slice(&data)?;
         Ok(Self { tables })
     }
 }
