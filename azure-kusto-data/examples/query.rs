@@ -80,7 +80,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Print the primary tables
-    let primary_results = response.primary_results().collect::<Vec<_>>();
+    let primary_results = response.into_primary_results().collect::<Vec<_>>();
     println!("primary results: {:#?}", primary_results);
 
     println!("Querying {} with streaming client", args.query);
