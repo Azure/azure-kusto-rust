@@ -1,52 +1,123 @@
+use azure_kusto_data::models::V2QueryResult;
 use azure_kusto_data::prelude::*;
+use azure_kusto_data::request_options::RequestOptionsBuilder;
+use clap::Parser;
+use futures::{pin_mut, TryStreamExt};
 use std::error::Error;
 
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Kusto cluster endpoint
+    #[clap(env, long)]
+    endpoint: String,
+
+    /// Name of the database
+    #[clap(env, long)]
+    database: String,
+
+    /// Query to execute
+    #[clap(env, long)]
+    query: String,
+
+    #[clap(env = "AZURE_CLIENT_ID", long)]
+    application_id: String,
+
+    #[clap(env = "AZURE_CLIENT_SECRET", long)]
+    application_key: String,
+
+    #[clap(env = "AZURE_TENANT_ID", long)]
+    tenant_id: String,
+}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let service_url = std::env::args()
-        .nth(1)
-        .expect("please specify service url name as first command line parameter");
-
-    let database = std::env::args()
-        .nth(2)
-        .expect("please specify database name as second command line parameter");
-
-    let query = std::env::args()
-        .nth(3)
-        .expect("please specify query as third command line parameter");
-
-    let client_id =
-        std::env::var("AZURE_CLIENT_ID").expect("Set env variable AZURE_CLIENT_ID first!");
-    let client_secret =
-        std::env::var("AZURE_CLIENT_SECRET").expect("Set env variable AZURE_CLIENT_SECRET first!");
-    let authority_id =
-        std::env::var("AZURE_TENANT_ID").expect("Set env variable AZURE_TENANT_ID first!");
+async fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::parse();
 
     let kcsb = ConnectionStringBuilder::new_with_aad_application_key_authentication(
-        &service_url,
-        &authority_id,
-        &client_id,
-        &client_secret,
+        &args.endpoint,
+        &args.tenant_id,
+        &args.application_id,
+        &args.application_key,
     );
 
-    let client = KustoClient::try_from(kcsb).expect("Failed to create Kusto client");
+    let client = KustoClient::try_from(kcsb).unwrap();
+
+    println!("Querying {} with regular client", args.query);
 
     let response = client
-        .execute_query(database, query)
+        .execute_query_with_options(
+            args.database.clone(),
+            args.query.clone(),
+            Some(
+                RequestOptionsBuilder::default()
+                    .with_results_progressive_enabled(false) // change to true to enable progressive results
+                    .build()
+                    .expect("Failed to create request options"),
+            ),
+        )
         .into_future()
         .await
-        .expect("Failed to execute query");
+        .unwrap();
+
+    println!("All results:");
 
     for table in &response.tables {
         match table {
-            ResultTable::DataSetHeader(header) => println!("header: {:?}", header),
-            ResultTable::DataTable(table) => println!("table: {:?}", table),
-            ResultTable::DataSetCompletion(completion) => println!("completion: {:?}", completion),
+            V2QueryResult::DataSetHeader(header) => println!("header: {:#?}", header),
+            V2QueryResult::DataTable(table) => println!("table: {:#?}", table),
+            V2QueryResult::DataSetCompletion(completion) => {
+                println!("completion: {:#?}", completion)
+            }
+            V2QueryResult::TableHeader(header) => println!("header: {:#?}", header),
+            V2QueryResult::TableFragment(fragment) => println!("fragment: {:#?}", fragment),
+            V2QueryResult::TableProgress(progress) => println!("progress: {:#?}", progress),
+            V2QueryResult::TableCompletion(completion) => {
+                println!("completion: {:#?}", completion)
+            }
         }
     }
 
+    // Print the primary tables
     let primary_results = response.into_primary_results().collect::<Vec<_>>();
-    println!("primary results: {:?}", primary_results);
+    println!("primary results: {:#?}", primary_results);
+
+    println!("Querying {} with streaming client", args.query);
+
+    let stream = client
+        .execute_query_with_options(
+            args.database,
+            args.query,
+            Some(
+                RequestOptionsBuilder::default()
+                    .with_results_progressive_enabled(true)
+                    .build()
+                    .expect("Failed to create request options"),
+            ),
+        )
+        .into_stream()
+        .await?;
+
+    println!("Printing all streaming results");
+
+    pin_mut!(stream);
+
+    while let Some(table) = stream.try_next().await? {
+        match table {
+            V2QueryResult::DataSetHeader(header) => println!("header: {:#?}", header),
+            V2QueryResult::DataTable(table) => println!("table: {:#?}", table),
+            V2QueryResult::DataSetCompletion(completion) => {
+                println!("completion: {:#?}", completion)
+            }
+            V2QueryResult::TableHeader(header) => println!("header: {:#?}", header),
+            V2QueryResult::TableFragment(fragment) => println!("fragment: {:#?}", fragment),
+            V2QueryResult::TableProgress(progress) => println!("progress: {:#?}", progress),
+            V2QueryResult::TableCompletion(completion) => {
+                println!("completion: {:#?}", completion)
+            }
+        }
+    }
 
     Ok(())
 }

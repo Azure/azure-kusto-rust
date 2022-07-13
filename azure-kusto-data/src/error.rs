@@ -31,6 +31,10 @@ pub enum Error {
     /// Errors raised when parsing connection information
     #[error("Connection string error: {0}")]
     ConnectionStringError(#[from] ConnectionStringError),
+
+    /// Errors raised when the operation is not supported
+    #[error("Operation not supported: {0}")]
+    UnsupportedOperation(String),
 }
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
