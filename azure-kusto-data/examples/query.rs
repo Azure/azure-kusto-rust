@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("All results:");
 
-    for table in &response.tables {
+    for table in &response.results {
         match table {
             V2QueryResult::DataSetHeader(header) => println!("header: {:#?}", header),
             V2QueryResult::DataTable(table) => println!("table: {:#?}", table),

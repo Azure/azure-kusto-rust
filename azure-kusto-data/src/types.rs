@@ -1,3 +1,5 @@
+//! Types used for serialization and deserialization of ADX data.
+
 use azure_core::error::{ErrorKind, ResultExt};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};

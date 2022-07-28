@@ -55,13 +55,23 @@ pub enum InvalidArgumentError {
 pub enum ConnectionStringError {
     /// Raised when a connection string is missing a required key.
     #[error("Missing value for key '{}'", key)]
-    MissingValue { key: String },
+    MissingValue {
+        /// The key that is missing.
+        key: String,
+    },
     /// Raised when a connection string has an unexpected key.
     #[error("Unexpected key '{}'", key)]
-    UnexpectedKey { key: String },
+    UnexpectedKey {
+        /// The key that is unexpected.
+        key: String,
+    },
     /// Raised when a connection string has an invalid value.
     #[error("Parsing error: {}", msg)]
-    ParsingError { msg: String },
+    ParsingError {
+        /// The error message.
+        msg: String,
+    },
 }
 
+/// Result type for kusto operations.
 pub type Result<T> = std::result::Result<T, Error>;

@@ -1,3 +1,5 @@
+//! This module contains the client for the Azure Kusto Data service.
+
 use crate::authorization_policy::AuthorizationPolicy;
 use crate::connection_string::ConnectionString;
 use crate::error::Result;
@@ -67,9 +69,9 @@ pub struct KustoClient {
 /// Denotes what kind of query is being executed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QueryKind {
-    /// A Management query. The returned type is [`KustoResponse::V1`](crate::query::KustoResponse::V1)
+    /// A Management query. The returned type is [`KustoResponse::V1`](crate::operations::query::KustoResponse::V1)
     Management,
-    /// A KQL query. The returned type is [`KustoResponse::V2`](crate::query::KustoResponse::V2)
+    /// A KQL query. The returned type is [`KustoResponse::V2`](crate::operations::query::KustoResponse::V2)
     Query,
 }
 
@@ -113,7 +115,7 @@ impl KustoClient {
     }
 
     /// Execute a query against the Kusto cluster.
-    /// The [kind] parameter determines whether the request is a query (retrieves data from the tables) or a management query (commands to monitor and manage the cluster).
+    /// The `kind` parameter determines whether the request is a query (retrieves data from the tables) or a management query (commands to monitor and manage the cluster).
     /// This method should only be used if the query kind is not known at compile time, otherwise use [execute](#method.execute) or [execute_command](#method.execute_command).
     /// # Example
     /// ```no_run
@@ -156,7 +158,7 @@ impl KustoClient {
     /// use azure_kusto_data::prelude::*;
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     /// use azure_kusto_data::client::QueryKind;
-    /// use azure_kusto_data::request_options::RequestOptions;
+    /// use azure_kusto_data::request_options::RequestOptionsBuilder;
     ///
     /// let client = KustoClient::new(
     ///    ConnectionString::from_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),

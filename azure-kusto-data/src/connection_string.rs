@@ -153,7 +153,7 @@ static ALIAS_MAP: Lazy<HashMap<&'static str, ConnectionStringKey>> = Lazy::new(|
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConnectionString {
     /// The URI specifying the Kusto service endpoint.
-    /// For example, https://mycluster.kusto.windows.net or net.tcp://localhost
+    /// For example, <https://mycluster.kusto.windows.net> or net.tcp://localhost
     pub data_source: String,
     /// Instructs the client to perform Azure Active Directory login, is true by default.
     pub federated_security: bool,
@@ -165,7 +165,7 @@ pub struct ConnectionString {
 /// Authentication methods to use when connecting to an ADX cluster.
 #[derive(Clone)]
 pub enum ConnectionStringAuth {
-    /// Default credentials - uses the environment, managed identity and azure cli to authenticate. See [`DefaultAzureCredential`](azure::identity::DefaultAzureCredential) for more details.
+    /// Default credentials - uses the environment, managed identity and azure cli to authenticate. See [`DefaultAzureCredential`](azure_identity::DefaultAzureCredential) for more details.
     Default,
     /// User credentials - uses the user id and password to authenticate.
     UserAndPassword {
@@ -624,7 +624,7 @@ impl ConnectionString {
     }
 
     /// Creates a connection string with the default authentication credentials.
-    /// Uses the environment, managed identity and azure cli to authenticate. See [`DefaultAzureCredential`](azure::identity::DefaultAzureCredential) for more details.
+    /// Uses the environment, managed identity and azure cli to authenticate. See [`DefaultAzureCredential`](azure_identity::DefaultAzureCredential) for more details.
     /// # Example
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
@@ -892,7 +892,7 @@ impl ConnectionString {
 
     /// Builds the connection string into a string.
     /// By default, it will include the authentication, and censor secrets.
-    /// If you want to use different options, use the [build_with_options] method.
+    /// If you want to use different options, use the [build_with_options](#method.build_with_options) method.
     /// # Example
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
@@ -938,7 +938,7 @@ impl ConnectionString {
         Some(s)
     }
 
-    pub fn into_data_source_and_credentials(self) -> (String, Arc<dyn TokenCredential>) {
+    pub(crate) fn into_data_source_and_credentials(self) -> (String, Arc<dyn TokenCredential>) {
         (
             self.data_source,
             match self.auth {

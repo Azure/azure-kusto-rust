@@ -96,7 +96,7 @@ pub fn convert_column(data: Vec<serde_json::Value>, column: &Column) -> Result<(
             .map(|data| (Field::new(column_name, DataType::Int32, true), data)),
         ColumnType::Long => convert_array_i64(data)
             .map(|data| (Field::new(column_name, DataType::Int64, true), data)),
-        ColumnType::Real => convert_array_float(data)
+        ColumnType::Real | ColumnType::Double => convert_array_float(data)
             .map(|data| (Field::new(column_name, DataType::Float64, true), data)),
         ColumnType::Datetime => convert_array_datetime(data).map(|data| {
             (
@@ -207,7 +207,7 @@ mod tests {
         let data = std::fs::read_to_string(path).expect("Failed to read file");
         let tables: Vec<V2QueryResult> =
             serde_json::from_str(&data).expect("Failed to deserialize result table");
-        let response = KustoResponseDataSetV2 { tables };
+        let response = KustoResponseDataSetV2 { results: tables };
         let record_batches = response
             .record_batches()
             .collect::<std::result::Result<Vec<_>, _>>()
