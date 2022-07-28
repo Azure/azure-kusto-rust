@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let authority_id =
         std::env::var("AZURE_TENANT_ID").expect("Set env variable AZURE_TENANT_ID first!");
 
-    let kcsb = ConnectionString::from_application_auth(
+    let kcsb = ConnectionString::with_application_auth(
         service_url,
         client_id,
         client_secret,

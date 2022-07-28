@@ -83,7 +83,7 @@ impl KustoClient {
     /// use azure_kusto_data::prelude::*;
     ///
     /// let client = KustoClient::new(
-    ///    ConnectionString::from_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
     ///    KustoClientOptions::default());
     ///
     /// assert!(client.is_ok());
@@ -123,7 +123,7 @@ impl KustoClient {
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     ///
     /// let client = KustoClient::new(
-    ///   ConnectionString::from_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///   ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
     ///   KustoClientOptions::default())?;
     ///
     ///  // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
@@ -132,7 +132,8 @@ impl KustoClient {
     /// assert!(matches!(result, KustoResponse::V1(..)));
     /// # Ok(())}
     /// ```
-    #[must_use] pub fn execute_with_options(
+    #[must_use]
+    pub fn execute_with_options(
         &self,
         database: String,
         query: String,
@@ -161,7 +162,7 @@ impl KustoClient {
     /// use azure_kusto_data::request_options::RequestOptionsBuilder;
     ///
     /// let client = KustoClient::new(
-    ///    ConnectionString::from_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
     ///    KustoClientOptions::default())?;
     ///    // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
     ///    let result = client.execute_query_with_options(
@@ -176,7 +177,8 @@ impl KustoClient {
     /// # Ok(())}
     /// ```
     ///
-    #[must_use] pub fn execute_query_with_options(
+    #[must_use]
+    pub fn execute_query_with_options(
         &self,
         database: String,
         query: String,
@@ -194,7 +196,7 @@ impl KustoClient {
     ///
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     /// let client = KustoClient::new(
-    ///    ConnectionString::from_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
     ///    KustoClientOptions::default())?;
     ///
     ///   // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
@@ -205,7 +207,8 @@ impl KustoClient {
     ///    }
     /// # Ok(())}
     /// ```
-    #[must_use] pub fn execute_query(&self, database: String, query: String) -> V2QueryRunner {
+    #[must_use]
+    pub fn execute_query(&self, database: String, query: String) -> V2QueryRunner {
         V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, None))
     }
 
@@ -217,7 +220,7 @@ impl KustoClient {
     /// use azure_kusto_data::prelude::*;
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     /// let client = KustoClient::new(
-    ///    ConnectionString::from_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
     ///    KustoClientOptions::default())?;
     ///
     /// // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
@@ -230,7 +233,8 @@ impl KustoClient {
     ///    }
     /// # Ok(())}
     /// ```
-    #[must_use] pub fn execute_command_with_options(
+    #[must_use]
+    pub fn execute_command_with_options(
         &self,
         database: String,
         query: String,
@@ -249,7 +253,7 @@ impl KustoClient {
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     ///
     /// let client = KustoClient::new(
-    ///    ConnectionString::from_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
     ///    KustoClientOptions::default())?;
     ///
     ///    // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
@@ -260,7 +264,8 @@ impl KustoClient {
     ///    }
     /// # Ok(())}
     /// ```
-    #[must_use] pub fn execute_command(&self, database: String, query: String) -> V1QueryRunner {
+    #[must_use]
+    pub fn execute_command(&self, database: String, query: String) -> V1QueryRunner {
         V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, None))
     }
 }

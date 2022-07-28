@@ -27,34 +27,48 @@ pub(crate) struct RequestProperties {
 
 /// Represents the scalar data types of ADX. see [the docs for more information] https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/scalar-data-types/
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "snake_case")]
 pub enum ColumnType {
+    #[serde(alias = "Boolean", alias = "bool", alias = "boolean")]
     /// Boolean type, true or false. Internally is a u8.
     Bool,
-    /// Alias for `Bool`.
-    Boolean,
     /// Datetime, represents a specific point in time.
+    #[serde(alias = "DateTime", alias = "datetime", alias = "Date", alias = "date")]
     Datetime,
-    /// Alias for `Datetime`.
-    Date,
     /// A complex type, that is either an array or a dictionary of other values.
+    #[serde(alias = "dynamic", alias = "Object", alias = "object")]
     Dynamic,
     /// GUID type, represents a globally unique identifier.
+    #[serde(
+        alias = "GUID",
+        alias = "guid",
+        alias = "UUID",
+        alias = "uuid",
+        alias = "Uuid"
+    )]
     Guid,
+    #[serde(alias = "Int32", alias = "int32", alias = "int")]
     /// 32 bit integer type.
     Int,
     /// 64 bit integer type.
+    #[serde(alias = "Int64", alias = "int64", alias = "long")]
     Long,
     /// 64 bit floating point type.
+    #[serde(
+        alias = "Real",
+        alias = "real",
+        alias = "float",
+        alias = "Float",
+        alias = "Double",
+        alias = "double"
+    )]
     Real,
-    /// Alias for `Real`.
-    Double,
+    #[serde(alias = "string")]
     /// String type, represents a string of characters.
     String,
     /// Timespan type, represents a duration of time.
+    #[serde(alias = "TimeSpan", alias = "timespan", alias = "Time", alias = "time")]
     Timespan,
-    /// Alias for `Timespan`.
-    Time,
+    #[serde(alias = "decimal")]
     /// Decimal, represents a fixed-point number with a defined precision and scale.
     Decimal,
 }

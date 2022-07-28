@@ -381,7 +381,7 @@ impl KustoResponseDataSetV2 {
     ///],
     ///};
     /// let mut results = vec![];
-    /// for table in data_set.parsed_data_tables() {
+    /// for table in data_set.primary_results() {
     ///    results.push(format!("{} - {}", table.table_id, table.table_name));
     /// }
     ///
@@ -411,24 +411,24 @@ impl KustoResponseDataSetV2 {
     ///        table_id: 0,
     ///        table_name: "table_1".to_string(),
     ///        table_kind: TableKind::PrimaryResult,
-    ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::Int64}],
-    ///        rows: vec![vec![Value::from(3)]],
+    ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::Long}],
+    ///        rows: vec![vec![Value::from(3u64)]],
     ///    }),
     ///    V2QueryResult::TableHeader(TableHeader {
     ///        table_id: 1,
     ///        table_name: "table_2".to_string(),
     ///        table_kind: TableKind::PrimaryResult,
-    ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::Int64}],
+    ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::String}],
     ///    }),
     ///    V2QueryResult::TableFragment(TableFragment {
     ///       table_id: 1,
     ///       rows: vec![vec![Value::from("first")], vec![Value::from("second")]],
-    ///       field_count: Some(2),
-    ///       table_fragment_type: TableFragmentType::Data,
+    ///       field_count: Some(1),
+    ///       table_fragment_type: TableFragmentType::DataAppend,
     ///     }),
     ///    V2QueryResult::TableCompletion(TableCompletion {
     ///        table_id: 1,
-    ///        row_count: 0,
+    ///        row_count: 2,
     ///    }),
     ///],
     ///};
@@ -554,15 +554,16 @@ mod tests {
                 "TableName": "Table_0",
                 "Columns": [{
                     "ColumnName": "Text",
-                    "DataType": "String",
-                    "ColumnType": "string"
+                    "DataType": "String"
                 }],
                 "Rows": [["Hello, World!"]]
             }]
         }"#;
 
-        let parsed = serde_json::from_str::<KustoResponseDataSetV1>(data);
-        assert!(parsed.is_ok());
+        let parsed = serde_json::from_str::<KustoResponseDataSetV1>(data).expect("Failed to parse");
+
+        assert_eq!(parsed.tables[0].columns[0].column_name, "Text");
+        assert_eq!(parsed.tables[0].rows[0][0], "Hello, World!");
     }
 
     #[test]

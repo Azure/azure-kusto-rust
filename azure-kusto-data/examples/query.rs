@@ -35,7 +35,7 @@ struct Args {
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
-    let kcsb = ConnectionString::from_application_auth(
+    let kcsb = ConnectionString::with_application_auth(
         args.endpoint,
         args.application_id,
         args.tenant_id,

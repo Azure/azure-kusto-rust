@@ -90,13 +90,13 @@ pub fn convert_column(data: Vec<serde_json::Value>, column: &Column) -> Result<(
     match column.column_type {
         ColumnType::String => convert_array_string(data)
             .map(|data| (Field::new(column_name, DataType::Utf8, true), data)),
-        ColumnType::Bool | ColumnType::Boolean => convert_array_bool(data)
+        ColumnType::Bool => convert_array_bool(data)
             .map(|data| (Field::new(column_name, DataType::Boolean, true), data)),
         ColumnType::Int => convert_array_i32(data)
             .map(|data| (Field::new(column_name, DataType::Int32, true), data)),
         ColumnType::Long => convert_array_i64(data)
             .map(|data| (Field::new(column_name, DataType::Int64, true), data)),
-        ColumnType::Real | ColumnType::Double => convert_array_float(data)
+        ColumnType::Real => convert_array_float(data)
             .map(|data| (Field::new(column_name, DataType::Float64, true), data)),
         ColumnType::Datetime => convert_array_datetime(data).map(|data| {
             (

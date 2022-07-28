@@ -69,7 +69,7 @@ pub fn create_kusto_client(transaction_name: &str) -> (KustoClient, String) {
 
     (
         KustoClient::new(
-            ConnectionString::from_token_credential(service_url, credential),
+            ConnectionString::with_token_credential(service_url, credential),
             options,
         )
         .expect("Failed to create KustoClient"),
