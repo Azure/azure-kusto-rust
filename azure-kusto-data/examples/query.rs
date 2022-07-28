@@ -35,11 +35,11 @@ struct Args {
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
-    let kcsb = ConnectionStringBuilder::new_with_aad_application_key_authentication(
-        &args.endpoint,
-        &args.tenant_id,
-        &args.application_id,
-        &args.application_key,
+    let kcsb = ConnectionString::from_application_auth(
+        args.endpoint,
+        args.application_id,
+        args.tenant_id,
+        args.application_key,
     );
 
     let client = KustoClient::try_from(kcsb).unwrap();

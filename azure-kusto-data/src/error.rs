@@ -1,14 +1,16 @@
-//! Defines `KustoRsError` for representing failures in various operations.
+//! Defines [Error] for representing failures in various operations.
 use std::fmt::Debug;
 use std::num::TryFromIntError;
 use thiserror;
 
+/// Error type for kusto operations.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    /// Raised when failing to convert a kusto response to the expected type.
     #[error("Error converting Kusto response for {0}")]
     ConversionError(String),
 
-    /// Error in external crate
+    /// Error in an external crate
     #[error("Error in external crate {0}")]
     ExternalError(String),
 
@@ -37,20 +39,27 @@ pub enum Error {
     UnsupportedOperation(String),
 }
 
+/// Errors raised when an invalid argument or option is provided.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 pub enum InvalidArgumentError {
+    /// Error raised when a string denoting a duration is not valid.
     #[error("{0} is not a valid duration")]
     InvalidDuration(String),
+    /// Error raised when failing to convert a number to u32.
     #[error("{0} is too large to fit in a u32")]
     PayloadTooLarge(#[from] TryFromIntError),
 }
 
+/// Errors raised when parsing connection strings.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 pub enum ConnectionStringError {
+    /// Raised when a connection string is missing a required key.
     #[error("Missing value for key '{}'", key)]
     MissingValue { key: String },
+    /// Raised when a connection string has an unexpected key.
     #[error("Unexpected key '{}'", key)]
     UnexpectedKey { key: String },
+    /// Raised when a connection string has an invalid value.
     #[error("Parsing error: {}", msg)]
     ParsingError { msg: String },
 }
