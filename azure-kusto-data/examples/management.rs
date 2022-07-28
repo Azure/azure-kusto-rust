@@ -22,11 +22,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let authority_id =
         std::env::var("AZURE_TENANT_ID").expect("Set env variable AZURE_TENANT_ID first!");
 
-    let kcsb = ConnectionStringBuilder::new_with_aad_application_key_authentication(
-        &service_url,
-        &authority_id,
-        &client_id,
-        &client_secret,
+    let kcsb = ConnectionString::with_application_auth(
+        service_url,
+        client_id,
+        client_secret,
+        authority_id,
     );
 
     let client = KustoClient::try_from(kcsb).expect("Failed to create Kusto client");

@@ -1,3 +1,5 @@
+//! Types used for serialization and deserialization of ADX data.
+
 use azure_core::error::{ErrorKind, ResultExt};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
@@ -10,6 +12,7 @@ use time::{Duration, OffsetDateTime};
 use crate::error::{Error, InvalidArgumentError};
 use time::format_description::well_known::Rfc3339;
 
+/// Represents a datetime field for kusto, for serialization and deserialization.
 #[derive(PartialEq, Eq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
 pub struct KustoDateTime(pub OffsetDateTime);
 
@@ -54,6 +57,7 @@ impl Deref for KustoDateTime {
     }
 }
 
+/// Represent a timespan for kusto, for serialization and deserialization.
 #[derive(PartialEq, Eq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
 pub struct KustoDuration(pub Duration);
 
