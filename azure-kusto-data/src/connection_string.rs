@@ -182,7 +182,7 @@ pub enum ConnectionStringAuth {
     /// Token callback - uses a user provided callback that accepts the resource id and returns a token in order to authenticate.
     TokenCallback {
         /// A callback that accepts the resource id and returns a token in order to authenticate.
-        token_callback: Arc<dyn Fn(&str) -> String>,
+        token_callback: Arc<dyn Fn(&str) -> String + Send + Sync>,
     },
     /// Application - uses the application client id and key to authenticate.
     Application {
@@ -214,7 +214,7 @@ pub enum ConnectionStringAuth {
     /// Device code - Gives the user a device code that they have to use in order to authenticate.
     DeviceCode {
         /// Callback to activate the device code flow. If not given, will use the default of azure identity.
-        callback: Option<Arc<dyn Fn(&str) -> String>>,
+        callback: Option<Arc<dyn Fn(&str) -> String + Send + Sync>>,
     },
     /// Interactive - Gives the user an interactive prompt to authenticate.
     InteractiveLogin,
@@ -326,6 +326,37 @@ impl ConnectionStringAuth {
                 CONNECTION_STRING_TRUE
             )),
             _ => None,
+        }
+    }
+
+    pub(crate) fn into_credential(self) -> Arc<dyn TokenCredential> {
+        match self {
+            ConnectionStringAuth::Default => Arc::new(DefaultAzureCredential::default()),
+            ConnectionStringAuth::UserAndPassword { .. } => unimplemented!(),
+            ConnectionStringAuth::Token { .. } => unimplemented!(),
+            ConnectionStringAuth::TokenCallback { .. } => unimplemented!(),
+            ConnectionStringAuth::Application {
+                client_id,
+                client_secret,
+                client_authority,
+            } => Arc::new(ClientSecretCredential::new(
+                client_authority.clone(),
+                client_id,
+                client_secret,
+                TokenCredentialOptions::default(),
+            )),
+            ConnectionStringAuth::ApplicationCertificate { .. } => unimplemented!(),
+            ConnectionStringAuth::ManagedIdentity { user_id } => {
+                if let Some(user_id) = user_id {
+                    Arc::new(ImdsManagedIdentityCredential::default().with_object_id(user_id))
+                } else {
+                    Arc::new(ImdsManagedIdentityCredential::default())
+                }
+            }
+            ConnectionStringAuth::AzureCli => Arc::new(AzureCliCredential),
+            ConnectionStringAuth::DeviceCode { .. } => unimplemented!(),
+            ConnectionStringAuth::InteractiveLogin => unimplemented!(),
+            ConnectionStringAuth::TokenCredential { credential } => credential.clone(),
         }
     }
 }
@@ -711,7 +742,7 @@ impl ConnectionString {
     #[must_use]
     pub fn with_token_callback_auth(
         data_source: String,
-        token_callback: Arc<dyn Fn(&str) -> String>,
+        token_callback: Arc<dyn Fn(&str) -> String + Send + Sync>,
     ) -> Self {
         Self {
             data_source,
@@ -848,7 +879,7 @@ impl ConnectionString {
     #[must_use]
     pub fn with_device_code_auth(
         data_source: String,
-        callback: Option<Arc<dyn Fn(&str) -> String>>,
+        callback: Option<Arc<dyn Fn(&str) -> String + Send + Sync>>,
     ) -> Self {
         Self {
             data_source,
@@ -958,38 +989,8 @@ impl ConnectionString {
         Some(s)
     }
 
-    pub(crate) fn into_data_source_and_credentials(self) -> (String, Arc<dyn TokenCredential>) {
-        (
-            self.data_source,
-            match self.auth {
-                ConnectionStringAuth::Default => Arc::new(DefaultAzureCredential::default()),
-                ConnectionStringAuth::UserAndPassword { .. } => unimplemented!(),
-                ConnectionStringAuth::Token { .. } => unimplemented!(),
-                ConnectionStringAuth::TokenCallback { .. } => unimplemented!(),
-                ConnectionStringAuth::Application {
-                    client_id,
-                    client_secret,
-                    client_authority,
-                } => Arc::new(ClientSecretCredential::new(
-                    client_authority,
-                    client_id,
-                    client_secret,
-                    TokenCredentialOptions::default(),
-                )),
-                ConnectionStringAuth::ApplicationCertificate { .. } => unimplemented!(),
-                ConnectionStringAuth::ManagedIdentity { user_id } => {
-                    if let Some(user_id) = user_id {
-                        Arc::new(ImdsManagedIdentityCredential::default().with_object_id(user_id))
-                    } else {
-                        Arc::new(ImdsManagedIdentityCredential::default())
-                    }
-                }
-                ConnectionStringAuth::AzureCli => Arc::new(AzureCliCredential),
-                ConnectionStringAuth::DeviceCode { .. } => unimplemented!(),
-                ConnectionStringAuth::InteractiveLogin => unimplemented!(),
-                ConnectionStringAuth::TokenCredential { credential } => credential.clone(),
-            },
-        )
+    pub(crate) fn into_data_source_and_auth(self) -> (String, ConnectionStringAuth) {
+        (self.data_source, self.auth)
     }
 }
 

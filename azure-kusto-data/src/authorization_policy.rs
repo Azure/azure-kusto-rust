@@ -1,30 +1,34 @@
+use crate::cloud_info::CloudInfo;
+use crate::prelude::ConnectionStringAuth;
 use azure_core::headers::{HeaderValue, AUTHORIZATION};
-use azure_core::{auth::TokenCredential, Context, Policy, PolicyResult, Request};
+use azure_core::{
+    auth::TokenCredential, ClientOptions, Context, Pipeline, Policy, PolicyResult, Request,
+};
+use futures::lock::Mutex;
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
-#[derive(Clone)]
 pub struct AuthorizationPolicy {
-    credential: Arc<dyn TokenCredential>,
-    resource: String,
+    auth: ConnectionStringAuth,
+    raw_resource: String,
+    credential: Mutex<Option<(Arc<dyn TokenCredential>, String)>>,
 }
 
-impl std::fmt::Debug for AuthorizationPolicy {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl Debug for AuthorizationPolicy {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AuthorizationPolicy")
-            .field("credential", &"TokenCredential")
-            .field("resource", &self.resource)
+            .field("auth", &self.auth)
+            .field("raw_resource", &self.raw_resource)
             .finish()
     }
 }
 
 impl AuthorizationPolicy {
-    pub(crate) fn new<T>(credential: Arc<dyn TokenCredential>, resource: T) -> Self
-    where
-        T: Into<String>,
-    {
+    pub(crate) fn new(auth: ConnectionStringAuth, raw_resource: String) -> Self {
         Self {
-            credential,
-            resource: resource.into(),
+            auth,
+            raw_resource,
+            credential: Mutex::new(None),
         }
     }
 }
@@ -42,7 +46,34 @@ impl Policy for AuthorizationPolicy {
             "Authorization policies cannot be the last policy of a pipeline"
         );
 
-        let token = self.credential.get_token(&self.resource).await?;
+        let (cred, resource) = {
+            let mut lock = self.credential.lock().await;
+            if let Some((cred, resource)) = lock.clone() {
+                (cred, resource)
+            } else {
+                let cloud_info = CloudInfo::get(
+                    &Pipeline::new(
+                        option_env!("CARGO_PKG_NAME"),
+                        option_env!("CARGO_PKG_VERSION"),
+                        ClientOptions::default(),
+                        Vec::new(),
+                        Vec::new(),
+                    ),
+                    &self.raw_resource,
+                )
+                .await
+                .unwrap_or(CloudInfo::default());
+
+                *lock = Some((
+                    self.auth.clone().into_credential(),
+                    cloud_info.get_resource_uri().to_string(),
+                ));
+
+                lock.clone().unwrap()
+            }
+        };
+
+        let token = cred.get_token(&resource).await?;
         let auth_header_value = format!("Bearer {}", token.token.secret());
 
         request

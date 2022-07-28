@@ -46,9 +46,9 @@ pub enum QueryConsistency {
     DatabaseAffinitizedWeakConsistency,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default, derive_builder::Builder)]
 #[builder(setter(into, strip_option, prefix = "with"), default)]
-#[skip_serializing_none]
 /// Request options for queries, can be used to set the size, consistency, and other options.
 pub struct RequestOptions {
     /// If set and positive, indicates the maximum number of HTTP redirects that the client will process.

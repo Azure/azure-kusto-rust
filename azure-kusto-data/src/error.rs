@@ -42,6 +42,10 @@ pub enum Error {
     /// Errors raised when the operation is not supported
     #[error("Operation not supported: {0}")]
     UnsupportedOperation(String),
+
+    /// Invalid uri error
+    #[error("Invalid uri: {0}")]
+    InvalidUri(#[from] http::uri::InvalidUri),
 }
 
 /// Errors raised when an invalid argument or option is provided.

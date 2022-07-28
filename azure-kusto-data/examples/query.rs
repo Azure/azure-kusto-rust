@@ -38,8 +38,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let kcsb = ConnectionString::with_application_auth(
         args.endpoint,
         args.application_id,
-        args.tenant_id,
         args.application_key,
+        args.tenant_id,
     );
 
     let client = KustoClient::try_from(kcsb).unwrap();
