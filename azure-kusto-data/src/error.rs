@@ -1,4 +1,5 @@
 //! Defines [Error] for representing failures in various operations.
+use http::StatusCode;
 use std::fmt::Debug;
 use std::num::TryFromIntError;
 use thiserror;
@@ -13,6 +14,10 @@ pub enum Error {
     /// Error in an external crate
     #[error("Error in external crate {0}")]
     ExternalError(String),
+
+    /// Error in HTTP
+    #[error("Error in HTTP: {0} {1}")]
+    HttpError(StatusCode, String),
 
     /// Error raised when an invalid argument / option is provided.
     #[error("Invalid argument {0}")]
