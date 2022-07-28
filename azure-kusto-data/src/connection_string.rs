@@ -483,7 +483,7 @@ impl ConnectionString {
                 Some(v) => v,
             };
 
-            if let Some(&key) = ALIAS_MAP.get(&*k.to_ascii_lowercase().trim()) {
+            if let Some(&key) = ALIAS_MAP.get(k.to_ascii_lowercase().trim()) {
                 result_map.insert(key, v.trim());
             } else {
                 return Err(ConnectionStringError::UnexpectedKey { key: k.to_string() });

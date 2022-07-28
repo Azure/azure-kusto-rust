@@ -85,7 +85,7 @@ pub struct ColumnV1 {
 }
 
 /// Represents a table in ADX, for a V1 (usually management) query.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct TableV1 {
     /// Name of the table.
@@ -160,7 +160,7 @@ pub struct TableHeader {
 }
 
 /// The type of the fragment of a table (in progressive mode), instructs to how to use it.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum TableFragmentType {
     /// Append the data to the rest of the fragments.
     DataAppend,
@@ -193,7 +193,7 @@ pub struct TableProgress {
 }
 
 /// End of a table (in progressive mode).
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct TableCompletion {
     /// Table id - unique identifier of the table. Corresponds to the table_id in the TableHeader.
@@ -203,7 +203,7 @@ pub struct TableCompletion {
 }
 
 /// Categorizes data tables according to the role they play in the data set that a Kusto query returns.
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum TableKind {
     /// The table contains the actual data returned by the query.
     PrimaryResult,
@@ -223,7 +223,7 @@ pub enum TableKind {
     Unknown,
 }
 /// Represents a column in ADX, for a V2 query.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct Column {
     /// Column name.
@@ -233,7 +233,7 @@ pub struct Column {
 }
 
 /// Represents an end of the query result.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct DataSetCompletion {
     /// did the query errored.

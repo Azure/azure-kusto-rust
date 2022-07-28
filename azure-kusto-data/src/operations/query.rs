@@ -73,7 +73,7 @@ impl V2QueryRunner {
 
     pub async fn into_stream(self) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
         let V2QueryRunner(query_runner) = self;
-        Ok(query_runner.into_stream().await?)
+        query_runner.into_stream().await
     }
 }
 
