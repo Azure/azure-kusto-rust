@@ -1,8 +1,9 @@
 // Set of properties that can be use in a connection string provided to KustoConnectionStringBuilder.
 // For a complete list of properties go to https://docs.microsoft.com/en-us/azure/kusto/api/connection-strings/kusto
 
+use crate::error::ConnectionStringError;
 use hashbrown::HashMap;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 enum ConnectionStringKey {
     DataSource,
@@ -22,7 +23,7 @@ enum ConnectionStringKey {
 }
 
 impl ConnectionStringKey {
-    fn to_str(&self) -> &'static str {
+    const fn to_str(&self) -> &'static str {
         match self {
             ConnectionStringKey::DataSource => "Data Source",
             ConnectionStringKey::FederatedSecurity => "AAD Federated Security",
@@ -44,81 +45,79 @@ impl ConnectionStringKey {
     }
 }
 
-lazy_static! {
-    static ref ALIAS_MAP: HashMap<&'static str, ConnectionStringKey> = {
-        let mut m = HashMap::new();
-        m.insert("data source", ConnectionStringKey::DataSource);
-        m.insert("addr", ConnectionStringKey::DataSource);
-        m.insert("address", ConnectionStringKey::DataSource);
-        m.insert("network address", ConnectionStringKey::DataSource);
-        m.insert("server", ConnectionStringKey::DataSource);
+static ALIAS_MAP: Lazy<HashMap<&'static str, ConnectionStringKey>> = Lazy::new(|| {
+    let mut m = HashMap::new();
+    m.insert("data source", ConnectionStringKey::DataSource);
+    m.insert("addr", ConnectionStringKey::DataSource);
+    m.insert("address", ConnectionStringKey::DataSource);
+    m.insert("network address", ConnectionStringKey::DataSource);
+    m.insert("server", ConnectionStringKey::DataSource);
 
-        m.insert(
-            "aad federated security",
-            ConnectionStringKey::FederatedSecurity,
-        );
-        m.insert("federated security", ConnectionStringKey::FederatedSecurity);
-        m.insert("federated", ConnectionStringKey::FederatedSecurity);
-        m.insert("fed", ConnectionStringKey::FederatedSecurity);
-        m.insert("aadfed", ConnectionStringKey::FederatedSecurity);
+    m.insert(
+        "aad federated security",
+        ConnectionStringKey::FederatedSecurity,
+    );
+    m.insert("federated security", ConnectionStringKey::FederatedSecurity);
+    m.insert("federated", ConnectionStringKey::FederatedSecurity);
+    m.insert("fed", ConnectionStringKey::FederatedSecurity);
+    m.insert("aadfed", ConnectionStringKey::FederatedSecurity);
 
-        m.insert("aad user id", ConnectionStringKey::UserId);
-        m.insert("user id", ConnectionStringKey::UserId);
-        m.insert("uid", ConnectionStringKey::UserId);
-        m.insert("user", ConnectionStringKey::UserId);
+    m.insert("aad user id", ConnectionStringKey::UserId);
+    m.insert("user id", ConnectionStringKey::UserId);
+    m.insert("uid", ConnectionStringKey::UserId);
+    m.insert("user", ConnectionStringKey::UserId);
 
-        m.insert("password", ConnectionStringKey::Password);
-        m.insert("pwd", ConnectionStringKey::Password);
+    m.insert("password", ConnectionStringKey::Password);
+    m.insert("pwd", ConnectionStringKey::Password);
 
-        m.insert(
-            "application client id",
-            ConnectionStringKey::ApplicationClientId,
-        );
-        m.insert("appclientid", ConnectionStringKey::ApplicationClientId);
+    m.insert(
+        "application client id",
+        ConnectionStringKey::ApplicationClientId,
+    );
+    m.insert("appclientid", ConnectionStringKey::ApplicationClientId);
 
-        m.insert("application key", ConnectionStringKey::ApplicationKey);
-        m.insert("appkey", ConnectionStringKey::ApplicationKey);
+    m.insert("application key", ConnectionStringKey::ApplicationKey);
+    m.insert("appkey", ConnectionStringKey::ApplicationKey);
 
-        m.insert(
-            "application certificate",
-            ConnectionStringKey::ApplicationCertificate,
-        );
+    m.insert(
+        "application certificate",
+        ConnectionStringKey::ApplicationCertificate,
+    );
 
-        m.insert(
-            "application certificate thumbprint",
-            ConnectionStringKey::ApplicationCertificateThumbprint,
-        );
-        m.insert(
-            "appcert",
-            ConnectionStringKey::ApplicationCertificateThumbprint,
-        );
+    m.insert(
+        "application certificate thumbprint",
+        ConnectionStringKey::ApplicationCertificateThumbprint,
+    );
+    m.insert(
+        "appcert",
+        ConnectionStringKey::ApplicationCertificateThumbprint,
+    );
 
-        m.insert("authority id", ConnectionStringKey::AuthorityId);
-        m.insert("authorityid", ConnectionStringKey::AuthorityId);
-        m.insert("authority", ConnectionStringKey::AuthorityId);
-        m.insert("tenantid", ConnectionStringKey::AuthorityId);
-        m.insert("tenant", ConnectionStringKey::AuthorityId);
-        m.insert("tid", ConnectionStringKey::AuthorityId);
+    m.insert("authority id", ConnectionStringKey::AuthorityId);
+    m.insert("authorityid", ConnectionStringKey::AuthorityId);
+    m.insert("authority", ConnectionStringKey::AuthorityId);
+    m.insert("tenantid", ConnectionStringKey::AuthorityId);
+    m.insert("tenant", ConnectionStringKey::AuthorityId);
+    m.insert("tid", ConnectionStringKey::AuthorityId);
 
-        m.insert("application token", ConnectionStringKey::ApplicationToken);
-        m.insert("apptoken", ConnectionStringKey::ApplicationToken);
+    m.insert("application token", ConnectionStringKey::ApplicationToken);
+    m.insert("apptoken", ConnectionStringKey::ApplicationToken);
 
-        m.insert("user token", ConnectionStringKey::UserToken);
-        m.insert("usertoken", ConnectionStringKey::UserToken);
+    m.insert("user token", ConnectionStringKey::UserToken);
+    m.insert("usertoken", ConnectionStringKey::UserToken);
 
-        m.insert("msi auth", ConnectionStringKey::MsiAuth);
-        m.insert("msi_auth", ConnectionStringKey::MsiAuth);
-        m.insert("msi", ConnectionStringKey::MsiAuth);
+    m.insert("msi auth", ConnectionStringKey::MsiAuth);
+    m.insert("msi_auth", ConnectionStringKey::MsiAuth);
+    m.insert("msi", ConnectionStringKey::MsiAuth);
 
-        m.insert("msi params", ConnectionStringKey::MsiParams);
-        m.insert("msi_params", ConnectionStringKey::MsiParams);
-        m.insert("msi_type", ConnectionStringKey::MsiParams);
+    m.insert("msi params", ConnectionStringKey::MsiParams);
+    m.insert("msi_params", ConnectionStringKey::MsiParams);
+    m.insert("msi_type", ConnectionStringKey::MsiParams);
 
-        m.insert("az cli", ConnectionStringKey::AzCli);
+    m.insert("az cli", ConnectionStringKey::AzCli);
 
-        m
-    };
-}
+    m
+});
 
 // TODO: when available
 // pub const PUBLIC_APPLICATION_CERTIFICATE_NAME: &str = "Public Application Certificate";
@@ -136,30 +135,21 @@ lazy_static! {
            ConnectionStringKey::ApplicationCertificateX5C => "Application Certificate x5c",
 */
 
-#[derive(Debug, thiserror::Error)]
-pub enum ConnectionStringError {
-    #[error("Missing value for key '{}'", key)]
-    MissingValue { key: String },
-    #[error("Unexpected key '{}'", key)]
-    UnexpectedKey { key: String },
-    #[error("Parsing error: {}", msg)]
-    ParsingError { msg: String },
-}
-
 /// Build a connection string to connect to a Kusto service instance.
 ///
 /// For more information on Kusto connection strings visit:
-/// https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/kusto
+/// [https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/kusto](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/kusto)
 #[derive(Default)]
 pub struct ConnectionStringBuilder<'a>(ConnectionString<'a>);
 
 impl<'a> ConnectionStringBuilder<'a> {
-    /// Creates a ConnectionStringBuilder with no configuration options set
+    /// Creates a `ConnectionStringBuilder` with no configuration options set
+    #[must_use]
     pub fn new() -> Self {
         Self(ConnectionString::default())
     }
 
-    /// Creates a ConnectionStringBuilder that will authenticate with AAD application and key.
+    /// Creates a `ConnectionStringBuilder` that will authenticate with AAD application and key.
     ///
     /// # Arguments
     ///
@@ -167,6 +157,7 @@ impl<'a> ConnectionStringBuilder<'a> {
     /// * `authority_id` - Authority id (aka Tenant id) must be provided
     /// * `client_id` - AAD application ID.
     /// * `client_secret` - Corresponding key of the AAD application.
+    #[must_use]
     pub fn new_with_aad_application_key_authentication(
         service_url: &'a str,
         authority_id: &'a str,
@@ -183,6 +174,7 @@ impl<'a> ConnectionStringBuilder<'a> {
         })
     }
 
+    #[must_use]
     pub fn build(&self) -> String {
         let mut kv_pairs = Vec::new();
 
@@ -266,7 +258,7 @@ impl<'a> ConnectionStringBuilder<'a> {
 /// A Kusto service connection string.
 ///
 /// For more information on Kusto connection strings visit:
-/// https://docs.microsoft.com/en-us/azure/kusto/api/connection-strings/kusto
+/// [https://docs.microsoft.com/en-us/azure/kusto/api/connection-strings/kusto](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/kusto)
 #[derive(Debug, Default)]
 pub struct ConnectionString<'a> {
     /// The URI specifying the Kusto service endpoint.
@@ -422,10 +414,7 @@ mod tests {
 
     #[test]
     fn it_parses_empty_connection_string() {
-        assert_eq!(
-            ConnectionString::new("").unwrap(),
-            ConnectionString::default()
-        );
+        assert_eq!(ConnectionString::new(""), Ok(ConnectionString::default()));
     }
 
     #[test]
