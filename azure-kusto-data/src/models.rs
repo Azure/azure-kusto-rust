@@ -80,8 +80,8 @@ pub struct ColumnV1 {
     /// Name of the column.
     pub column_name: String,
     /// Data type of the column
-    #[serde(alias = "DataType")]
     pub column_type: Option<ColumnType>,
+    pub data_type: Option<ColumnType>,
 }
 
 /// Represents a table in ADX, for a V1 (usually management) query.
