@@ -5,5 +5,8 @@ pub mod client;
 mod cloud_info;
 pub mod connection_string;
 pub mod error;
+pub mod models;
 mod operations;
 pub mod prelude;
+pub mod request_options;
+pub mod types;
