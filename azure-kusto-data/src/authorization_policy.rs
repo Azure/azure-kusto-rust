@@ -3,7 +3,7 @@ use azure_core::{auth::TokenCredential, Context, Policy, PolicyResult, Request};
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub(crate) struct AuthorizationPolicy {
+pub struct AuthorizationPolicy {
     credential: Arc<dyn TokenCredential>,
     resource: String,
 }

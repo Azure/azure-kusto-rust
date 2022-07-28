@@ -132,7 +132,7 @@ impl KustoClient {
     /// assert!(matches!(result, KustoResponse::V1(..)));
     /// # Ok(())}
     /// ```
-    pub fn execute_with_options(
+    #[must_use] pub fn execute_with_options(
         &self,
         database: String,
         query: String,
@@ -176,7 +176,7 @@ impl KustoClient {
     /// # Ok(())}
     /// ```
     ///
-    pub fn execute_query_with_options(
+    #[must_use] pub fn execute_query_with_options(
         &self,
         database: String,
         query: String,
@@ -205,7 +205,7 @@ impl KustoClient {
     ///    }
     /// # Ok(())}
     /// ```
-    pub fn execute_query(&self, database: String, query: String) -> V2QueryRunner {
+    #[must_use] pub fn execute_query(&self, database: String, query: String) -> V2QueryRunner {
         V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, None))
     }
 
@@ -230,7 +230,7 @@ impl KustoClient {
     ///    }
     /// # Ok(())}
     /// ```
-    pub fn execute_command_with_options(
+    #[must_use] pub fn execute_command_with_options(
         &self,
         database: String,
         query: String,
@@ -260,7 +260,7 @@ impl KustoClient {
     ///    }
     /// # Ok(())}
     /// ```
-    pub fn execute_command(&self, database: String, query: String) -> V1QueryRunner {
+    #[must_use] pub fn execute_command(&self, database: String, query: String) -> V1QueryRunner {
         V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, None))
     }
 }

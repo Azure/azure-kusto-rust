@@ -68,8 +68,11 @@ pub fn create_kusto_client(transaction_name: &str) -> (KustoClient, String) {
     let options = KustoClientOptions::new_with_transaction_name(transaction_name.to_string());
 
     (
-        KustoClient::new_with_options(service_url, credential, options)
-            .expect("Failed to create KustoClient"),
+        KustoClient::new(
+            ConnectionString::from_token_credential(service_url, credential),
+            options,
+        )
+        .expect("Failed to create KustoClient"),
         database,
     )
 }
