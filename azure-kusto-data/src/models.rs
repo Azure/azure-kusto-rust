@@ -25,7 +25,7 @@ pub(crate) struct RequestProperties {
     pub(crate) options: Option<RequestOptions>,
 }
 
-/// Represents the scalar data types of ADX. see [the docs for more information] https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/scalar-data-types/
+/// Represents the scalar data types of ADX. see [the docs for more information](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/scalar-data-types/)
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum ColumnType {
     #[serde(alias = "Boolean", alias = "bool", alias = "boolean")]
