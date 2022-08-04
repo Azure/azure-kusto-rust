@@ -11,6 +11,7 @@ async fn read_skipping_ws(reader: impl AsyncRead + Send) -> io::Result<u8> {
     loop {
         let mut byte = 0u8;
         reader.read_exact(std::slice::from_mut(&mut byte)).await?;
+        print!("{}", byte as char);
         if !byte.is_ascii_whitespace() {
             return Ok(byte);
         }
@@ -26,35 +27,34 @@ const BUFFER_SIZE: usize = 4096;
 async fn deserialize_single<T: DeserializeOwned, R: AsyncRead + Send>(
     reader: R,
 ) -> io::Result<(T, Vec<u8>)> {
-    let mut balance = 0;
     let mut vec = Vec::with_capacity(BUFFER_SIZE);
     let mut buf = [0; BUFFER_SIZE];
     let mut leftover = Vec::with_capacity(BUFFER_SIZE);
+
     pin_mut!(reader);
+
     loop {
         let size = reader.read(&mut buf).await?;
-        let mut result = None;
-        for (i, byte) in buf[..size].iter().copied().enumerate() {
-            match byte {
-                b'{' => balance += 1,
-                b'}' => balance -= 1,
-                b',' | b']' if balance == 0 => {
-                    result = Some(i);
-                    break;
+        print!("{}", String::from_utf8_lossy(&buf[..size]));
+        vec.extend_from_slice(&buf[..size]);
+
+        let res = serde_json::from_slice::<T>(vec.as_slice());
+
+        match res {
+            Ok(t) => return Ok((t, leftover)),
+            Err(e) => {
+                if e.is_syntax() {
+                    let i = e.column() - 1;
+                    leftover.extend_from_slice(&vec[i..]);
+                    return Ok((serde_json::from_slice::<T>(&vec[..i])?, leftover));
+                } else if e.is_eof() {
+                    continue;
+                } else {
+                    return Err(e.into());
                 }
-                _ => (),
             }
         }
-        if let Some(i) = result {
-            vec.extend_from_slice(&buf[..i]);
-            leftover.extend_from_slice(&buf[i..size]);
-            break;
-        }
-
-        vec.extend_from_slice(&buf[..size]);
     }
-
-    Ok((serde_json::from_slice(vec.as_slice())?, leftover))
 }
 
 async fn yield_next_obj<T: DeserializeOwned, R: AsyncRead + Send>(

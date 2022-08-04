@@ -19,6 +19,12 @@ pub struct KustoClientOptions {
     options: ClientOptions,
 }
 
+impl From<ClientOptions> for KustoClientOptions {
+    fn from(c: ClientOptions) -> Self {
+        Self { options: c }
+    }
+}
+
 impl KustoClientOptions {
     /// Create new options
     #[must_use]

@@ -16,6 +16,7 @@ use azure_core::prelude::*;
 use azure_core::{collect_pinned_stream, Request, Response as HttpResponse, Response};
 use futures::future::BoxFuture;
 use futures::{Stream, TryFutureExt, TryStreamExt};
+use http::header::CONNECTION;
 use http::Uri;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -539,6 +540,7 @@ pub fn prepare_request(uri: Uri, http_method: http::Method) -> Request {
         "Kusto.Rust.Client:{}",
         env!("CARGO_PKG_VERSION"),
     )));
+    request.headers_mut().insert(CONNECTION, "Keep-Alive");
     request
 }
 

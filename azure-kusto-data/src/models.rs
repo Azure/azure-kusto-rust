@@ -81,6 +81,7 @@ pub struct ColumnV1 {
     pub column_name: String,
     /// Data type of the column
     pub column_type: Option<ColumnType>,
+    /// Data type of the column
     pub data_type: Option<ColumnType>,
 }
 
