@@ -131,7 +131,7 @@ pub enum V2QueryResult {
 }
 
 /// Query result DataTable, for a V2 Query.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct DataTable {
     /// Table id - unique identifier of the table.
@@ -147,7 +147,7 @@ pub struct DataTable {
 }
 
 /// A header of a fragment of a table (in progressive mode).
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct TableHeader {
     /// Table id - unique identifier of the table.
@@ -170,7 +170,7 @@ pub enum TableFragmentType {
 }
 
 /// Represents a fragment of a table (in progressive mode).
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct TableFragment {
     /// Table id - unique identifier of the table. Corresponds to the table_id in the TableHeader.
