@@ -1,6 +1,7 @@
 //! Defines [Error] for representing failures in various operations.
 use std::fmt::Debug;
 use std::num::TryFromIntError;
+
 use thiserror;
 
 /// Error type for kusto operations.
@@ -67,10 +68,22 @@ pub enum ConnectionStringError {
     },
     /// Raised when a connection string has an invalid value.
     #[error("Parsing error: {}", msg)]
-    ParsingError {
+    Parsing {
         /// The error message.
         msg: String,
     },
+}
+
+impl ConnectionStringError {
+    pub(crate) fn from_missing_value(key: impl Into<String>) -> Self {
+        Self::MissingValue { key: key.into() }
+    }
+    pub(crate) fn from_unexpected_key(key: impl Into<String>) -> Self {
+        Self::UnexpectedKey { key: key.into() }
+    }
+    pub(crate) fn from_parsing_error(msg: impl Into<String>) -> Self {
+        Self::Parsing { msg: msg.into() }
+    }
 }
 
 /// Result type for kusto operations.

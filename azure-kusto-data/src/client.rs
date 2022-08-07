@@ -89,7 +89,7 @@ impl KustoClient {
     /// use azure_kusto_data::prelude::*;
     ///
     /// let client = KustoClient::new(
-    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default());
     ///
     /// assert!(client.is_ok());
@@ -129,11 +129,11 @@ impl KustoClient {
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     ///
     /// let client = KustoClient::new(
-    ///   ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///   ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///   KustoClientOptions::default())?;
     ///
     ///  // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///  let result = client.execute_with_options("some_database".into(), ".show version".into(), QueryKind::Management, None).into_future().await?;
+    ///  let result = client.execute_with_options("some_database", ".show version", QueryKind::Management, None).into_future().await?;
     ///
     /// assert!(matches!(result, KustoResponse::V1(..)));
     /// # Ok(())}
@@ -141,10 +141,10 @@ impl KustoClient {
     #[must_use]
     pub fn execute_with_options(
         &self,
-        database: String,
-        query: String,
+        database: impl Into<String>,
+        query: impl Into<String>,
         kind: QueryKind,
-        options: Option<RequestOptions>,
+        options: impl Into<Option<RequestOptions>>,
     ) -> QueryRunner {
         QueryRunnerBuilder::default()
             .with_kind(kind)
@@ -168,13 +168,13 @@ impl KustoClient {
     /// use azure_kusto_data::request_options::RequestOptionsBuilder;
     ///
     /// let client = KustoClient::new(
-    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///    // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
     ///    let result = client.execute_query_with_options(
-    ///         "some_database".into(),
-    ///         "MyTable | take 10".into(),
-    ///         Some(RequestOptionsBuilder::default().with_request_app_name("app name".to_string()).build().unwrap()))
+    ///         "some_database",
+    ///         "MyTable | take 10",
+    ///         Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
     ///     .into_future().await?;
     ///
     ///   for table in result.into_primary_results() {
@@ -186,9 +186,9 @@ impl KustoClient {
     #[must_use]
     pub fn execute_query_with_options(
         &self,
-        database: String,
-        query: String,
-        options: Option<RequestOptions>,
+        database: impl Into<String>,
+        query: impl Into<String>,
+        options: impl Into<Option<RequestOptions>>,
     ) -> V2QueryRunner {
         V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, options))
     }
@@ -202,11 +202,11 @@ impl KustoClient {
     ///
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     /// let client = KustoClient::new(
-    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
     ///   // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///    let result = client.execute_query("some_database".into(), "MyTable | take 10".into()).into_future().await?;
+    ///    let result = client.execute_query("some_database", "MyTable | take 10").into_future().await?;
     ///
     ///    for table in result.into_primary_results() {
     ///        println!("{}", table.table_name);
@@ -214,7 +214,11 @@ impl KustoClient {
     /// # Ok(())}
     /// ```
     #[must_use]
-    pub fn execute_query(&self, database: String, query: String) -> V2QueryRunner {
+    pub fn execute_query(
+        &self,
+        database: impl Into<String>,
+        query: impl Into<String>,
+    ) -> V2QueryRunner {
         V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, None))
     }
 
@@ -226,12 +230,12 @@ impl KustoClient {
     /// use azure_kusto_data::prelude::*;
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     /// let client = KustoClient::new(
-    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
     /// // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///    let result = client.execute_command_with_options("some_database".into(), ".show version".into(),
-    ///     Some(RequestOptionsBuilder::default().with_request_app_name("app name".to_string()).build().unwrap()))
+    ///    let result = client.execute_command_with_options("some_database", ".show version",
+    ///     Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
     ///     .into_future().await?;
     ///
     /// for table in result.tables {
@@ -242,9 +246,9 @@ impl KustoClient {
     #[must_use]
     pub fn execute_command_with_options(
         &self,
-        database: String,
-        query: String,
-        options: Option<RequestOptions>,
+        database: impl Into<String>,
+        query: impl Into<String>,
+        options: impl Into<Option<RequestOptions>>,
     ) -> V1QueryRunner {
         V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, options))
     }
@@ -259,11 +263,11 @@ impl KustoClient {
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     ///
     /// let client = KustoClient::new(
-    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/".to_string()),
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
     ///    // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///    let result = client.execute_command("some_database".into(), ".show version".into()).into_future().await?;
+    ///    let result = client.execute_command("some_database", ".show version").into_future().await?;
     ///
     ///    for table in result.tables {
     ///        println!("{}", table.table_name);
@@ -271,7 +275,11 @@ impl KustoClient {
     /// # Ok(())}
     /// ```
     #[must_use]
-    pub fn execute_command(&self, database: String, query: String) -> V1QueryRunner {
+    pub fn execute_command(
+        &self,
+        database: impl Into<String>,
+        query: impl Into<String>,
+    ) -> V1QueryRunner {
         V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, None))
     }
 }

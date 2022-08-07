@@ -472,7 +472,7 @@ impl ConnectionString {
             let mut kv = kv_pair_str.trim().split('=');
             let k = match kv.next().filter(|k| !k.chars().all(char::is_whitespace)) {
                 None => {
-                    return Err(ConnectionStringError::ParsingError {
+                    return Err(ConnectionStringError::Parsing {
                         msg: "No key found".to_string(),
                     });
                 }
@@ -486,7 +486,7 @@ impl ConnectionString {
             if let Some(&key) = ALIAS_MAP.get(k.to_ascii_lowercase().trim()) {
                 result_map.insert(key, v.trim());
             } else {
-                return Err(ConnectionStringError::UnexpectedKey { key: k.to_string() });
+                return Err(ConnectionStringError::from_unexpected_key(k));
             }
         }
 
@@ -502,11 +502,9 @@ impl ConnectionString {
             .map_or(Ok(false), |s| parse_boolean(s, "federated_security"))?;
 
         if let Some(user_id) = result_map.get(&ConnectionStringKey::UserId) {
-            let password = result_map.get(&ConnectionStringKey::Password).ok_or(
-                ConnectionStringError::MissingValue {
-                    key: "password".to_string(),
-                },
-            )?;
+            let password = result_map
+                .get(&ConnectionStringKey::Password)
+                .ok_or(ConnectionStringError::from_missing_value("password"))?;
 
             Ok(Self {
                 data_source,
@@ -533,16 +531,12 @@ impl ConnectionString {
                 },
             })
         } else if let Some(client_id) = result_map.get(&ConnectionStringKey::ApplicationClientId) {
-            let client_secret = result_map.get(&ConnectionStringKey::ApplicationKey).ok_or(
-                ConnectionStringError::MissingValue {
-                    key: "application_key".to_string(),
-                },
-            )?;
-            let client_authority = result_map.get(&ConnectionStringKey::AuthorityId).ok_or(
-                ConnectionStringError::MissingValue {
-                    key: "authority_id".to_string(),
-                },
-            )?;
+            let client_secret = result_map
+                .get(&ConnectionStringKey::ApplicationKey)
+                .ok_or(ConnectionStringError::from_missing_value("application_key"))?;
+            let client_authority = result_map
+                .get(&ConnectionStringKey::AuthorityId)
+                .ok_or(ConnectionStringError::from_missing_value("authority_id"))?;
             Ok(Self {
                 data_source,
                 federated_security,
@@ -556,19 +550,17 @@ impl ConnectionString {
         {
             let private_certificate_path = result_map
                 .get(&ConnectionStringKey::ApplicationCertificate)
-                .ok_or(ConnectionStringError::MissingValue {
-                    key: "application_certificate_thumbprint".to_string(),
-                })?;
+                .ok_or(ConnectionStringError::from_missing_value(
+                    "application_certificate_thumbprint",
+                ))?;
             let thumbprint = result_map
                 .get(&ConnectionStringKey::ApplicationCertificateThumbprint)
-                .ok_or(ConnectionStringError::MissingValue {
-                    key: "application_certificate_thumbprint".to_string(),
-                })?;
-            let client_authority = result_map.get(&ConnectionStringKey::AuthorityId).ok_or(
-                ConnectionStringError::MissingValue {
-                    key: "authority_id".to_string(),
-                },
-            )?;
+                .ok_or(ConnectionStringError::from_missing_value(
+                    "application_certificate_thumbprint",
+                ))?;
+            let client_authority = result_map
+                .get(&ConnectionStringKey::AuthorityId)
+                .ok_or(ConnectionStringError::from_missing_value("authority_id"))?;
             Ok(Self {
                 data_source,
                 federated_security,
@@ -632,7 +624,7 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_default_auth("https://mycluster.kusto.windows.net".into());
+    /// let conn = ConnectionString::with_default_auth("https://mycluster.kusto.windows.net");
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert_eq!(conn.auth, ConnectionStringAuth::Default);
@@ -640,9 +632,9 @@ impl ConnectionString {
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;".to_string()))
     /// ```
     #[must_use]
-    pub const fn with_default_auth(data_source: String) -> Self {
+    pub fn with_default_auth(data_source: impl Into<String>) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::Default,
         }
@@ -653,7 +645,7 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_user_password_auth("https://mycluster.kusto.windows.net".into(), "user".into(), "password".into());
+    /// let conn = ConnectionString::with_user_password_auth("https://mycluster.kusto.windows.net", "user", "password");
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert!(matches!(conn.auth, ConnectionStringAuth::UserAndPassword { .. }));
@@ -661,15 +653,18 @@ impl ConnectionString {
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;AAD User ID=user;Password=******".to_string()))
     /// ```
     #[must_use]
-    pub const fn with_user_password_auth(
-        data_source: String,
-        user_id: String,
-        password: String,
+    pub fn with_user_password_auth(
+        data_source: impl Into<String>,
+        user_id: impl Into<String>,
+        password: impl Into<String>,
     ) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
-            auth: ConnectionStringAuth::UserAndPassword { user_id, password },
+            auth: ConnectionStringAuth::UserAndPassword {
+                user_id: user_id.into(),
+                password: password.into(),
+            },
         }
     }
 
@@ -678,7 +673,7 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_token_auth("https://mycluster.kusto.windows.net".into(), "token".into());
+    /// let conn = ConnectionString::with_token_auth("https://mycluster.kusto.windows.net", "token");
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert!(matches!(conn.auth, ConnectionStringAuth::Token { .. }));
@@ -686,11 +681,13 @@ impl ConnectionString {
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;ApplicationToken=******".to_string()))
     /// ```
     #[must_use]
-    pub const fn with_token_auth(data_source: String, token: String) -> Self {
+    pub fn with_token_auth(data_source: impl Into<String>, token: impl Into<String>) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
-            auth: ConnectionStringAuth::Token { token },
+            auth: ConnectionStringAuth::Token {
+                token: token.into(),
+            },
         }
     }
 
@@ -700,7 +697,7 @@ impl ConnectionString {
     /// use std::sync::Arc;
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_token_callback_auth("https://mycluster.kusto.windows.net".into(), Arc::new(|resource_uri| resource_uri.to_string()));
+    /// let conn = ConnectionString::with_token_callback_auth("https://mycluster.kusto.windows.net", Arc::new(|resource_uri| resource_uri.to_string()));
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert!(matches!(conn.auth, ConnectionStringAuth::TokenCallback { .. }));
@@ -710,11 +707,11 @@ impl ConnectionString {
     /// ```
     #[must_use]
     pub fn with_token_callback_auth(
-        data_source: String,
+        data_source: impl Into<String>,
         token_callback: Arc<dyn Fn(&str) -> String + Send + Sync>,
     ) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::TokenCallback { token_callback },
         }
@@ -725,29 +722,29 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_application_auth("https://mycluster.kusto.windows.net".into(),
-    ///     "029067d2-220e-4467-99be-b74f4751270b".into(),
-    ///     "client_secret".into(),
-    ///     "e7f86dff-7a05-4b87-8c48-ed1ea5b5b814".into());
+    /// let conn = ConnectionString::with_application_auth("https://mycluster.kusto.windows.net",
+    ///     "029067d2-220e-4467-99be-b74f4751270b",
+    ///     "client_secret",
+    ///     "e7f86dff-7a05-4b87-8c48-ed1ea5b5b814");
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     ///
     /// assert!(matches!(conn.auth, ConnectionStringAuth::Application { .. }));
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;Application Client Id=029067d2-220e-4467-99be-b74f4751270b;Application Key=******;Authority Id=e7f86dff-7a05-4b87-8c48-ed1ea5b5b814".to_string()))
     /// ```
     #[must_use]
-    pub const fn with_application_auth(
-        data_source: String,
-        client_id: String,
-        client_secret: String,
-        client_authority: String,
+    pub fn with_application_auth(
+        data_source: impl Into<String>,
+        client_id: impl Into<String>,
+        client_secret: impl Into<String>,
+        client_authority: impl Into<String>,
     ) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::Application {
-                client_id,
-                client_secret,
-                client_authority,
+                client_id: client_id.into(),
+                client_secret: client_secret.into(),
+                client_authority: client_authority.into(),
             },
         }
     }
@@ -756,32 +753,32 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_application_certificate_auth("https://mycluster.kusto.windows.net".into(),
-    ///     "029067d2-220e-4467-99be-b74f4751270b".into(),
-    ///     "e7f86dff-7a05-4b87-8c48-ed1ea5b5b814".into(),
-    ///     "certificate.pem".into(),
-    ///     "thumbprint".into());
+    /// let conn = ConnectionString::with_application_certificate_auth("https://mycluster.kusto.windows.net",
+    ///     "029067d2-220e-4467-99be-b74f4751270b",
+    ///     "e7f86dff-7a05-4b87-8c48-ed1ea5b5b814",
+    ///     "certificate.pem",
+    ///     "thumbprint");
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     ///
     /// assert!(matches!(conn.auth, ConnectionStringAuth::ApplicationCertificate { .. }));
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;Application Client Id=029067d2-220e-4467-99be-b74f4751270b;ApplicationCertificate=certificate.pem;Application Certificate Thumbprint=******;Authority Id=e7f86dff-7a05-4b87-8c48-ed1ea5b5b814".to_string()))
     /// ```
     #[must_use]
-    pub const fn with_application_certificate_auth(
-        data_source: String,
-        client_id: String,
-        client_authority: String,
-        private_certificate_path: PathBuf,
-        thumbprint: String,
+    pub fn with_application_certificate_auth(
+        data_source: impl Into<String>,
+        client_id: impl Into<String>,
+        client_authority: impl Into<String>,
+        private_certificate_path: impl Into<PathBuf>,
+        thumbprint: impl Into<String>,
     ) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::ApplicationCertificate {
-                client_id,
-                private_certificate_path,
-                thumbprint,
-                client_authority,
+                client_id: client_id.into(),
+                private_certificate_path: private_certificate_path.into(),
+                thumbprint: thumbprint.into(),
+                client_authority: client_authority.into(),
             },
         }
     }
@@ -792,7 +789,7 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_managed_identity_auth("https://mycluster.kusto.windows.net".into(), None);
+    /// let conn = ConnectionString::with_managed_identity_auth("https://mycluster.kusto.windows.net", None);
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert_eq!(conn.auth, ConnectionStringAuth::ManagedIdentity { user_id: None });
@@ -800,11 +797,16 @@ impl ConnectionString {
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;MSI Authentication=True".to_string()))
     /// ```
     #[must_use]
-    pub const fn with_managed_identity_auth(data_source: String, user_id: Option<String>) -> Self {
+    pub fn with_managed_identity_auth(
+        data_source: impl Into<String>,
+        user_id: impl Into<Option<String>>,
+    ) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
-            auth: ConnectionStringAuth::ManagedIdentity { user_id },
+            auth: ConnectionStringAuth::ManagedIdentity {
+                user_id: user_id.into(),
+            },
         }
     }
 
@@ -814,7 +816,7 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_azure_cli_auth("https://mycluster.kusto.windows.net".into());
+    /// let conn = ConnectionString::with_azure_cli_auth("https://mycluster.kusto.windows.net");
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert_eq!(conn.auth, ConnectionStringAuth::AzureCli);
@@ -822,9 +824,9 @@ impl ConnectionString {
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;AZ CLI=True".to_string()))
     /// ```
     #[must_use]
-    pub const fn with_azure_cli_auth(data_source: String) -> Self {
+    pub fn with_azure_cli_auth(data_source: impl Into<String>) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::AzureCli,
         }
@@ -837,7 +839,7 @@ impl ConnectionString {
     /// use std::sync::Arc;
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_device_code_auth("https://mycluster.kusto.windows.net".into(), Some(Arc::new(|code| code.to_string())));
+    /// let conn = ConnectionString::with_device_code_auth("https://mycluster.kusto.windows.net", Some(Arc::new(|code| code.to_string())));
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert!(matches!(conn.auth, ConnectionStringAuth::DeviceCode { .. }));
@@ -847,11 +849,11 @@ impl ConnectionString {
     /// ```
     #[must_use]
     pub fn with_device_code_auth(
-        data_source: String,
+        data_source: impl Into<String>,
         callback: Option<Arc<dyn Fn(&str) -> String + Send + Sync>>,
     ) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::DeviceCode { callback },
         }
@@ -862,7 +864,7 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_interactive_login_auth("https://mycluster.kusto.windows.net".into());
+    /// let conn = ConnectionString::with_interactive_login_auth("https://mycluster.kusto.windows.net");
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert_eq!(conn.auth, ConnectionStringAuth::InteractiveLogin);
@@ -870,9 +872,9 @@ impl ConnectionString {
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;Interactive Login=True".to_string()))
     /// ```
     #[must_use]
-    pub const fn with_interactive_login_auth(data_source: String) -> Self {
+    pub fn with_interactive_login_auth(data_source: impl Into<String>) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::InteractiveLogin,
         }
@@ -886,7 +888,7 @@ impl ConnectionString {
     /// use azure_identity::DefaultAzureCredential;
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_token_credential("https://mycluster.kusto.windows.net".into(), Arc::new(DefaultAzureCredential::default()));
+    /// let conn = ConnectionString::with_token_credential("https://mycluster.kusto.windows.net", Arc::new(DefaultAzureCredential::default()));
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert!(matches!(conn.auth, ConnectionStringAuth::TokenCredential { .. }));
@@ -896,11 +898,11 @@ impl ConnectionString {
     /// ```
     #[must_use]
     pub fn with_token_credential(
-        data_source: String,
+        data_source: impl Into<String>,
         token_credential: Arc<dyn TokenCredential>,
     ) -> Self {
         Self {
-            data_source,
+            data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::TokenCredential {
                 credential: token_credential,
@@ -915,7 +917,7 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_user_password_auth("https://mycluster.kusto.windows.net".into(), "user".into(), "password".into());
+    /// let conn = ConnectionString::with_user_password_auth("https://mycluster.kusto.windows.net", "user", "password");
     ///
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;AAD User ID=user;Password=******".to_string()));
     #[must_use]
@@ -929,7 +931,7 @@ impl ConnectionString {
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_user_password_auth("https://mycluster.kusto.windows.net".into(), "user".into(), "password".into());
+    /// let conn = ConnectionString::with_user_password_auth("https://mycluster.kusto.windows.net", "user", "password");
     ///
     /// assert_eq!(conn.build_with_options(false, false), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;AAD User ID=user;Password=password".to_string()));
     /// assert_eq!(conn.build_with_options(false, true), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True".to_string()));
@@ -960,7 +962,7 @@ impl ConnectionString {
 
     pub(crate) fn into_data_source_and_credentials(self) -> (String, Arc<dyn TokenCredential>) {
         (
-            self.data_source,
+            self.data_source.into(),
             match self.auth {
                 ConnectionStringAuth::Default => Arc::new(DefaultAzureCredential::default()),
                 ConnectionStringAuth::UserAndPassword { .. } => unimplemented!(),
@@ -997,12 +999,10 @@ fn parse_boolean(term: &str, name: &str) -> Result<bool, ConnectionStringError> 
     match term.to_lowercase().trim() {
         "true" => Ok(true),
         "false" => Ok(false),
-        _ => Err(ConnectionStringError::ParsingError {
-            msg: format!(
-                "Unexpected value for {}: {}. Please specify either 'true' or 'false'.",
-                name, term
-            ),
-        }),
+        _ => Err(ConnectionStringError::from_parsing_error(format!(
+            "Unexpected value for {}: {}. Please specify either 'true' or 'false'.",
+            name, term
+        ))),
     }
 }
 
@@ -1019,7 +1019,7 @@ mod tests {
         ));
         assert!(matches!(
             ConnectionString::from_raw_connection_string("="),
-            Err(ConnectionStringError::ParsingError { msg: _ })
+            Err(ConnectionStringError::Parsing { msg: _ })
         ));
         assert!(matches!(
             ConnectionString::from_raw_connection_string("x=123;"),
