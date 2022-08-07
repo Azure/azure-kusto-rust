@@ -1,7 +1,10 @@
 //! Set of properties that can be use in a connection string provided to KustoConnectionStringBuilder.
 //! For a complete list of properties go to [the official docs](https://docs.microsoft.com/en-us/azure/kusto/api/connection-strings/kusto)
 
-use crate::error::ConnectionStringError;
+use std::fmt::{Debug, Formatter};
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use azure_core::auth::TokenCredential;
 use azure_identity::{
     AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
@@ -9,9 +12,8 @@ use azure_identity::{
 };
 use hashbrown::HashMap;
 use once_cell::sync::Lazy;
-use std::fmt::{Debug, Formatter};
-use std::path::PathBuf;
-use std::sync::Arc;
+
+use crate::error::ConnectionStringError;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum ConnectionStringKey {
@@ -504,7 +506,7 @@ impl ConnectionString {
         if let Some(user_id) = result_map.get(&ConnectionStringKey::UserId) {
             let password = result_map
                 .get(&ConnectionStringKey::Password)
-                .ok_or(ConnectionStringError::from_missing_value("password"))?;
+                .ok_or_else(|| ConnectionStringError::from_missing_value("password"))?;
 
             Ok(Self {
                 data_source,
@@ -533,10 +535,10 @@ impl ConnectionString {
         } else if let Some(client_id) = result_map.get(&ConnectionStringKey::ApplicationClientId) {
             let client_secret = result_map
                 .get(&ConnectionStringKey::ApplicationKey)
-                .ok_or(ConnectionStringError::from_missing_value("application_key"))?;
+                .ok_or_else(|| ConnectionStringError::from_missing_value("application_key"))?;
             let client_authority = result_map
                 .get(&ConnectionStringKey::AuthorityId)
-                .ok_or(ConnectionStringError::from_missing_value("authority_id"))?;
+                .ok_or_else(|| ConnectionStringError::from_missing_value("authority_id"))?;
             Ok(Self {
                 data_source,
                 federated_security,
@@ -550,17 +552,17 @@ impl ConnectionString {
         {
             let private_certificate_path = result_map
                 .get(&ConnectionStringKey::ApplicationCertificate)
-                .ok_or(ConnectionStringError::from_missing_value(
-                    "application_certificate_thumbprint",
-                ))?;
+                .ok_or_else(|| {
+                    ConnectionStringError::from_missing_value("application_certificate_thumbprint")
+                })?;
             let thumbprint = result_map
                 .get(&ConnectionStringKey::ApplicationCertificateThumbprint)
-                .ok_or(ConnectionStringError::from_missing_value(
-                    "application_certificate_thumbprint",
-                ))?;
+                .ok_or_else(|| {
+                    ConnectionStringError::from_missing_value("application_certificate_thumbprint")
+                })?;
             let client_authority = result_map
                 .get(&ConnectionStringKey::AuthorityId)
-                .ok_or(ConnectionStringError::from_missing_value("authority_id"))?;
+                .ok_or_else(|| ConnectionStringError::from_missing_value("authority_id"))?;
             Ok(Self {
                 data_source,
                 federated_security,
@@ -962,7 +964,7 @@ impl ConnectionString {
 
     pub(crate) fn into_data_source_and_credentials(self) -> (String, Arc<dyn TokenCredential>) {
         (
-            self.data_source.into(),
+            self.data_source,
             match self.auth {
                 ConnectionStringAuth::Default => Arc::new(DefaultAzureCredential::default()),
                 ConnectionStringAuth::UserAndPassword { .. } => unimplemented!(),

@@ -49,9 +49,8 @@ async fn deserialize_single<T: DeserializeOwned, R: AsyncRead + Send>(
                     return Ok((serde_json::from_slice::<T>(&vec[..i])?, leftover));
                 } else if e.is_eof() {
                     continue;
-                } else {
-                    return Err(e.into());
                 }
+                return Err(e.into());
             }
         }
     }
