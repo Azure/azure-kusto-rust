@@ -8,12 +8,11 @@ use hashbrown::hash_map::EntryRef;
 use hashbrown::HashMap;
 use http::Method;
 use http::StatusCode;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-lazy_static! {
-    static ref CLOUDINFO_CACHE: Mutex<HashMap<String, CloudInfo>> = Mutex::new(HashMap::new());
-}
+static CLOUDINFO_CACHE: Lazy<Mutex<HashMap<String, CloudInfo>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
@@ -92,6 +91,14 @@ impl CloudInfo {
             .await
             .insert(endpoint.to_string(), cloud_info);
     }
+
+    pub fn get_resource_uri(self) -> Cow<'static, str> {
+        let mut resource_uri = self.kusto_service_resource_id;
+        if self.login_mfa_required {
+            resource_uri = resource_uri.replace(".kusto.", ".kustomfa.").into();
+        }
+        resource_uri
+    }
 }
 
 #[cfg(test)]
@@ -105,7 +112,7 @@ mod tests {
         let pipeline = Pipeline::new(
             option_env!("CARGO_PKG_NAME"),
             option_env!("CARGO_PKG_VERSION"),
-            ClientOptions::new(),
+            ClientOptions::default(),
             Vec::new(),
             Vec::new(),
         );
