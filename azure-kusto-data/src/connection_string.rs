@@ -339,8 +339,14 @@ impl ConnectionStringAuth {
         match self {
             ConnectionStringAuth::Default => Arc::new(DefaultAzureCredential::default()),
             ConnectionStringAuth::UserAndPassword { .. } => unimplemented!(),
-            ConnectionStringAuth::Token { .. } => unimplemented!(),
-            ConnectionStringAuth::TokenCallback { .. } => unimplemented!(),
+            ConnectionStringAuth::Token { token } => Arc::new(ConstTokenCredential { token }),
+            ConnectionStringAuth::TokenCallback {
+                token_callback,
+                time_to_live,
+            } => Arc::new(CallbackTokenCredential {
+                token_callback,
+                time_to_live,
+            }),
             ConnectionStringAuth::Application {
                 client_id,
                 client_secret,

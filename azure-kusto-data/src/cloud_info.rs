@@ -1,13 +1,11 @@
-use arrow::datatypes::ToByteSlice;
 use std::borrow::Cow;
 
+use azure_core::error::Error as CoreError;
 use azure_core::prelude::*;
-use azure_core::{collect_pinned_stream, Context, Pipeline, Request};
+use azure_core::{Context, Method, Pipeline, Request, StatusCode};
 use futures::lock::Mutex;
 use hashbrown::hash_map::EntryRef;
 use hashbrown::HashMap;
-use http::Method;
-use http::StatusCode;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -50,24 +48,24 @@ impl CloudInfo {
 
     async fn fetch(pipeline: &Pipeline, endpoint: &str) -> Result<CloudInfo, crate::error::Error> {
         let metadata_endpoint = format!("{}/{}", endpoint, CloudInfo::METADATA_ENDPOINT);
-        let mut request = Request::new(metadata_endpoint.parse()?, Method::GET);
+        let mut request = Request::new(
+            metadata_endpoint.parse().map_err(CoreError::from)?,
+            Method::Get,
+        );
         request.insert_headers(&Accept::from("application/json"));
         request.insert_headers(&AcceptEncoding::from("gzip, deflate"));
         let response = pipeline.send(&mut Context::new(), &mut request).await?;
         let (status_code, _header_map, pinned_stream) = response.deconstruct();
         match status_code {
-            StatusCode::OK => {
-                let data = collect_pinned_stream(pinned_stream).await?;
+            StatusCode::Ok => {
+                let data = pinned_stream.collect().await?;
                 let result: AzureAd = serde_json::from_slice(&data)?;
                 Ok(result.azure_ad)
             }
-            StatusCode::NOT_FOUND => Ok(Default::default()),
+            StatusCode::NotFound => Ok(Default::default()),
             _ => Err(crate::error::Error::HttpError(
                 status_code,
-                String::from_utf8_lossy(
-                    collect_pinned_stream(pinned_stream).await?.to_byte_slice(),
-                )
-                .to_string(),
+                String::from_utf8_lossy((pinned_stream).collect().await?.as_ref()).to_string(),
             )),
         }
     }
