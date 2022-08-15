@@ -1,12 +1,11 @@
 #![cfg(feature = "mock_transport_framework")]
-use azure_core::auth::{TokenCredential, TokenResponse};
+use azure_core::auth::{AccessToken, TokenCredential, TokenResponse};
 use azure_core::error::Error as CoreError;
 use azure_kusto_data::prelude::*;
-use chrono::Utc;
 use dotenv::dotenv;
-use oauth2::AccessToken;
 use std::path::Path;
 use std::sync::Arc;
+use time::{Duration, OffsetDateTime};
 
 pub struct DummyCredential {}
 
@@ -15,7 +14,7 @@ impl TokenCredential for DummyCredential {
     async fn get_token(&self, _resource: &str) -> Result<TokenResponse, CoreError> {
         Ok(TokenResponse::new(
             AccessToken::new("some dummy token".to_string()),
-            Utc::now(),
+            OffsetDateTime::now() + Duration::days(365),
         ))
     }
 }
@@ -68,8 +67,11 @@ pub fn create_kusto_client(transaction_name: &str) -> (KustoClient, String) {
     let options = KustoClientOptions::new_with_transaction_name(transaction_name.to_string());
 
     (
-        KustoClient::new_with_options(service_url, credential, options)
-            .expect("Failed to create KustoClient"),
+        KustoClient::new(
+            ConnectionString::with_token_credential(service_url, credential),
+            options,
+        )
+        .expect("Failed to create KustoClient"),
         database,
     )
 }

@@ -35,11 +35,11 @@ struct Args {
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
-    let kcsb = ConnectionStringBuilder::new_with_aad_application_key_authentication(
-        &args.endpoint,
-        &args.tenant_id,
-        &args.application_id,
-        &args.application_key,
+    let kcsb = ConnectionString::with_application_auth(
+        args.endpoint,
+        args.application_id,
+        args.application_key,
+        args.tenant_id,
     );
 
     let client = KustoClient::try_from(kcsb).unwrap();
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("All results:");
 
-    for table in &response.tables {
+    for table in &response.results {
         match table {
             V2QueryResult::DataSetHeader(header) => println!("header: {:#?}", header),
             V2QueryResult::DataTable(table) => println!("table: {:#?}", table),
