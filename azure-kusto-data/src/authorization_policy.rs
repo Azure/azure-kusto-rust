@@ -1,4 +1,4 @@
-use azure_core::headers::{HeaderValue, AUTHORIZATION};
+use azure_core::headers::AUTHORIZATION;
 use azure_core::{auth::TokenCredential, Context, Policy, PolicyResult, Request};
 use std::sync::Arc;
 
@@ -43,11 +43,8 @@ impl Policy for AuthorizationPolicy {
         );
 
         let token = self.credential.get_token(&self.resource).await?;
-        let auth_header_value = format!("Bearer {}", token.token.secret());
 
-        request
-            .headers_mut()
-            .insert(AUTHORIZATION, HeaderValue::from(auth_header_value));
+        request.insert_header(AUTHORIZATION, &format!("Bearer {}", token.token.secret()));
 
         next[0].send(ctx, request, &next[1..]).await
     }

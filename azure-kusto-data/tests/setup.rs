@@ -1,12 +1,11 @@
 #![cfg(feature = "mock_transport_framework")]
-use azure_core::auth::{TokenCredential, TokenResponse};
+use azure_core::auth::{AccessToken, TokenCredential, TokenResponse};
 use azure_core::error::Error as CoreError;
 use azure_kusto_data::prelude::*;
-use chrono::Utc;
 use dotenv::dotenv;
-use oauth2::AccessToken;
 use std::path::Path;
 use std::sync::Arc;
+use time::{Duration, OffsetDateTime};
 
 pub struct DummyCredential {}
 
@@ -15,7 +14,7 @@ impl TokenCredential for DummyCredential {
     async fn get_token(&self, _resource: &str) -> Result<TokenResponse, CoreError> {
         Ok(TokenResponse::new(
             AccessToken::new("some dummy token".to_string()),
-            Utc::now(),
+            OffsetDateTime::now() + Duration::days(365),
         ))
     }
 }

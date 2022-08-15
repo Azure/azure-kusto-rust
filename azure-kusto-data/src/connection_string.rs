@@ -4,7 +4,9 @@
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
+use crate::credentials::{CallbackTokenCredential, ConstTokenCredential};
 use azure_core::auth::TokenCredential;
 use azure_identity::{
     AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
@@ -181,10 +183,12 @@ pub enum ConnectionStringAuth {
         /// A Bearer token to use for authentication.
         token: String,
     },
-    /// Token callback - uses a user provided callback that accepts the resource id and returns a token in order to authenticate.
+    /// Token callback - uses a user provided callback that accepts the resource and returns a token in order to authenticate.
     TokenCallback {
         /// A callback that accepts the resource id and returns a token in order to authenticate.
         token_callback: Arc<dyn Fn(&str) -> String + Send + Sync>,
+        /// The amount of time before calling the token callback again.
+        time_to_live: Option<Duration>,
     },
     /// Application - uses the application client id and key to authenticate.
     Application {
@@ -251,7 +255,7 @@ impl ConnectionStringAuth {
     /// assert_eq!(user_and_pass.build(false), Some("AAD User ID=user;Password=password".to_string()));
     /// assert_eq!(user_and_pass.build(true), Some("AAD User ID=user;Password=******".to_string()));
     ///
-    /// let token_callback = ConnectionStringAuth::TokenCallback { token_callback: Arc::new(|_| "token".to_string()) };
+    /// let token_callback = ConnectionStringAuth::TokenCallback { token_callback: Arc::new(|_| "token".to_string()), time_to_live: None };
     ///
     /// assert_eq!(token_callback.build(true), None);
     /// ```
@@ -699,7 +703,7 @@ impl ConnectionString {
     /// use std::sync::Arc;
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_token_callback_auth("https://mycluster.kusto.windows.net", Arc::new(|resource_uri| resource_uri.to_string()));
+    /// let conn = ConnectionString::with_token_callback_auth("https://mycluster.kusto.windows.net", Arc::new(|resource_uri| resource_uri.to_string()), None);
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert!(matches!(conn.auth, ConnectionStringAuth::TokenCallback { .. }));
@@ -711,11 +715,15 @@ impl ConnectionString {
     pub fn with_token_callback_auth(
         data_source: impl Into<String>,
         token_callback: Arc<dyn Fn(&str) -> String + Send + Sync>,
+        time_to_live: Option<Duration>,
     ) -> Self {
         Self {
             data_source: data_source.into(),
             federated_security: true,
-            auth: ConnectionStringAuth::TokenCallback { token_callback },
+            auth: ConnectionStringAuth::TokenCallback {
+                token_callback,
+                time_to_live,
+            },
         }
     }
 
@@ -968,8 +976,14 @@ impl ConnectionString {
             match self.auth {
                 ConnectionStringAuth::Default => Arc::new(DefaultAzureCredential::default()),
                 ConnectionStringAuth::UserAndPassword { .. } => unimplemented!(),
-                ConnectionStringAuth::Token { .. } => unimplemented!(),
-                ConnectionStringAuth::TokenCallback { .. } => unimplemented!(),
+                ConnectionStringAuth::Token { token } => Arc::new(ConstTokenCredential { token }),
+                ConnectionStringAuth::TokenCallback {
+                    token_callback,
+                    time_to_live,
+                } => Arc::new(CallbackTokenCredential {
+                    token_callback,
+                    time_to_live,
+                }),
                 ConnectionStringAuth::Application {
                     client_id,
                     client_secret,

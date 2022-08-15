@@ -13,11 +13,10 @@ use arrow::record_batch::RecordBatch;
 use async_convert::TryFrom;
 use azure_core::error::Error as CoreError;
 use azure_core::prelude::*;
-use azure_core::{collect_pinned_stream, Request, Response as HttpResponse, Response};
+use azure_core::{Method, Request, Response as HttpResponse, Response, Url};
 use futures::future::BoxFuture;
 use futures::{Stream, TryFutureExt, TryStreamExt};
 use http::header::CONNECTION;
-use http::Uri;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -105,8 +104,7 @@ impl QueryRunner {
             QueryKind::Management => self.client.management_url(),
             QueryKind::Query => self.client.query_url(),
         };
-        let mut request =
-            prepare_request(url.parse().map_err(CoreError::from)?, http::Method::POST);
+        let mut request = prepare_request(url.parse().map_err(CoreError::from)?, Method::Post);
 
         if let Some(request_id) = &self.client_request_id {
             request.insert_headers(request_id);
@@ -501,7 +499,7 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV2 {
 
     async fn try_from(response: HttpResponse) -> Result<Self> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
-        let data = collect_pinned_stream(pinned_stream).await?;
+        let data = pinned_stream.collect().await?;
         let tables: Vec<V2QueryResult> = serde_json::from_slice(&data)?;
         Ok(Self { results: tables })
     }
@@ -513,7 +511,7 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
 
     async fn try_from(response: HttpResponse) -> Result<Self> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
-        let data = collect_pinned_stream(pinned_stream).await?;
+        let data = pinned_stream.collect().await?;
         Ok(serde_json::from_slice(&data)?)
     }
 }
@@ -528,10 +526,10 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
 //     }
 // }
 
-pub fn prepare_request(uri: Uri, http_method: http::Method) -> Request {
+pub fn prepare_request(url: Url, http_method: Method) -> Request {
     const API_VERSION: &str = "2019-02-13";
 
-    let mut request = Request::new(uri, http_method);
+    let mut request = Request::new(url, http_method);
     request.insert_headers(&Version::from(API_VERSION));
     request.insert_headers(&Accept::from("application/json"));
     request.insert_headers(&ContentType::new("application/json; charset=utf-8"));
@@ -540,7 +538,7 @@ pub fn prepare_request(uri: Uri, http_method: http::Method) -> Request {
         "Kusto.Rust.Client:{}",
         env!("CARGO_PKG_VERSION"),
     )));
-    request.headers_mut().insert(CONNECTION, "Keep-Alive");
+    request.insert_header(CONNECTION.as_str(), "Keep-Alive");
     request
 }
 

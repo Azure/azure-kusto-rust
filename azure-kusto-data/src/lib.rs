@@ -9,6 +9,7 @@ mod arrow;
 mod authorization_policy;
 pub mod client;
 pub mod connection_string;
+pub mod credentials;
 pub mod error;
 pub mod models;
 mod operations;
