@@ -1,4 +1,3 @@
-#![cfg(feature = "mock_transport_framework")]
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use std::sync::Arc;
 mod setup;

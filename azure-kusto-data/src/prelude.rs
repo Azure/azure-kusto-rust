@@ -12,7 +12,9 @@
 //! ```
 
 pub use crate::client::{KustoClient, KustoClientOptions, QueryKind};
-pub use crate::connection_string::{ConnectionString, ConnectionStringAuth};
+pub use crate::connection_string::{
+    ConnectionString, ConnectionStringAuth, DeviceCodeFunction, TokenCallbackFunction,
+};
 pub use crate::error::Error;
 pub use crate::models::{DataTable, V2QueryResult};
 pub use crate::operations::query::{KustoResponse, KustoResponseDataSetV1, KustoResponseDataSetV2};

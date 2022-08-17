@@ -1,5 +1,3 @@
-#![cfg(feature = "mock_transport_framework")]
-
 use azure_kusto_data::prelude::*;
 use dotenv::dotenv;
 

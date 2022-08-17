@@ -462,7 +462,7 @@ impl KustoResponseDataSetV2 {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
 /// The header of a Kusto response dataset for v1. Contains a list of tables.
 pub struct KustoResponseDataSetV1 {

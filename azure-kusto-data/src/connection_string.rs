@@ -17,6 +17,11 @@ use once_cell::sync::Lazy;
 
 use crate::error::ConnectionStringError;
 
+/// Function that handles the device code flow.
+pub type DeviceCodeFunction = Arc<dyn Fn(&str) -> String + Send + Sync>;
+/// Function that returns a token.
+pub type TokenCallbackFunction = Arc<dyn Fn(&str) -> String + Send + Sync>;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum ConnectionStringKey {
     DataSource,
@@ -186,7 +191,7 @@ pub enum ConnectionStringAuth {
     /// Token callback - uses a user provided callback that accepts the resource and returns a token in order to authenticate.
     TokenCallback {
         /// A callback that accepts the resource id and returns a token in order to authenticate.
-        token_callback: Arc<dyn Fn(&str) -> String + Send + Sync>,
+        token_callback: TokenCallbackFunction,
         /// The amount of time before calling the token callback again.
         time_to_live: Option<Duration>,
     },
@@ -220,7 +225,7 @@ pub enum ConnectionStringAuth {
     /// Device code - Gives the user a device code that they have to use in order to authenticate.
     DeviceCode {
         /// Callback to activate the device code flow. If not given, will use the default of azure identity.
-        callback: Option<Arc<dyn Fn(&str) -> String + Send + Sync>>,
+        callback: Option<DeviceCodeFunction>,
     },
     /// Interactive - Gives the user an interactive prompt to authenticate.
     InteractiveLogin,
@@ -714,7 +719,7 @@ impl ConnectionString {
     #[must_use]
     pub fn with_token_callback_auth(
         data_source: impl Into<String>,
-        token_callback: Arc<dyn Fn(&str) -> String + Send + Sync>,
+        token_callback: TokenCallbackFunction,
         time_to_live: Option<Duration>,
     ) -> Self {
         Self {
@@ -860,7 +865,7 @@ impl ConnectionString {
     #[must_use]
     pub fn with_device_code_auth(
         data_source: impl Into<String>,
-        callback: Option<Arc<dyn Fn(&str) -> String + Send + Sync>>,
+        callback: Option<DeviceCodeFunction>,
     ) -> Self {
         Self {
             data_source: data_source.into(),
