@@ -1,9 +1,8 @@
-#![cfg(feature = "mock_transport_framework")]
 mod setup;
 
 #[tokio::test]
 async fn create_query_delete_table() {
-    let (client, database) = setup::create_kusto_client("data_create_query_delete_table");
+    let (client, database) = setup::create_kusto_client();
 
     let query = ".set KustoRsTest <| let text=\"Hello, World!\"; print str=text";
     let response = client

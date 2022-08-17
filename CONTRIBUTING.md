@@ -23,7 +23,7 @@ To record new transactions, first place a `.env` file (omitted by `.gitignore`) 
 AZURE_CLIENT_ID="..."
 AZURE_CLIENT_SECRET="..."
 AZURE_TENANT_ID="..."
-KUSTO_SERVICE_URL="..."
+KUSTO_CLUSTER_URL="..."
 KUSTO_DATABASE="..."
 ```
 

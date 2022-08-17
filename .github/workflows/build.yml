@@ -5,6 +5,12 @@ name: Rust Build, Test, and Lint
 jobs:
   build-data:
     runs-on: ubuntu-latest
+    environment: sdke2e
+    env:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug
+      KUSTO_CLUSTER_URL: https://sdkse2etest.eastus.kusto.windows.net
+      KUSTO_DATABASE: fastbatchinge2e
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1

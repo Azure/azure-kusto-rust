@@ -25,7 +25,7 @@ macro_rules! assert_batches_eq {
 
 #[tokio::test]
 async fn arrow_roundtrip() {
-    let (client, database) = setup::create_kusto_client("data_arrow_roundtrip");
+    let (client, database) = setup::create_kusto_client();
 
     let query = "
         datatable(
