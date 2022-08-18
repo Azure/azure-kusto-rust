@@ -30,14 +30,6 @@ impl KustoClientOptions {
     pub fn new() -> Self {
         Self::default()
     }
-
-    #[cfg(feature = "mock_transport_framework")]
-    /// Create new options with a given transaction name
-    pub fn new_with_transaction_name<T: Into<String>>(name: T) -> Self {
-        Self {
-            options: ClientOptions::new_with_transaction_name(name.into()),
-        }
-    }
 }
 
 fn new_pipeline_from_options(

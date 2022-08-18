@@ -1,7 +1,7 @@
 //! Custom credentials for Azure Data Explorer.
 
+use crate::connection_string::TokenCallbackFunction;
 use azure_core::auth::{AccessToken, TokenCredential, TokenResponse};
-use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -24,7 +24,7 @@ impl TokenCredential for ConstTokenCredential {
 
 /// Uses a user provided callback that accepts the resource and returns a token in order to authenticate.
 pub struct CallbackTokenCredential {
-    pub(crate) token_callback: Arc<dyn Fn(&str) -> String + Send + Sync>,
+    pub(crate) token_callback: TokenCallbackFunction,
     pub(crate) time_to_live: Option<Duration>,
 }
 
