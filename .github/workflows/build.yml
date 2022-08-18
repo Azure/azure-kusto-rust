@@ -36,7 +36,8 @@ jobs:
           path: ~/.cargo/bin/cargo2junit
           key: ${{ runner.os }}-cargo2junit
       - name: install cargo2junit
-        run: cargo install cargo2junit || true # ignore failure, since it means that it's already in cache
+        if: steps.cache-cargo2junit.outputs.cache-hit != 'true'
+        run: cargo install cargo2junit
       - name: Test
         run: cargo test --all-features --no-fail-fast -- -Z unstable-options --format json --report-time | tee results.json && cat results.json | cargo2junit > results.xml
         env:
