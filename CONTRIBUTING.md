@@ -5,40 +5,17 @@ follow the instructions provided in [Microsoft Azure Projects Contribution Guide
 
 ## Building and Testing
 
-This project uses the [mock_transport_framework](https://github.com/Azure/azure-sdk-for-rust/blob/main/docs/mock_transport.md)
-from the unofficial azure Rust SDKs. The main idea is to record interactions with external services (Kusto) locally, and replay
-the responses in CI/CD and for normal testing. This is particularly useful for end to end tests.
-
-To execute tests against recorded responses run:
-
-```bash
-cargo test --features=mock_transport_framework
-```
-
-> Using `cargo test` will also work, but omit all tests requiring the mock_transport_framework
-
-To record new transactions, first place a `.env` file (omitted by `.gitignore`) in the repository root
+To fully test the end-to-end functionality, you will need to provide the following environment variables for your service principal and cluster: 
 
 ```toml
 AZURE_CLIENT_ID="..."
 AZURE_CLIENT_SECRET="..."
 AZURE_TENANT_ID="..."
-KUSTO_SERVICE_URL="..."
+KUSTO_CLUSTER_URL="..."
 KUSTO_DATABASE="..."
 ```
 
 > The provided service principal needs to be able to `create` and `drop` tables in the specified database
-
-Then execute tests in `RECORD` mode:
-
-```bash
-TESTING_MODE=RECORD cargo test --features=mock_transport_framework
-```
-
-> While all credentials and identifiable urls are stripped from recordings, the used database name, the query
-> and responses are committed to source control. So make sure no sensitive data is contained therein. Care
-> should also be taken to reduce the information about DB internals returned from a query - especially
-> when using control commands.
 
 ## Style
 

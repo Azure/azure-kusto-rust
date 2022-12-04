@@ -1,4 +1,3 @@
-#![cfg(feature = "mock_transport_framework")]
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use std::sync::Arc;
 mod setup;
@@ -25,7 +24,7 @@ macro_rules! assert_batches_eq {
 
 #[tokio::test]
 async fn arrow_roundtrip() {
-    let (client, database) = setup::create_kusto_client("data_arrow_roundtrip");
+    let (client, database) = setup::create_kusto_client();
 
     let query = "
         datatable(
@@ -43,7 +42,7 @@ async fn arrow_roundtrip() {
         ]
     ";
     let response = client
-        .execute_query(&database, query)
+        .execute_query(database, query)
         .into_future()
         .await
         .expect("Failed to run query");

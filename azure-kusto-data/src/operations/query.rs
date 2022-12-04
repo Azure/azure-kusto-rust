@@ -13,10 +13,10 @@ use arrow::record_batch::RecordBatch;
 use async_convert::TryFrom;
 use azure_core::error::Error as CoreError;
 use azure_core::prelude::*;
-use azure_core::{collect_pinned_stream, Request, Response as HttpResponse, Response};
+use azure_core::{Method, Request, Response as HttpResponse, Response, Url};
 use futures::future::BoxFuture;
 use futures::{Stream, TryFutureExt, TryStreamExt};
-use http::Uri;
+use http::header::CONNECTION;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -73,7 +73,7 @@ impl V2QueryRunner {
 
     pub async fn into_stream(self) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
         let V2QueryRunner(query_runner) = self;
-        Ok(query_runner.into_stream().await?)
+        query_runner.into_stream().await
     }
 }
 
@@ -104,8 +104,7 @@ impl QueryRunner {
             QueryKind::Management => self.client.management_url(),
             QueryKind::Query => self.client.query_url(),
         };
-        let mut request =
-            prepare_request(url.parse().map_err(CoreError::from)?, http::Method::POST);
+        let mut request = prepare_request(url.parse().map_err(CoreError::from)?, Method::Post);
 
         if let Some(request_id) = &self.client_request_id {
             request.insert_headers(request_id);
@@ -157,15 +156,20 @@ impl QueryRunner {
     }
 }
 
+/// A Kusto query response.
 #[derive(Debug, Clone)]
 pub enum KustoResponse {
+    /// V1 Response - represents management queries, and old V1 data queries.
     V1(KustoResponseDataSetV1),
+    /// V2 Response - represents new V2 data queries.
     V2(KustoResponseDataSetV2),
 }
 
+/// The top level response from a Kusto query.
 #[derive(Debug, Clone)]
 pub struct KustoResponseDataSetV2 {
-    pub tables: Vec<V2QueryResult>,
+    /// All of the raw results in the response.
+    pub results: Vec<V2QueryResult>,
 }
 
 impl std::convert::TryFrom<KustoResponse> for KustoResponseDataSetV2 {
@@ -274,50 +278,216 @@ impl<T: Iterator<Item = V2QueryResult>> Iterator for KustoResponseDataSetV2Table
 }
 
 impl KustoResponseDataSetV2 {
+    /// Count of the number of the raw results in the response.
+    /// This, in addition to tables, includes headers and other non-table results.
+    /// # Example
+    /// ```rust
+    /// use azure_kusto_data::models::*;
+    /// use azure_kusto_data::prelude::{DataTable, KustoResponseDataSetV2};
+    ///
+    /// let data_set = KustoResponseDataSetV2 {
+    ///    results: vec![
+    ///         V2QueryResult::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
+    ///         V2QueryResult::DataTable(DataTable {
+    ///         table_id: 0,
+    ///         table_name: "table_1".to_string(),
+    ///         table_kind: TableKind::PrimaryResult,
+    ///         columns: vec![],
+    ///         rows: vec![],
+    ///         }),
+    ///     ], };
+    ///
+    /// assert_eq!(data_set.raw_results_count(), 2);
+    /// ```
     #[must_use]
-    pub fn table_count(&self) -> usize {
-        self.tables.len()
+    pub fn raw_results_count(&self) -> usize {
+        self.results.len()
     }
 
+    /// Iterates over the tables in the response.
+    /// If the query is progressive, it will combine the table parts into a single table.
+    ///
+    /// This method does not consume the response, so it can be called multiple times.
+    /// [Use into_parsed_data_tables](#method.into_parsed_data_tables) to consume the response and reduce memory usage.
+    /// # Example
+    /// ```rust
+    /// use azure_kusto_data::models::*;
+    /// use azure_kusto_data::prelude::{DataTable, KustoResponseDataSetV2};
+    ///
+    ///let data_set = KustoResponseDataSetV2 {
+    ///results: vec![
+    ///    V2QueryResult::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
+    ///    V2QueryResult::DataTable(DataTable {
+    ///        table_id: 0,
+    ///        table_name: "table_1".to_string(),
+    ///        table_kind: TableKind::QueryCompletionInformation,
+    ///        columns: vec![],
+    ///        rows: vec![],
+    ///    }),
+    ///    V2QueryResult::TableHeader(TableHeader {
+    ///        table_id: 1,
+    ///        table_name: "table_2".to_string(),
+    ///        table_kind: TableKind::PrimaryResult,
+    ///        columns: vec![],
+    ///    }),
+    ///    V2QueryResult::TableCompletion(TableCompletion {
+    ///        table_id: 1,
+    ///        row_count: 0,
+    ///    }),
+    ///],
+    ///};
+    /// let mut results = vec![];
+    /// for table in data_set.parsed_data_tables() {
+    ///    results.push(format!("{} - {}", table.table_id, table.table_name));
+    /// }
+    ///
+    /// assert_eq!(results, vec!["0 - table_1", "1 - table_2"]);
+    /// ```
     pub fn parsed_data_tables(&self) -> impl Iterator<Item = DataTable> + '_ {
-        KustoResponseDataSetV2TableIterator::new(self.tables.iter().cloned())
+        KustoResponseDataSetV2TableIterator::new(self.results.iter().cloned())
     }
 
+    /// Iterates over the tables in the response, yielding only the primary tables.
+    /// If the query is progressive, it will combine the table parts into a single table.
+    ///
+    /// This method does not consume the response, so it can be called multiple times.
+    /// [Use into_primary_results](#method.into_primary_results) to consume the response and reduce memory usage.
+    /// # Example
+    /// ```rust
+    /// use azure_kusto_data::models::*;
+    /// use azure_kusto_data::prelude::{DataTable, KustoResponseDataSetV2};
+    ///
+    ///let data_set = KustoResponseDataSetV2 {
+    ///results: vec![
+    ///    V2QueryResult::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
+    ///    V2QueryResult::DataTable(DataTable {
+    ///        table_id: 0,
+    ///        table_name: "table_1".to_string(),
+    ///        table_kind: TableKind::QueryCompletionInformation,
+    ///        columns: vec![],
+    ///        rows: vec![],
+    ///    }),
+    ///    V2QueryResult::TableHeader(TableHeader {
+    ///        table_id: 1,
+    ///        table_name: "table_2".to_string(),
+    ///        table_kind: TableKind::PrimaryResult,
+    ///        columns: vec![],
+    ///    }),
+    ///    V2QueryResult::TableCompletion(TableCompletion {
+    ///        table_id: 1,
+    ///        row_count: 0,
+    ///    }),
+    ///],
+    ///};
+    /// let mut results = vec![];
+    /// for table in data_set.primary_results() {
+    ///    results.push(format!("{} - {}", table.table_id, table.table_name));
+    /// }
+    ///
+    /// assert_eq!(results, vec!["1 - table_2"]);
+    /// ```
     /// Consumes the response into an iterator over all PrimaryResult tables within the response dataset
     pub fn primary_results(&self) -> impl Iterator<Item = DataTable> + '_ {
         self.parsed_data_tables()
             .filter(|t| t.table_kind == TableKind::PrimaryResult)
     }
 
+    /// Iterates over the tables in the response, and converts them into `arrow` `Batches`
+    /// If the query is progressive, it will combine the table parts into a single table.
+    ///
+    /// This method does not consume the response, so it can be called multiple times.
+    /// [Use into_primary_results](#method.into_primary_results) to consume the response and reduce memory usage.
+    /// # Example
+    /// ```rust
+    /// use serde_json::Value;
+    /// use azure_kusto_data::models::*;
+    /// use azure_kusto_data::prelude::{DataTable, KustoResponseDataSetV2};
+    ///
+    ///let data_set = KustoResponseDataSetV2 {
+    ///results: vec![
+    ///    V2QueryResult::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
+    ///    V2QueryResult::DataTable(DataTable {
+    ///        table_id: 0,
+    ///        table_name: "table_1".to_string(),
+    ///        table_kind: TableKind::PrimaryResult,
+    ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::Long}],
+    ///        rows: vec![vec![Value::from(3u64)]],
+    ///    }),
+    ///    V2QueryResult::TableHeader(TableHeader {
+    ///        table_id: 1,
+    ///        table_name: "table_2".to_string(),
+    ///        table_kind: TableKind::PrimaryResult,
+    ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::String}],
+    ///    }),
+    ///    V2QueryResult::TableFragment(TableFragment {
+    ///       table_id: 1,
+    ///       rows: vec![vec![Value::from("first")], vec![Value::from("second")]],
+    ///       field_count: Some(1),
+    ///       table_fragment_type: TableFragmentType::DataAppend,
+    ///     }),
+    ///    V2QueryResult::TableCompletion(TableCompletion {
+    ///        table_id: 1,
+    ///        row_count: 2,
+    ///    }),
+    ///],
+    ///};
+    /// let mut results = vec![];
+    /// for batch in data_set.record_batches() {
+    ///    results.push(batch.map(|b| b.num_rows()).unwrap_or(0));
+    /// }
+    ///
+    /// assert_eq!(results, vec![1, 2]);
+    /// ```
+    /// Consumes the response into an iterator over all PrimaryResult tables within the response dataset
     #[cfg(feature = "arrow")]
     pub fn record_batches(&self) -> impl Iterator<Item = Result<RecordBatch>> + '_ {
         self.primary_results().map(convert_table)
     }
 
+    /// Consuming version for [parse_data_tables](#method.parse_data_tables).
     pub fn into_parsed_data_tables(self) -> impl Iterator<Item = DataTable> {
-        KustoResponseDataSetV2TableIterator::new(self.tables.into_iter())
+        KustoResponseDataSetV2TableIterator::new(self.results.into_iter())
     }
 
-    /// Consumes the response into an iterator over all PrimaryResult tables within the response dataset
+    /// Consuming version for [primary_results](#method.primary_results).
     pub fn into_primary_results(self) -> impl Iterator<Item = DataTable> {
         self.into_parsed_data_tables()
             .filter(|t| t.table_kind == TableKind::PrimaryResult)
     }
 
     #[cfg(feature = "arrow")]
+    /// Consuming version for [record_batches](#method.record_batches).
     pub fn into_record_batches(self) -> impl Iterator<Item = Result<RecordBatch>> {
         self.into_primary_results().map(convert_table)
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
+/// The header of a Kusto response dataset for v1. Contains a list of tables.
 pub struct KustoResponseDataSetV1 {
+    /// The list of tables in the dataset.
     pub tables: Vec<TableV1>,
 }
 
 impl KustoResponseDataSetV1 {
     #[must_use]
+    /// Count the number of tables in the dataset.
+    /// # Example
+    /// ```rust
+    /// use azure_kusto_data::models::TableV1;
+    /// use azure_kusto_data::prelude::KustoResponseDataSetV1;
+    /// let dataset = KustoResponseDataSetV1 {
+    ///    tables: vec![
+    ///       TableV1 {
+    ///         table_name: "table_1".to_string(),
+    ///         columns: vec![],
+    ///         rows: vec![],
+    ///      },
+    /// ]};
+    ///
+    /// assert_eq!(dataset.table_count(), 1);
+    ///
     pub fn table_count(&self) -> usize {
         self.tables.len()
     }
@@ -329,9 +499,9 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV2 {
 
     async fn try_from(response: HttpResponse) -> Result<Self> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
-        let data = collect_pinned_stream(pinned_stream).await?;
+        let data = pinned_stream.collect().await?;
         let tables: Vec<V2QueryResult> = serde_json::from_slice(&data)?;
-        Ok(Self { tables })
+        Ok(Self { results: tables })
     }
 }
 
@@ -341,7 +511,7 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
 
     async fn try_from(response: HttpResponse) -> Result<Self> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
-        let data = collect_pinned_stream(pinned_stream).await?;
+        let data = pinned_stream.collect().await?;
         Ok(serde_json::from_slice(&data)?)
     }
 }
@@ -356,10 +526,10 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
 //     }
 // }
 
-pub fn prepare_request(uri: Uri, http_method: http::Method) -> Request {
+pub fn prepare_request(url: Url, http_method: Method) -> Request {
     const API_VERSION: &str = "2019-02-13";
 
-    let mut request = Request::new(uri, http_method);
+    let mut request = Request::new(url, http_method);
     request.insert_headers(&Version::from(API_VERSION));
     request.insert_headers(&Accept::from("application/json"));
     request.insert_headers(&ContentType::new("application/json; charset=utf-8"));
@@ -368,6 +538,7 @@ pub fn prepare_request(uri: Uri, http_method: http::Method) -> Request {
         "Kusto.Rust.Client:{}",
         env!("CARGO_PKG_VERSION"),
     )));
+    request.insert_header(CONNECTION.as_str(), "Keep-Alive");
     request
 }
 
@@ -383,15 +554,16 @@ mod tests {
                 "TableName": "Table_0",
                 "Columns": [{
                     "ColumnName": "Text",
-                    "DataType": "String",
-                    "ColumnType": "string"
+                    "DataType": "String"
                 }],
                 "Rows": [["Hello, World!"]]
             }]
         }"#;
 
-        let parsed = serde_json::from_str::<KustoResponseDataSetV1>(data);
-        assert!(parsed.is_ok());
+        let parsed = serde_json::from_str::<KustoResponseDataSetV1>(data).expect("Failed to parse");
+
+        assert_eq!(parsed.tables[0].columns[0].column_name, "Text");
+        assert_eq!(parsed.tables[0].rows[0][0], "Hello, World!");
     }
 
     #[test]

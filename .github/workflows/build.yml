@@ -5,6 +5,15 @@ name: Rust Build, Test, and Lint
 jobs:
   build-data:
     runs-on: ubuntu-latest
+    environment: sdke2e
+    env:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug
+      KUSTO_CLUSTER_URL: https://sdkse2etest.eastus.kusto.windows.net
+      KUSTO_DATABASE: fastbatchinge2e
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
@@ -12,7 +21,7 @@ jobs:
           toolchain: nightly
           override: true
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - uses: mbrobbel/rustfmt-check@master
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -27,7 +36,8 @@ jobs:
           path: ~/.cargo/bin/cargo2junit
           key: ${{ runner.os }}-cargo2junit
       - name: install cargo2junit
-        run: cargo install cargo2junit || true # ignore failure, since it means that it's already in cache
+        if: steps.cache-cargo2junit.outputs.cache-hit != 'true'
+        run: cargo install cargo2junit
       - name: Test
         run: cargo test --all-features --no-fail-fast -- -Z unstable-options --format json --report-time | tee results.json && cat results.json | cargo2junit > results.xml
         env:

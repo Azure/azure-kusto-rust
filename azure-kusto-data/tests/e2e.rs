@@ -1,13 +1,12 @@
-#![cfg(feature = "mock_transport_framework")]
 mod setup;
 
 #[tokio::test]
 async fn create_query_delete_table() {
-    let (client, database) = setup::create_kusto_client("data_create_query_delete_table");
+    let (client, database) = setup::create_kusto_client();
 
     let query = ".set KustoRsTest <| let text=\"Hello, World!\"; print str=text";
     let response = client
-        .execute_command(&database, query)
+        .execute_command(database.clone(), query)
         .into_future()
         .await
         .expect("Failed to run query");
@@ -16,7 +15,7 @@ async fn create_query_delete_table() {
 
     let query = ".show tables | where TableName == \"KustoRsTest\"";
     let response = client
-        .execute_command(&database, query)
+        .execute_command(database.clone(), query)
         .into_future()
         .await
         .expect("Failed to run query");
@@ -25,7 +24,7 @@ async fn create_query_delete_table() {
 
     let query = "KustoRsTest | take 1";
     let response = client
-        .execute_query(&database, query)
+        .execute_query(database.clone(), query)
         .into_future()
         .await
         .expect("Failed to run query");
@@ -35,7 +34,7 @@ async fn create_query_delete_table() {
 
     let query = ".drop table KustoRsTest | where TableName == \"KustoRsTest\"";
     let response = client
-        .execute_command(&database, query)
+        .execute_command(database.clone(), query)
         .into_future()
         .await
         .expect("Failed to run query");
