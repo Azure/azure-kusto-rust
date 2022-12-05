@@ -39,7 +39,7 @@ impl Display for KustoDateTime {
 
 impl Debug for KustoDateTime {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 
@@ -141,7 +141,7 @@ impl Display for KustoDuration {
 
 impl Debug for KustoDuration {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 

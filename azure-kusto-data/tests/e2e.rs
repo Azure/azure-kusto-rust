@@ -42,7 +42,6 @@ async fn create_query_delete_table() {
 "#;
     let response = client
         .execute_command(database.clone(), query)
-        .into_future()
         .await
         .expect("Failed to run query");
 
@@ -51,7 +50,6 @@ async fn create_query_delete_table() {
     let query = ".show tables | where TableName == \"KustoRsTest\"";
     let response = client
         .execute_command(database.clone(), query)
-        .into_future()
         .await
         .expect("Failed to run query");
 
@@ -60,7 +58,6 @@ async fn create_query_delete_table() {
     let query = "KustoRsTest";
     let response = client
         .execute_query(database.clone(), query)
-        .into_future()
         .await
         .expect("Failed to run query");
 
@@ -130,7 +127,6 @@ async fn create_query_delete_table() {
     let query = ".drop table KustoRsTest | where TableName == \"KustoRsTest\"";
     let response = client
         .execute_command(database.clone(), query)
-        .into_future()
         .await
         .expect("Failed to run query");
 

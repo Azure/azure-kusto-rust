@@ -33,7 +33,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let response = client
         .execute_command(database, query)
-        .into_future()
         .await
         .expect("Failed to execute query");
 

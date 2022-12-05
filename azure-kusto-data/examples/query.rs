@@ -110,7 +110,6 @@ async fn non_progressive(args: &Args, client: &KustoClient) {
                     .expect("Failed to create request options"),
             ),
         )
-        .into_future()
         .await
         .unwrap();
 
