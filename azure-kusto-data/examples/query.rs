@@ -57,7 +57,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .expect("Failed to create request options"),
             ),
         )
-        .into_future()
         .await
         .unwrap();
 

@@ -19,6 +19,7 @@ use futures::{Stream, TryFutureExt, TryStreamExt};
 use http::header::CONNECTION;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::future::IntoFuture;
 use std::io::ErrorKind;
 
 type QueryRun = BoxFuture<'static, Result<KustoResponse>>;
@@ -48,29 +49,7 @@ pub struct V1QueryRunner(pub QueryRunner);
 
 pub struct V2QueryRunner(pub QueryRunner);
 
-impl V1QueryRunner {
-    pub fn into_future(self) -> V1QueryRun {
-        Box::pin(async {
-            let V1QueryRunner(query_runner) = self;
-            let future = query_runner.into_future().await?;
-            Ok(
-                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV1 - please report this issue to the Kusto team")
-            )
-        })
-    }
-}
-
 impl V2QueryRunner {
-    pub fn into_future(self) -> V2QueryRun {
-        Box::pin(async {
-            let V2QueryRunner(query_runner) = self;
-            let future = query_runner.into_future().await?;
-            Ok(
-                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV2 - please report this issue to the Kusto team")
-            )
-        })
-    }
-
     pub async fn into_stream(self) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
         let V2QueryRunner(query_runner) = self;
         query_runner.into_stream().await
@@ -78,27 +57,6 @@ impl V2QueryRunner {
 }
 
 impl QueryRunner {
-    pub fn into_future(self) -> QueryRun {
-        let this = self.clone();
-
-        Box::pin(async move {
-            let response = self.into_response().await?;
-
-            Ok(match this.kind {
-                QueryKind::Management => {
-                    <KustoResponseDataSetV1 as TryFrom<HttpResponse>>::try_from(response)
-                        .map_ok(KustoResponse::V1)
-                        .await?
-                }
-                QueryKind::Query => {
-                    <KustoResponseDataSetV2 as TryFrom<HttpResponse>>::try_from(response)
-                        .map_ok(KustoResponse::V2)
-                        .await?
-                }
-            })
-        })
-    }
-
     async fn into_response(self) -> Result<Response> {
         let url = match self.kind {
             QueryKind::Management => self.client.management_url(),
@@ -153,6 +111,62 @@ impl QueryRunner {
         Ok(async_deserializer::iter_results::<V2QueryResult, _>(
             reader,
         ).map_err(|e| (*e.into_inner().expect("Unexpected error from async_deserializer - please report this issue to the Kusto team").downcast::<azure_core::error::Error>().expect("Unexpected error from async_deserializer - please report this issue to the Kusto team")).into()  ))
+    }
+}
+
+impl IntoFuture for V1QueryRunner {
+    type IntoFuture = V1QueryRun;
+    type Output = Result<KustoResponseDataSetV1>;
+
+    fn into_future(self) -> V1QueryRun {
+        Box::pin(async {
+            let V1QueryRunner(query_runner) = self;
+            let future = query_runner.into_future().await?;
+            Ok(
+                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV1 - please report this issue to the Kusto team")
+            )
+        })
+    }
+}
+
+impl IntoFuture for V2QueryRunner {
+    type IntoFuture = V2QueryRun;
+    type Output = Result<KustoResponseDataSetV2>;
+
+    fn into_future(self) -> V2QueryRun {
+        Box::pin(async {
+            let V2QueryRunner(query_runner) = self;
+            let future = query_runner.into_future().await?;
+            Ok(
+                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV2 - please report this issue to the Kusto team")
+            )
+        })
+    }
+}
+
+impl IntoFuture for QueryRunner {
+    type IntoFuture = QueryRun;
+    type Output = Result<KustoResponse>;
+
+    fn into_future(self) -> QueryRun {
+        let this = self.clone();
+
+        Box::pin(async move {
+            let response = self.into_response().await?;
+
+            Ok(match this.kind {
+                QueryKind::Management => {
+                    <KustoResponseDataSetV1 as TryFrom<HttpResponse>>::try_from(response)
+                        .map_ok(KustoResponse::V1)
+                        .await?
+                }
+                QueryKind::Query => {
+                    <KustoResponseDataSetV2 as TryFrom<HttpResponse>>::try_from(response)
+                        .map_ok(KustoResponse::V2)
+                        .await?
+                }
+            })
+        })
     }
 }
 
