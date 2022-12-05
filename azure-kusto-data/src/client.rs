@@ -89,8 +89,8 @@ impl KustoClient {
     pub fn new(connection_string: ConnectionString, options: KustoClientOptions) -> Result<Self> {
         let (data_source, credentials) = connection_string.into_data_source_and_credentials();
         let service_url = data_source.trim_end_matches('/');
-        let query_url = format!("{}/v2/rest/query", service_url);
-        let management_url = format!("{}/v1/rest/mgmt", service_url);
+        let query_url = format!("{service_url}/v2/rest/query");
+        let management_url = format!("{service_url}/v1/rest/mgmt");
         let pipeline = new_pipeline_from_options(credentials, service_url, options);
 
         Ok(Self {

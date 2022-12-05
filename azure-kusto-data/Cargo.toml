@@ -51,7 +51,6 @@ clap = { version = "4", features = ["derive", "env"] }
 
 [features]
 default = ["arrow"]
-#into_future = [] TODO - properly turn it on
 test_e2e = []
 
 [[bench]]

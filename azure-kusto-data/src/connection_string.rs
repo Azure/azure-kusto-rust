@@ -403,10 +403,10 @@ impl Debug for ConnectionStringAuth {
         match self {
             ConnectionStringAuth::Default => write!(f, "Default"),
             ConnectionStringAuth::UserAndPassword { user_id, password } => {
-                write!(f, "UserAndPassword({}, {})", user_id, password)
+                write!(f, "UserAndPassword({user_id}, {password})")
             }
             ConnectionStringAuth::Token { token, .. } => {
-                write!(f, "Token({})", token)
+                write!(f, "Token({token})")
             }
             ConnectionStringAuth::TokenCallback { .. } => write!(f, "TokenCallback"),
             ConnectionStringAuth::Application {
@@ -415,8 +415,7 @@ impl Debug for ConnectionStringAuth {
                 client_secret,
             } => write!(
                 f,
-                "Application({}, {}, {})",
-                client_id, client_authority, client_secret
+                "Application({client_id}, {client_authority}, {client_secret})"
             ),
             ConnectionStringAuth::ApplicationCertificate {
                 client_id,
@@ -1022,8 +1021,7 @@ fn parse_boolean(term: &str, name: &str) -> Result<bool, ConnectionStringError> 
         "true" => Ok(true),
         "false" => Ok(false),
         _ => Err(ConnectionStringError::from_parsing_error(format!(
-            "Unexpected value for {}: {}. Please specify either 'true' or 'false'.",
-            name, term
+            "Unexpected value for {name}: {term}. Please specify either 'true' or 'false'."
         ))),
     }
 }
