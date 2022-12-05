@@ -247,7 +247,7 @@ impl KustoClient {
         database: impl Into<String>,
         query: impl Into<String>,
     ) -> Result<Vec<T>> {
-        let response = self.execute_query(database, query).into_future().await?;
+        let response = self.execute_query(database, query).await?;
 
         let results = response
             .into_primary_results()
