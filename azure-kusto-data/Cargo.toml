@@ -47,6 +47,8 @@ tokio = { version = "1.20.1", features = ["macros"] }
 oauth2 = "4.2.3"
 criterion = "0.3.6"
 clap = { version = "3.2.17", features = ["derive", "env"] }
+decimal = "2.0.0"
+uuid = { version = "1.2.2", features = [ "serde"] }
 
 [features]
 default = ["arrow"]
