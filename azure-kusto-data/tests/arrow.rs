@@ -43,7 +43,6 @@ async fn arrow_roundtrip() {
     ";
     let response = client
         .execute_query(database, query)
-        .into_future()
         .await
         .expect("Failed to run query");
     let batches = response

@@ -994,6 +994,7 @@ impl ConnectionString {
                     client_secret,
                     client_authority,
                 } => Arc::new(ClientSecretCredential::new(
+                    azure_core::new_http_client(),
                     client_authority,
                     client_id,
                     client_secret,
@@ -1007,7 +1008,7 @@ impl ConnectionString {
                         Arc::new(ImdsManagedIdentityCredential::default())
                     }
                 }
-                ConnectionStringAuth::AzureCli => Arc::new(AzureCliCredential),
+                ConnectionStringAuth::AzureCli => Arc::new(AzureCliCredential::new()),
                 ConnectionStringAuth::DeviceCode { .. } => unimplemented!(),
                 ConnectionStringAuth::InteractiveLogin => unimplemented!(),
                 ConnectionStringAuth::TokenCredential { credential } => credential.clone(),
