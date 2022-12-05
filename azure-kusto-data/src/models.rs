@@ -143,7 +143,7 @@ pub struct DataTable {
     /// Columns in the table.
     pub columns: Vec<Column>,
     /// Rows in the table. Each row is a list of values, corresponding to the columns in the table.
-    pub rows: Vec<Vec<serde_json::Value>>,
+    pub rows: Vec<serde_json::Value>,
 }
 
 /// A header of a fragment of a table (in progressive mode).
@@ -180,7 +180,7 @@ pub struct TableFragment {
     /// The type of the fragment, instructs to how to use it.
     pub table_fragment_type: TableFragmentType,
     /// Rows in the table. Each row is a list of values, corresponding to the columns in the TableHeader.
-    pub rows: Vec<Vec<serde_json::Value>>,
+    pub rows: Vec<serde_json::Value>,
 }
 
 /// Progress report for a table (in progressive mode).

@@ -172,11 +172,7 @@ async fn to_struct(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Erro
 
     let results = response.into_primary_results().next()?;
 
-    let rows = results
-        .rows
-        .into_iter()
-        .map(Value::Array)
-        .collect::<Vec<Value>>();
+    let rows = results.rows;
 
     let items = serde_json::from_value::<Vec<Item>>(Value::Array(rows))?;
 

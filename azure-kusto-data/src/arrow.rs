@@ -13,20 +13,21 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use azure_core::error::{ErrorKind, ResultExt};
+use serde_json::Value;
 
 use crate::error::Result;
 use crate::models::ColumnType;
 use crate::models::{Column, DataTable};
 use crate::types::{KustoDateTime, KustoDuration};
 
-fn convert_array_string(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let strings: Vec<Option<String>> = serde_json::from_value(serde_json::Value::Array(values))?;
+fn convert_array_string(values: Vec<Value>) -> Result<ArrayRef> {
+    let strings: Vec<Option<String>> = serde_json::from_value(Value::Array(values))?;
     let strings: Vec<Option<&str>> = strings.iter().map(Option::as_deref).collect();
     Ok(Arc::new(StringArray::from(strings)))
 }
 
-fn convert_array_datetime(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let dates: Vec<String> = serde_json::from_value(serde_json::Value::Array(values))?;
+fn convert_array_datetime(values: Vec<Value>) -> Result<ArrayRef> {
+    let dates: Vec<String> = serde_json::from_value(Value::Array(values))?;
     let timestamps = dates
         .into_iter()
         .map(|d| {
@@ -40,16 +41,16 @@ fn convert_array_datetime(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
     Ok(dates_array)
 }
 
-fn safe_map_f64(value: serde_json::Value) -> Result<Option<f64>> {
+fn safe_map_f64(value: Value) -> Result<Option<f64>> {
     match value {
-        serde_json::Value::String(val) if val == "NaN" => Ok(None),
-        serde_json::Value::String(val) if val == "Infinity" => Ok(Some(f64::INFINITY)),
-        serde_json::Value::String(val) if val == "-Infinity" => Ok(Some(-f64::INFINITY)),
+        Value::String(val) if val == "NaN" => Ok(None),
+        Value::String(val) if val == "Infinity" => Ok(Some(f64::INFINITY)),
+        Value::String(val) if val == "-Infinity" => Ok(Some(-f64::INFINITY)),
         _ => Ok(serde_json::from_value(value)?),
     }
 }
 
-fn convert_array_float(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
+fn convert_array_float(values: Vec<Value>) -> Result<ArrayRef> {
     let reals: Vec<Option<f64>> = values
         .into_iter()
         .map(safe_map_f64)
@@ -57,8 +58,8 @@ fn convert_array_float(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
     Ok(Arc::new(Float64Array::from(reals)))
 }
 
-fn convert_array_timespan(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let strings: Vec<String> = serde_json::from_value(serde_json::Value::Array(values))?;
+fn convert_array_timespan(values: Vec<Value>) -> Result<ArrayRef> {
+    let strings: Vec<String> = serde_json::from_value(Value::Array(values))?;
     let durations: Vec<Option<i64>> = strings
         .iter()
         .map(|s| {
@@ -70,22 +71,22 @@ fn convert_array_timespan(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
     Ok(Arc::new(DurationNanosecondArray::from(durations)))
 }
 
-fn convert_array_bool(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let bools: Vec<Option<bool>> = serde_json::from_value(serde_json::Value::Array(values))?;
+fn convert_array_bool(values: Vec<Value>) -> Result<ArrayRef> {
+    let bools: Vec<Option<bool>> = serde_json::from_value(Value::Array(values))?;
     Ok(Arc::new(BooleanArray::from(bools)))
 }
 
-fn convert_array_i32(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let ints: Vec<Option<i32>> = serde_json::from_value(serde_json::Value::Array(values))?;
+fn convert_array_i32(values: Vec<Value>) -> Result<ArrayRef> {
+    let ints: Vec<Option<i32>> = serde_json::from_value(Value::Array(values))?;
     Ok(Arc::new(Int32Array::from(ints)))
 }
 
-fn convert_array_i64(values: Vec<serde_json::Value>) -> Result<ArrayRef> {
-    let ints: Vec<Option<i64>> = serde_json::from_value(serde_json::Value::Array(values))?;
+fn convert_array_i64(values: Vec<Value>) -> Result<ArrayRef> {
+    let ints: Vec<Option<i64>> = serde_json::from_value(Value::Array(values))?;
     Ok(Arc::new(Int64Array::from(ints)))
 }
 
-pub fn convert_column(data: Vec<serde_json::Value>, column: &Column) -> Result<(Field, ArrayRef)> {
+pub fn convert_column(data: Vec<Value>, column: &Column) -> Result<(Field, ArrayRef)> {
     let column_name = &column.column_name;
     match column.column_type {
         ColumnType::String => convert_array_string(data)
@@ -119,17 +120,20 @@ pub fn convert_column(data: Vec<serde_json::Value>, column: &Column) -> Result<(
 }
 
 pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
-    let mut buffer: Vec<Vec<serde_json::Value>> = Vec::with_capacity(table.columns.len());
+    let mut buffer: Vec<Vec<Value>> = Vec::with_capacity(table.columns.len());
     let mut fields: Vec<Field> = Vec::with_capacity(table.columns.len());
     let mut columns: Vec<ArrayRef> = Vec::with_capacity(table.columns.len());
 
     for _ in 0..table.columns.len() {
         buffer.push(Vec::with_capacity(table.rows.len()));
     }
-    table.rows.into_iter().for_each(|row| {
-        row.into_iter()
-            .enumerate()
-            .for_each(|(idx, value)| buffer[idx].push(value))
+    table.rows.into_iter().for_each(|row| match row {
+        Value::Array(v) => {
+            v.into_iter().enumerate().for_each(|(i, v)| {
+                buffer[i].push(v);
+            });
+        }
+        _ => panic!("Must be an array"),
     });
 
     buffer

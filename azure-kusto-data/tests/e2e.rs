@@ -66,11 +66,7 @@ async fn create_query_delete_table() {
 
     let results = response.into_primary_results().next().expect("No results");
 
-    let rows = results
-        .rows
-        .into_iter()
-        .map(Value::Array)
-        .collect::<Vec<Value>>();
+    let rows = results.rows;
 
     let expected = vec![
         Item {

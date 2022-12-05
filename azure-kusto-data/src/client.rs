@@ -2,13 +2,14 @@
 
 use crate::authorization_policy::AuthorizationPolicy;
 use crate::connection_string::ConnectionString;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V2QueryRunner};
 use azure_core::auth::TokenCredential;
 
 use azure_core::{ClientOptions, Context, Pipeline};
 
 use crate::request_options::RequestOptions;
+use serde::de::DeserializeOwned;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -214,6 +215,53 @@ impl KustoClient {
         V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, None))
     }
 
+    /// Execute a KQL query into an array of structs.
+    /// To learn more about KQL go to [https://docs.microsoft.com/en-us/azure/kusto/query/](https://docs.microsoft.com/en-us/azure/kusto/query)
+    ///
+    /// This method is the simplest way to just convert your data into a struct.
+    /// It assumes there is one primary result table.
+    ///
+    /// Your struct should implement the [serde::DeserializeOwned](https://docs.serde.rs/serde/trait.DeserializeOwned.html) trait.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use azure_kusto_data::prelude::*;
+    /// use serde::Deserialize;
+    ///
+    /// #[derive(serde::Deserialize, Debug)]
+    /// struct MyStruct {
+    ///    name: String,
+    ///    age: u32,
+    /// }
+    ///
+    /// # #[tokio::main] async fn main() -> Result<(), Error> {
+    /// let client = KustoClient::new(
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
+    ///    KustoClientOptions::default())?;
+    ///
+    ///   // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
+    ///    let result = client.execute_query_to_struct("some_database", "MyTable | take 10").await?;
+    ///    println!("{:?}", result); // prints [MyStruct { name: "foo", age: 42 }, MyStruct { name: "bar", age: 43 }]
+    ///
+    /// # Ok(())}
+    /// ```
+    pub async fn execute_query_to_struct<T: DeserializeOwned>(
+        &self,
+        database: impl Into<String>,
+        query: impl Into<String>,
+    ) -> Result<Vec<T>> {
+        let response = self.execute_query(database, query).into_future().await?;
+
+        let results = response
+            .into_primary_results()
+            .next()
+            .ok_or_else(|| Error::QueryError("No primary results found".into()))?;
+
+        Ok(serde_json::from_value::<Vec<T>>(serde_json::Value::Array(
+            results.rows,
+        ))?)
+    }
+
     /// Execute a management command with additional options.
     /// To learn more about see [commands](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/)
     ///
@@ -277,7 +325,7 @@ impl KustoClient {
 }
 
 impl TryFrom<ConnectionString> for KustoClient {
-    type Error = crate::error::Error;
+    type Error = Error;
 
     fn try_from(value: ConnectionString) -> Result<Self> {
         Self::new(value, KustoClientOptions::new())
