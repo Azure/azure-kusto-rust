@@ -124,8 +124,7 @@ impl KustoClient {
     ///   ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///   KustoClientOptions::default())?;
     ///
-    ///  // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///  let result = client.execute_with_options("some_database", ".show version", QueryKind::Management, None).into_future().await?;
+    ///  let result = client.execute_with_options("some_database", ".show version", QueryKind::Management, None).await?;
     ///
     /// assert!(matches!(result, KustoResponse::V1(..)));
     /// # Ok(())}
@@ -162,12 +161,11 @@ impl KustoClient {
     /// let client = KustoClient::new(
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
-    ///    // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
     ///    let result = client.execute_query_with_options(
     ///         "some_database",
     ///         "MyTable | take 10",
     ///         Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
-    ///     .into_future().await?;
+    ///     .await?;
     ///
     ///   for table in result.into_primary_results() {
     ///        println!("{}", table.table_name);
@@ -197,8 +195,7 @@ impl KustoClient {
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
-    ///   // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///    let result = client.execute_query("some_database", "MyTable | take 10").into_future().await?;
+    ///    let result = client.execute_query("some_database", "MyTable | take 10").await?;
     ///
     ///    for table in result.into_primary_results() {
     ///        println!("{}", table.table_name);
@@ -225,10 +222,9 @@ impl KustoClient {
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
-    /// // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
     ///    let result = client.execute_command_with_options("some_database", ".show version",
     ///     Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
-    ///     .into_future().await?;
+    ///     .await?;
     ///
     /// for table in result.tables {
     ///        println!("{}", table.table_name);
@@ -258,8 +254,7 @@ impl KustoClient {
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
-    ///    // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///    let result = client.execute_command("some_database", ".show version").into_future().await?;
+    ///    let result = client.execute_command("some_database", ".show version").await?;
     ///
     ///    for table in result.tables {
     ///        println!("{}", table.table_name);
