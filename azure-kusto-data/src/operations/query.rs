@@ -425,7 +425,7 @@ impl KustoResponseDataSetV2 {
     ///        table_name: "table_1".to_string(),
     ///        table_kind: TableKind::PrimaryResult,
     ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::Long}],
-    ///        rows: vec![vec![Value::from(3u64)]],
+    ///        rows: vec![Value::Array(vec![Value::from(3u64)])],
     ///    }),
     ///    V2QueryResult::TableHeader(TableHeader {
     ///        table_id: 1,
@@ -435,7 +435,7 @@ impl KustoResponseDataSetV2 {
     ///    }),
     ///    V2QueryResult::TableFragment(TableFragment {
     ///       table_id: 1,
-    ///       rows: vec![vec![Value::from("first")], vec![Value::from("second")]],
+    ///       rows: vec![Value::Array(vec![Value::from("first")]), Value::Array(vec![Value::from("second")])],
     ///       field_count: Some(1),
     ///       table_fragment_type: TableFragmentType::DataAppend,
     ///     }),
@@ -529,16 +529,6 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
         Ok(serde_json::from_slice(&data)?)
     }
 }
-
-// TODO enable once in stable
-// #[cfg(feature = "into_future")]
-// impl std::future::IntoFuture for ExecuteQueryBuilder {
-//     type IntoFuture = ExecuteQuery;
-//     type Output = <ExecuteQuery as std::future::Future>::Output;
-//     fn into_future(self) -> Self::IntoFuture {
-//         Self::into_future(self)
-//     }
-// }
 
 pub fn prepare_request(url: Url, http_method: Method) -> Request {
     const API_VERSION: &str = "2019-02-13";
