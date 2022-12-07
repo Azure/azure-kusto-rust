@@ -164,10 +164,7 @@ async fn to_struct(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Erro
 }), true, 0.99, "zxcv", 9223372036854775805, guid(d8e3575c-a7a0-47b3-8c73-9a7a6aaabc12),
 ]"#;
 
-    let response = client
-        .execute_query(args.database.clone(), query)
-        .into_future()
-        .await?;
+    let response = client.execute_query(args.database.clone(), query).await?;
 
     let results = response.into_primary_results().next()?;
 
