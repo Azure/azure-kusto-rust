@@ -166,7 +166,10 @@ async fn to_struct(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Erro
 
     let response = client.execute_query(args.database.clone(), query).await?;
 
-    let results = response.into_primary_results().next()?;
+    let results = response
+        .into_primary_results()
+        .next()
+        .ok_or_else(|| "Expected to get a primary result, but got none".to_string())?;
 
     let rows = results.rows;
 
