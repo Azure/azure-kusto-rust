@@ -133,7 +133,7 @@ pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
                 buffer[i].push(v);
             });
         }
-        _ => panic!("Must be an array"),
+        _ => unreachable!("Must be an array"),
     });
 
     buffer

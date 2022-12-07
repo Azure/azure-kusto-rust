@@ -236,7 +236,7 @@ impl KustoClient {
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
-    ///    let result = client.execute_query_to_struct("some_database", "MyTable | take 10").await?;
+    ///    let result: Vec<MyStruct> = client.execute_query_to_struct("some_database", "MyTable | take 10").await?;
     ///    println!("{:?}", result); // prints [MyStruct { name: "foo", age: 42 }, MyStruct { name: "bar", age: 43 }]
     ///
     /// # Ok(())}
