@@ -356,14 +356,13 @@ impl ConnectionStringAuth {
                 client_id,
                 client_secret,
                 client_authority,
-            } => Arc::new(
-                ClientSecretCredential::new(
-                    azure_core::new_http_client(),
-                    client_authority,
-                    client_id,
-                    client_secret,
-                    TokenCredentialOptions::default(),
-                )),
+            } => Arc::new(ClientSecretCredential::new(
+                azure_core::new_http_client(),
+                client_authority,
+                client_id,
+                client_secret,
+                TokenCredentialOptions::default(),
+            )),
             ConnectionStringAuth::ApplicationCertificate { .. } => unimplemented!(),
             ConnectionStringAuth::ManagedIdentity { user_id } => {
                 if let Some(user_id) = user_id {
@@ -544,7 +543,7 @@ impl ConnectionString {
                 key: "data_source".to_string(),
             },
         )?)
-            .to_string();
+        .to_string();
 
         let federated_security = result_map
             .get(&ConnectionStringKey::FederatedSecurity)
