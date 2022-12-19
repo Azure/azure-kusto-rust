@@ -18,6 +18,7 @@ use futures::future::BoxFuture;
 use futures::{Stream, TryFutureExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::future::IntoFuture;
 use std::io::ErrorKind;
 
 type QueryRun = BoxFuture<'static, Result<KustoResponse>>;
@@ -47,29 +48,7 @@ pub struct V1QueryRunner(pub QueryRunner);
 
 pub struct V2QueryRunner(pub QueryRunner);
 
-impl V1QueryRunner {
-    pub fn into_future(self) -> V1QueryRun {
-        Box::pin(async {
-            let V1QueryRunner(query_runner) = self;
-            let future = query_runner.into_future().await?;
-            Ok(
-                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV1 - please report this issue to the Kusto team")
-            )
-        })
-    }
-}
-
 impl V2QueryRunner {
-    pub fn into_future(self) -> V2QueryRun {
-        Box::pin(async {
-            let V2QueryRunner(query_runner) = self;
-            let future = query_runner.into_future().await?;
-            Ok(
-                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV2 - please report this issue to the Kusto team")
-            )
-        })
-    }
-
     pub async fn into_stream(self) -> Result<impl Stream<Item = Result<V2QueryResult>>> {
         let V2QueryRunner(query_runner) = self;
         query_runner.into_stream().await
@@ -77,27 +56,6 @@ impl V2QueryRunner {
 }
 
 impl QueryRunner {
-    pub fn into_future(self) -> QueryRun {
-        let this = self.clone();
-
-        Box::pin(async move {
-            let response = self.into_response().await?;
-
-            Ok(match this.kind {
-                QueryKind::Management => {
-                    <KustoResponseDataSetV1 as TryFrom<HttpResponse>>::try_from(response)
-                        .map_ok(KustoResponse::V1)
-                        .await?
-                }
-                QueryKind::Query => {
-                    <KustoResponseDataSetV2 as TryFrom<HttpResponse>>::try_from(response)
-                        .map_ok(KustoResponse::V2)
-                        .await?
-                }
-            })
-        })
-    }
-
     async fn into_response(self) -> Result<Response> {
         let url = match self.kind {
             QueryKind::Management => self.client.management_url(),
@@ -152,6 +110,62 @@ impl QueryRunner {
         Ok(async_deserializer::iter_results::<V2QueryResult, _>(
             reader,
         ).map_err(|e| (*e.into_inner().expect("Unexpected error from async_deserializer - please report this issue to the Kusto team").downcast::<azure_core::error::Error>().expect("Unexpected error from async_deserializer - please report this issue to the Kusto team")).into()  ))
+    }
+}
+
+impl IntoFuture for V1QueryRunner {
+    type IntoFuture = V1QueryRun;
+    type Output = Result<KustoResponseDataSetV1>;
+
+    fn into_future(self) -> V1QueryRun {
+        Box::pin(async {
+            let V1QueryRunner(query_runner) = self;
+            let future = query_runner.into_future().await?;
+            Ok(
+                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV1 - please report this issue to the Kusto team")
+            )
+        })
+    }
+}
+
+impl IntoFuture for V2QueryRunner {
+    type IntoFuture = V2QueryRun;
+    type Output = Result<KustoResponseDataSetV2>;
+
+    fn into_future(self) -> V2QueryRun {
+        Box::pin(async {
+            let V2QueryRunner(query_runner) = self;
+            let future = query_runner.into_future().await?;
+            Ok(
+                std::convert::TryInto::try_into(future).expect("Unexpected conversion error from KustoResponse to KustoResponseDataSetV2 - please report this issue to the Kusto team")
+            )
+        })
+    }
+}
+
+impl IntoFuture for QueryRunner {
+    type IntoFuture = QueryRun;
+    type Output = Result<KustoResponse>;
+
+    fn into_future(self) -> QueryRun {
+        let this = self.clone();
+
+        Box::pin(async move {
+            let response = self.into_response().await?;
+
+            Ok(match this.kind {
+                QueryKind::Management => {
+                    <KustoResponseDataSetV1 as TryFrom<HttpResponse>>::try_from(response)
+                        .map_ok(KustoResponse::V1)
+                        .await?
+                }
+                QueryKind::Query => {
+                    <KustoResponseDataSetV2 as TryFrom<HttpResponse>>::try_from(response)
+                        .map_ok(KustoResponse::V2)
+                        .await?
+                }
+            })
+        })
     }
 }
 
@@ -410,7 +424,7 @@ impl KustoResponseDataSetV2 {
     ///        table_name: "table_1".to_string(),
     ///        table_kind: TableKind::PrimaryResult,
     ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::Long}],
-    ///        rows: vec![vec![Value::from(3u64)]],
+    ///        rows: vec![Value::Array(vec![Value::from(3u64)])],
     ///    }),
     ///    V2QueryResult::TableHeader(TableHeader {
     ///        table_id: 1,
@@ -420,7 +434,7 @@ impl KustoResponseDataSetV2 {
     ///    }),
     ///    V2QueryResult::TableFragment(TableFragment {
     ///       table_id: 1,
-    ///       rows: vec![vec![Value::from("first")], vec![Value::from("second")]],
+    ///       rows: vec![Value::Array(vec![Value::from("first")]), Value::Array(vec![Value::from("second")])],
     ///       field_count: Some(1),
     ///       table_fragment_type: TableFragmentType::DataAppend,
     ///     }),
@@ -514,16 +528,6 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
         Ok(serde_json::from_slice(&data)?)
     }
 }
-
-// TODO enable once in stable
-// #[cfg(feature = "into_future")]
-// impl std::future::IntoFuture for ExecuteQueryBuilder {
-//     type IntoFuture = ExecuteQuery;
-//     type Output = <ExecuteQuery as std::future::Future>::Output;
-//     fn into_future(self) -> Self::IntoFuture {
-//         Self::into_future(self)
-//     }
-// }
 
 pub fn prepare_request(url: Url, http_method: Method) -> Request {
     const API_VERSION: &str = "2019-02-13";

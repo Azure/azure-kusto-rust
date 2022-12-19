@@ -2,12 +2,13 @@
 
 use crate::authorization_policy::AuthorizationPolicy;
 use crate::connection_string::{ConnectionString, ConnectionStringAuth};
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V2QueryRunner};
 
 use azure_core::{ClientOptions, Context, Pipeline};
 
 use crate::request_options::RequestOptions;
+use serde::de::DeserializeOwned;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -89,8 +90,8 @@ impl KustoClient {
     pub fn new(connection_string: ConnectionString, options: KustoClientOptions) -> Result<Self> {
         let (data_source, credentials) = connection_string.into_data_source_and_auth();
         let service_url = Arc::new(data_source.trim_end_matches('/').to_string());
-        let query_url = format!("{}/v2/rest/query", service_url);
-        let management_url = format!("{}/v1/rest/mgmt", service_url);
+        let query_url = format!("{service_url}/v2/rest/query");
+        let management_url = format!("{service_url}/v1/rest/mgmt");
         let pipeline = new_pipeline_from_options(credentials, (*service_url).clone(), options);
 
         Ok(Self {
@@ -125,8 +126,7 @@ impl KustoClient {
     ///   ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///   KustoClientOptions::default())?;
     ///
-    ///  // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///  let result = client.execute_with_options("some_database", ".show version", QueryKind::Management, None).into_future().await?;
+    ///  let result = client.execute_with_options("some_database", ".show version", QueryKind::Management, None).await?;
     ///
     /// assert!(matches!(result, KustoResponse::V1(..)));
     /// # Ok(())}
@@ -163,12 +163,11 @@ impl KustoClient {
     /// let client = KustoClient::new(
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
-    ///    // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
     ///    let result = client.execute_query_with_options(
     ///         "some_database",
     ///         "MyTable | take 10",
     ///         Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
-    ///     .into_future().await?;
+    ///     .await?;
     ///
     ///   for table in result.into_primary_results() {
     ///        println!("{}", table.table_name);
@@ -198,8 +197,7 @@ impl KustoClient {
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
-    ///   // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///    let result = client.execute_query("some_database", "MyTable | take 10").into_future().await?;
+    ///    let result = client.execute_query("some_database", "MyTable | take 10").await?;
     ///
     ///    for table in result.into_primary_results() {
     ///        println!("{}", table.table_name);
@@ -215,6 +213,52 @@ impl KustoClient {
         V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, None))
     }
 
+    /// Execute a KQL query into an array of structs.
+    /// To learn more about KQL go to [https://docs.microsoft.com/en-us/azure/kusto/query/](https://docs.microsoft.com/en-us/azure/kusto/query)
+    ///
+    /// This method is the simplest way to just convert your data into a struct.
+    /// It assumes there is one primary result table.
+    ///
+    /// Your struct should implement the [serde::DeserializeOwned](https://docs.serde.rs/serde/trait.DeserializeOwned.html) trait.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use azure_kusto_data::prelude::*;
+    /// use serde::Deserialize;
+    ///
+    /// #[derive(serde::Deserialize, Debug)]
+    /// struct MyStruct {
+    ///    name: String,
+    ///    age: u32,
+    /// }
+    ///
+    /// # #[tokio::main] async fn main() -> Result<(), Error> {
+    /// let client = KustoClient::new(
+    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
+    ///    KustoClientOptions::default())?;
+    ///
+    ///    let result: Vec<MyStruct> = client.execute_query_to_struct("some_database", "MyTable | take 10").await?;
+    ///    println!("{:?}", result); // prints [MyStruct { name: "foo", age: 42 }, MyStruct { name: "bar", age: 43 }]
+    ///
+    /// # Ok(())}
+    /// ```
+    pub async fn execute_query_to_struct<T: DeserializeOwned>(
+        &self,
+        database: impl Into<String>,
+        query: impl Into<String>,
+    ) -> Result<Vec<T>> {
+        let response = self.execute_query(database, query).await?;
+
+        let results = response
+            .into_primary_results()
+            .next()
+            .ok_or_else(|| Error::QueryError("No primary results found".into()))?;
+
+        Ok(serde_json::from_value::<Vec<T>>(serde_json::Value::Array(
+            results.rows,
+        ))?)
+    }
+
     /// Execute a management command with additional options.
     /// To learn more about see [commands](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/)
     ///
@@ -226,10 +270,9 @@ impl KustoClient {
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
-    /// // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
     ///    let result = client.execute_command_with_options("some_database", ".show version",
     ///     Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
-    ///     .into_future().await?;
+    ///     .await?;
     ///
     /// for table in result.tables {
     ///        println!("{}", table.table_name);
@@ -259,8 +302,7 @@ impl KustoClient {
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
-    ///    // Once the [IntoFuture] trait is stabilized, we can drop the call the `into_future()` here
-    ///    let result = client.execute_command("some_database", ".show version").into_future().await?;
+    ///    let result = client.execute_command("some_database", ".show version").await?;
     ///
     ///    for table in result.tables {
     ///        println!("{}", table.table_name);
@@ -278,7 +320,7 @@ impl KustoClient {
 }
 
 impl TryFrom<ConnectionString> for KustoClient {
-    type Error = crate::error::Error;
+    type Error = Error;
 
     fn try_from(value: ConnectionString) -> Result<Self> {
         Self::new(value, KustoClientOptions::new())

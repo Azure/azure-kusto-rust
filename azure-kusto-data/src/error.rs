@@ -43,6 +43,10 @@ pub enum Error {
     /// Errors raised when the operation is not supported
     #[error("Operation not supported: {0}")]
     UnsupportedOperation(String),
+
+    /// Errors raised when the query is invalid
+    #[error("Invalid query: {0}")]
+    QueryError(String),
 }
 
 /// Errors raised when an invalid argument or option is provided.
