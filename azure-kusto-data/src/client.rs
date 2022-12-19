@@ -60,7 +60,6 @@ fn new_pipeline_from_options(
 #[derive(Clone, Debug)]
 pub struct KustoClient {
     pipeline: Arc<Pipeline>,
-    service_url: Arc<String>,
     query_url: Arc<String>,
     management_url: Arc<String>,
 }
@@ -96,7 +95,6 @@ impl KustoClient {
 
         Ok(Self {
             pipeline: pipeline.into(),
-            service_url: service_url.into(),
             query_url: query_url.into(),
             management_url: management_url.into(),
         })

@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::credentials::{CallbackTokenCredential, ConstTokenCredential};
 use azure_core::auth::TokenCredential;
 use azure_identity::{
     AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
@@ -15,6 +14,7 @@ use azure_identity::{
 use hashbrown::HashMap;
 use once_cell::sync::Lazy;
 
+use crate::credentials::{CallbackTokenCredential, ConstTokenCredential};
 use crate::error::ConnectionStringError;
 
 /// Function that handles the device code flow.
@@ -174,7 +174,7 @@ pub struct ConnectionString {
 /// Authentication methods to use when connecting to an ADX cluster.
 #[derive(Clone)]
 pub enum ConnectionStringAuth {
-    /// Default credentials - uses the environment, managed identity and azure cli to authenticate. See [`DefaultAzureCredential`](azure_identity::DefaultAzureCredential) for more details.
+    /// Default credentials - uses the environment, managed identity and azure cli to authenticate. See [`DefaultAzureCredential`](DefaultAzureCredential) for more details.
     Default,
     /// User credentials - uses the user id and password to authenticate.
     UserAndPassword {
@@ -253,7 +253,7 @@ impl ConnectionStringAuth {
     /// # Examples
     /// ```rust
     /// use std::sync::Arc;
-    /// use azure_kusto_data::prelude::*;;
+    /// use azure_kusto_data::prelude::*;
     ///
     /// let user_and_pass = ConnectionStringAuth::UserAndPassword { user_id: "user".to_string(), password: "password".to_string() };
     ///
@@ -356,12 +356,14 @@ impl ConnectionStringAuth {
                 client_id,
                 client_secret,
                 client_authority,
-            } => Arc::new(ClientSecretCredential::new(
-                client_authority.clone(),
-                client_id,
-                client_secret,
-                TokenCredentialOptions::default(),
-            )),
+            } => Arc::new(
+                ClientSecretCredential::new(
+                    azure_core::new_http_client(),
+                    client_authority,
+                    client_id,
+                    client_secret,
+                    TokenCredentialOptions::default(),
+                )),
             ConnectionStringAuth::ApplicationCertificate { .. } => unimplemented!(),
             ConnectionStringAuth::ManagedIdentity { user_id } => {
                 if let Some(user_id) = user_id {
@@ -370,7 +372,7 @@ impl ConnectionStringAuth {
                     Arc::new(ImdsManagedIdentityCredential::default())
                 }
             }
-            ConnectionStringAuth::AzureCli => Arc::new(AzureCliCredential),
+            ConnectionStringAuth::AzureCli => Arc::new(AzureCliCredential::default()),
             ConnectionStringAuth::DeviceCode { .. } => unimplemented!(),
             ConnectionStringAuth::InteractiveLogin => unimplemented!(),
             ConnectionStringAuth::TokenCredential { credential } => credential.clone(),
@@ -542,7 +544,7 @@ impl ConnectionString {
                 key: "data_source".to_string(),
             },
         )?)
-        .to_string();
+            .to_string();
 
         let federated_security = result_map
             .get(&ConnectionStringKey::FederatedSecurity)
@@ -666,7 +668,7 @@ impl ConnectionString {
     }
 
     /// Creates a connection string with the default authentication credentials.
-    /// Uses the environment, managed identity and azure cli to authenticate. See [`DefaultAzureCredential`](azure_identity::DefaultAzureCredential) for more details.
+    /// Uses the environment, managed identity and azure cli to authenticate. See [`DefaultAzureCredential`](DefaultAzureCredential) for more details.
     /// # Example
     /// ```rust
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
