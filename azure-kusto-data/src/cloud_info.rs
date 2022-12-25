@@ -90,6 +90,14 @@ impl CloudInfo {
             .insert(endpoint.to_string(), cloud_info);
     }
 
+    pub async fn is_in_cache(endpoint: &str) -> bool {
+        CLOUDINFO_CACHE.lock().await.contains_key(endpoint)
+    }
+
+    pub async fn get_from_cache(endpoint: &str) -> Option<CloudInfo> {
+        CLOUDINFO_CACHE.lock().await.get(endpoint).cloned()
+    }
+
     pub fn get_resource_uri(self) -> Cow<'static, str> {
         let mut resource_uri = self.kusto_service_resource_id;
         if self.login_mfa_required {
@@ -116,16 +124,54 @@ mod tests {
         );
         let a = CloudInfo::get(
             &pipeline,
-            "https://asafdev.westeurope.dev.kusto.windows.net/",
+            "https://help.kusto.windows.net/",
         )
         .await
         .unwrap();
+
+        // confirm that the cache is populated
+        assert!(CloudInfo::is_in_cache("https://help.kusto.windows.net/").await);
+
         let b = CloudInfo::get(
             &pipeline,
-            "https://asafdev.westeurope.dev.kusto.windows.net/",
+            "https://help.kusto.windows.net/",
         )
         .await
         .unwrap();
         assert_eq!(dbg!(a), dbg!(b));
     }
+
+    //test cache
+    #[tokio::test]
+    async fn cache() {
+        CloudInfo::add_to_cache(
+            "https://help.kusto.windows.net/",
+            CloudInfo {
+                login_mfa_required: true,
+                login_endpoint: "https://login.microsoftonline.com".into(),
+                kusto_client_app_id: "db662dc1-0cfe-4e1c-a843-19a68e65be58".into(),
+                kusto_client_redirect_uri: "https://microsoft/kustoclient".into(),
+                kusto_service_resource_id: "https://kusto.kusto.windows.net".into(),
+                first_party_authority_url:
+                    "https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a".into(),
+            },
+        ).await;
+
+        // confirm that the cache is populated
+        assert!(CloudInfo::is_in_cache("https://help.kusto.windows.net/").await);
+
+        // get from cache
+        let a = CloudInfo::get_from_cache("https://help.kusto.windows.net/").await.unwrap();
+        assert_eq!(a, CloudInfo {
+            login_mfa_required: true,
+            login_endpoint: "https://login.microsoftonline.com".into(),
+            kusto_client_app_id: "db662dc1-0cfe-4e1c-a843-19a68e65be58".into(),
+            kusto_client_redirect_uri: "https://microsoft/kustoclient".into(),
+            kusto_service_resource_id: "https://kusto.kusto.windows.net".into(),
+            first_party_authority_url:
+                "https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a".into(),
+        });
+
+    }
+
 }
