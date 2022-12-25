@@ -122,22 +122,16 @@ mod tests {
             Vec::new(),
             Vec::new(),
         );
-        let a = CloudInfo::get(
-            &pipeline,
-            "https://help.kusto.windows.net/",
-        )
-        .await
-        .unwrap();
+        let a = CloudInfo::get(&pipeline, "https://help.kusto.windows.net/")
+            .await
+            .unwrap();
 
         // confirm that the cache is populated
         assert!(CloudInfo::is_in_cache("https://help.kusto.windows.net/").await);
 
-        let b = CloudInfo::get(
-            &pipeline,
-            "https://help.kusto.windows.net/",
-        )
-        .await
-        .unwrap();
+        let b = CloudInfo::get(&pipeline, "https://help.kusto.windows.net/")
+            .await
+            .unwrap();
         assert_eq!(dbg!(a), dbg!(b));
     }
 
@@ -155,23 +149,27 @@ mod tests {
                 first_party_authority_url:
                     "https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a".into(),
             },
-        ).await;
+        )
+        .await;
 
         // confirm that the cache is populated
         assert!(CloudInfo::is_in_cache("https://help.kusto.windows.net/").await);
 
         // get from cache
-        let a = CloudInfo::get_from_cache("https://help.kusto.windows.net/").await.unwrap();
-        assert_eq!(a, CloudInfo {
-            login_mfa_required: true,
-            login_endpoint: "https://login.microsoftonline.com".into(),
-            kusto_client_app_id: "db662dc1-0cfe-4e1c-a843-19a68e65be58".into(),
-            kusto_client_redirect_uri: "https://microsoft/kustoclient".into(),
-            kusto_service_resource_id: "https://kusto.kusto.windows.net".into(),
-            first_party_authority_url:
-                "https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a".into(),
-        });
-
+        let a = CloudInfo::get_from_cache("https://help.kusto.windows.net/")
+            .await
+            .unwrap();
+        assert_eq!(
+            a,
+            CloudInfo {
+                login_mfa_required: true,
+                login_endpoint: "https://login.microsoftonline.com".into(),
+                kusto_client_app_id: "db662dc1-0cfe-4e1c-a843-19a68e65be58".into(),
+                kusto_client_redirect_uri: "https://microsoft/kustoclient".into(),
+                kusto_service_resource_id: "https://kusto.kusto.windows.net".into(),
+                first_party_authority_url:
+                    "https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a".into(),
+            }
+        );
     }
-
 }
