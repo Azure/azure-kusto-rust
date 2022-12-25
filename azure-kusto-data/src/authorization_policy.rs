@@ -62,7 +62,7 @@ impl Policy for AuthorizationPolicy {
                     &self.raw_resource,
                 )
                 .await
-                .unwrap_or(CloudInfo::default());
+                .unwrap_or_default();
 
                 *lock = Some((
                     self.auth.clone().into_credential(),

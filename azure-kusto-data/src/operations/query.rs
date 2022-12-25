@@ -541,7 +541,7 @@ pub fn prepare_request(url: Url, http_method: Method) -> Request {
         "Kusto.Rust.Client:{}",
         env!("CARGO_PKG_VERSION"),
     )));
-    request.insert_header("connection", "Keep-Alive");
+    request.insert_header("Connection", "Keep-Alive");
     request
 }
 
