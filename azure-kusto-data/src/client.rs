@@ -1,10 +1,9 @@
 //! This module contains the client for the Azure Kusto Data service.
 
 use crate::authorization_policy::AuthorizationPolicy;
-use crate::connection_string::ConnectionString;
+use crate::connection_string::{ConnectionString, ConnectionStringAuth};
 use crate::error::{Error, Result};
 use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V2QueryRunner};
-use azure_core::auth::TokenCredential;
 
 use azure_core::{ClientOptions, Context, Pipeline};
 
@@ -35,11 +34,11 @@ impl KustoClientOptions {
 }
 
 fn new_pipeline_from_options(
-    credential: Arc<dyn TokenCredential>,
-    resource: &str,
+    auth: ConnectionStringAuth,
+    resource: String,
     options: KustoClientOptions,
 ) -> Pipeline {
-    let auth_policy = Arc::new(AuthorizationPolicy::new(credential, resource));
+    let auth_policy = Arc::new(AuthorizationPolicy::new(auth, resource));
     // take care of adding the AuthorizationPolicy as **last** retry policy.
     let per_retry_policies: Vec<Arc<(dyn azure_core::Policy + 'static)>> = vec![auth_policy];
 
@@ -88,11 +87,11 @@ impl KustoClient {
     /// assert!(client.is_ok());
     /// ```
     pub fn new(connection_string: ConnectionString, options: KustoClientOptions) -> Result<Self> {
-        let (data_source, credentials) = connection_string.into_data_source_and_credentials();
-        let service_url = data_source.trim_end_matches('/');
+        let (data_source, credentials) = connection_string.into_data_source_and_auth();
+        let service_url = Arc::new(data_source.trim_end_matches('/').to_string());
         let query_url = format!("{service_url}/v2/rest/query");
         let management_url = format!("{service_url}/v1/rest/mgmt");
-        let pipeline = new_pipeline_from_options(credentials, service_url, options);
+        let pipeline = new_pipeline_from_options(credentials, (*service_url).clone(), options);
 
         Ok(Self {
             pipeline: pipeline.into(),
