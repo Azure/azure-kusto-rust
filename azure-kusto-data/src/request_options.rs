@@ -1,9 +1,9 @@
 //! Request options for the Azure Data Explorer Client.
 
 use crate::types::{KustoDateTime, KustoDuration};
+use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use hashbrown::HashMap;
 
 /// Controls the hot or cold cache for the scope of the query.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -169,7 +169,7 @@ pub struct RequestOptions {
     pub truncation_max_size: Option<i64>,
     /// Validates user's permissions to perform the query and doesn't run the query itself.
     pub validate_permissions: Option<bool>,
-    #[builder(default = "Some(true)" )]
+    #[builder(default = "Some(true)")]
     results_v2_newlines_between_frames: Option<bool>,
     /// Additional options to be passed to the service.
     #[serde(flatten)]
