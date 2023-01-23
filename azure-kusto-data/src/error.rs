@@ -47,6 +47,10 @@ pub enum Error {
     /// Errors raised when the query is invalid
     #[error("Invalid query: {0}")]
     QueryError(String),
+
+    /// Errors raised for IO operations
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
 }
 
 /// Errors raised when an invalid argument or option is provided.

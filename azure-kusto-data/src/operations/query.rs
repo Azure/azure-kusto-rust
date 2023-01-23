@@ -107,15 +107,14 @@ impl QueryRunner {
         let reader = pinned_stream
             .map_err(|e| std::io::Error::new(ErrorKind::Other, e))
             .into_async_read();
-        Ok(async_deserializer::iter_results::<V2QueryResult, _>(
-            reader,
-        ).map_err(|e| (*e.into_inner().expect("Unexpected error from async_deserializer - please report this issue to the Kusto team").downcast::<azure_core::error::Error>().expect("Unexpected error from async_deserializer - please report this issue to the Kusto team")).into()  ))
+
+        Ok(async_deserializer::iter_results(reader).map_err(Error::from))
     }
 }
 
 impl IntoFuture for V1QueryRunner {
-    type IntoFuture = V1QueryRun;
     type Output = Result<KustoResponseDataSetV1>;
+    type IntoFuture = V1QueryRun;
 
     fn into_future(self) -> V1QueryRun {
         Box::pin(async {
@@ -129,8 +128,8 @@ impl IntoFuture for V1QueryRunner {
 }
 
 impl IntoFuture for V2QueryRunner {
-    type IntoFuture = V2QueryRun;
     type Output = Result<KustoResponseDataSetV2>;
+    type IntoFuture = V2QueryRun;
 
     fn into_future(self) -> V2QueryRun {
         Box::pin(async {
@@ -144,8 +143,8 @@ impl IntoFuture for V2QueryRunner {
 }
 
 impl IntoFuture for QueryRunner {
-    type IntoFuture = QueryRun;
     type Output = Result<KustoResponse>;
+    type IntoFuture = QueryRun;
 
     fn into_future(self) -> QueryRun {
         let this = self.clone();
@@ -541,7 +540,7 @@ pub fn prepare_request(url: Url, http_method: Method) -> Request {
         "Kusto.Rust.Client:{}",
         env!("CARGO_PKG_VERSION"),
     )));
-    request.insert_header("Connection", "Keep-Alive");
+    request.insert_header("connection", "Keep-Alive");
     request
 }
 
