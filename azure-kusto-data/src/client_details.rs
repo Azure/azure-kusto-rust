@@ -37,8 +37,9 @@ static DEFAULT_USER: Lazy<String> = Lazy::new(|| {
 
 static DEFAULT_APPLICATION: Lazy<String> = Lazy::new(|| {
     std::env::current_exe()
-        .map(|x| x.to_string_lossy().to_string())
-        .unwrap_or_else(|_| UNKNOWN.to_string())
+        .ok()
+        .and_then(|x| x.file_name().map(|x| x.to_string_lossy().to_string()))
+        .unwrap_or_else(|| UNKNOWN.to_string())
 });
 
 static DEFAULT_VERSION: Lazy<String> = Lazy::new(|| {
@@ -119,4 +120,185 @@ pub struct ConnectorDetails<'a> {
     app_version: Option<&'a str>,
     /// Additional fields to add to the header.
     additional_fields: Vec<(&'a str, &'a str)>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Write extensive tests
+    #[test]
+    fn test_escape_value() {
+        assert_eq!(escape_value("".into()), "{}");
+        assert_eq!(escape_value("abc".into()), "{abc}");
+        assert_eq!(escape_value("ab c".into()), "{ab_c}");
+        assert_eq!(escape_value("ab_c".into()), "{ab_c}");
+        assert_eq!(escape_value("ab|c".into()), "{ab_c}");
+        assert_eq!(escape_value("ab{}c".into()), "{ab_c}");
+    }
+
+    #[test]
+    fn test_format_header() {
+        assert_eq!(
+            format_header(vec![("a".into(), "b".into())]),
+            "a:{b}"
+        );
+        assert_eq!(
+            format_header(vec![("a".into(), "b".into()), ("c".into(), "d".into())]),
+            "a:{b}|c:{d}"
+        );
+    }
+
+    #[test]
+    fn test_client_details_new() {
+        let client_details = ClientDetails::new(None, None);
+        assert_eq!(
+            client_details,
+            ClientDetails {
+                application: DEFAULT_APPLICATION.clone(),
+                user: DEFAULT_USER.clone(),
+                version: DEFAULT_VERSION.clone()
+            }
+        );
+
+        let client_details = ClientDetails::new(Some("my_app".to_string()), None);
+        assert_eq!(
+            client_details,
+            ClientDetails {
+                application: "my_app".to_string(),
+                user: DEFAULT_USER.clone(),
+                version: DEFAULT_VERSION.clone()
+            }
+        );
+
+        let client_details = ClientDetails::new(None, Some("my_user".to_string()));
+        assert_eq!(
+            client_details,
+            ClientDetails {
+                application: DEFAULT_APPLICATION.clone(),
+                user: "my_user".to_string(),
+                version: DEFAULT_VERSION.clone()
+            }
+        );
+
+        let client_details = ClientDetails::new(
+            Some("my_app".to_string()),
+            Some("my_user".to_string()),
+        );
+        assert_eq!(
+            client_details,
+            ClientDetails {
+                application: "my_app".to_string(),
+                user: "my_user".to_string(),
+                version: DEFAULT_VERSION.clone()
+            }
+        );
+    }
+
+    #[test]
+    fn test_set_connector_details_user() {
+        let details = ConnectorDetailsBuilder::default()
+            .with_name("MyConnector")
+            .with_version("1.0")
+            .with_send_user(true)
+            .with_override_user("user1")
+            .with_app_name("MyApp")
+            .with_app_version("1.0.1")
+            .with_additional_fields(vec![("key1", "value1"), ("key2", "value2")])
+            .build()
+            .unwrap();
+
+        let (header, user) = set_connector_details(details);
+
+        let expected_header = "Kusto.MyConnector:{1.0}|App.{MyApp}:{1.0.1}|key1:{value1}|key2:{value2}".to_string();
+
+        assert_eq!(header, expected_header);
+
+        assert_eq!(user, "user1");
+
+        let details = ConnectorDetailsBuilder::default()
+            .with_name("MyConnector")
+            .with_version("1.0")
+            .with_send_user(false)
+            .with_app_name("MyApp")
+            .with_app_version("1.0.1")
+            .with_additional_fields(vec![("key1", "value1"), ("key2", "value2")])
+            .build()
+            .unwrap();
+
+        let (header, user) = set_connector_details(details);
+
+        let expected_header = "Kusto.MyConnector:{1.0}|App.{MyApp}:{1.0.1}|key1:{value1}|key2:{value2}".to_string();
+
+        assert_eq!(header, expected_header);
+
+        assert_eq!(user, "[none]");
+
+        let details = ConnectorDetailsBuilder::default()
+            .with_name("MyConnector")
+            .with_version("1.0")
+            .with_send_user(true)
+            .with_app_name("MyApp")
+            .with_app_version("1.0.1")
+            .with_additional_fields(vec![("key1", "value1"), ("key2", "value2")])
+            .build()
+            .unwrap();
+
+        let (header, user) = set_connector_details(details);
+
+        let expected_header = "Kusto.MyConnector:{1.0}|App.{MyApp}:{1.0.1}|key1:{value1}|key2:{value2}".to_string();
+
+        // We don't know the actual user that will be returned, but we can at least check
+        // that it's not an empty string.
+        assert_ne!(user, "", "user should not be an empty string, but it is");
+
+        assert_eq!(header, expected_header);
+    }
+
+    #[test]
+    fn test_set_connector_details_no_app_name() {
+        let details = ConnectorDetailsBuilder::default()
+            .with_name("MyConnector")
+            .with_version("1.0")
+            .build()
+            .unwrap();
+
+        let (header, user) = set_connector_details(details);
+
+        assert!(header.contains("Kusto.MyConnector:{1.0}"));
+        assert_eq!(user, "[none]");
+    }
+
+    #[test]
+    fn test_set_connector_details_no_app_version() {
+        let details = ConnectorDetailsBuilder::default()
+            .with_name("MyConnector")
+            .with_version("1.0")
+            .with_app_name("MyApp")
+            .build()
+            .unwrap();
+
+        let (header, user) = set_connector_details(details);
+
+        assert!(header.contains("Kusto.MyConnector:{1.0}"));
+        assert!(header.contains("App.{MyApp}:{unknown}"));
+        assert_eq!(user, "[none]");
+    }
+
+    #[test]
+    fn test_set_connector_details_no_additional_fields() {
+        let details = ConnectorDetailsBuilder::default()
+            .with_name("MyConnector")
+            .with_version("1.0")
+            .with_app_name("MyApp")
+            .with_app_version("1.0.1")
+            .build()
+            .unwrap();
+
+        let (header, user) = set_connector_details(details);
+
+        assert!(header.contains("Kusto.MyConnector:{1.0}"));
+        assert!(header.contains("App.{MyApp}:{1.0.1}"));
+        assert_eq!(user, "[none]");
+    }
 }

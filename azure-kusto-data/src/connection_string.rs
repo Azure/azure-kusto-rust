@@ -1062,16 +1062,16 @@ impl ConnectionString {
         (self.data_source, self.auth)
     }
 
+    /// Extracts the client details from the connection string.
+    pub(crate) fn client_details(&self) -> ClientDetails {
+        ClientDetails::new(self.application.clone(), self.user.clone())
+    }
+
     /// Sets the application and user for a connector.
     pub fn set_connector_details(&mut self, details: ConnectorDetails) {
         let (app, user) = client_details::set_connector_details(details);
         self.application = app.into();
         self.user = user.into();
-    }
-
-    /// Extracts the client details from the connection string.
-    pub fn client_details(&self) -> ClientDetails {
-        ClientDetails::new(self.application.clone(), self.user.clone())
     }
 }
 

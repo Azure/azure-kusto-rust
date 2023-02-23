@@ -15,12 +15,19 @@ static CLOUDINFO_CACHE: Lazy<Mutex<HashMap<String, CloudInfo>>> =
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
+/// Represents the information from the metadata endpoint about a cloud.
 pub struct CloudInfo {
+    /// Whether the cloud requires MFA for login.
     pub login_mfa_required: bool,
+    /// The login endpoint for the cloud.
     pub login_endpoint: Cow<'static, str>,
+    /// The client app id for kusto for the cloud.
     pub kusto_client_app_id: Cow<'static, str>,
+    /// The client redirect uri for kusto for the cloud.
     pub kusto_client_redirect_uri: Cow<'static, str>,
+    /// The service resource id for kusto for the cloud.
     pub kusto_service_resource_id: Cow<'static, str>,
+    /// The first party authority url for the cloud.
     pub first_party_authority_url: Cow<'static, str>,
 }
 
