@@ -139,10 +139,7 @@ mod tests {
 
     #[test]
     fn test_format_header() {
-        assert_eq!(
-            format_header(vec![("a".into(), "b".into())]),
-            "a:{b}"
-        );
+        assert_eq!(format_header(vec![("a".into(), "b".into())]), "a:{b}");
         assert_eq!(
             format_header(vec![("a".into(), "b".into()), ("c".into(), "d".into())]),
             "a:{b}|c:{d}"
@@ -181,10 +178,8 @@ mod tests {
             }
         );
 
-        let client_details = ClientDetails::new(
-            Some("my_app".to_string()),
-            Some("my_user".to_string()),
-        );
+        let client_details =
+            ClientDetails::new(Some("my_app".to_string()), Some("my_user".to_string()));
         assert_eq!(
             client_details,
             ClientDetails {
@@ -210,7 +205,8 @@ mod tests {
 
         let (header, user) = set_connector_details(details);
 
-        let expected_header = "Kusto.MyConnector:{1.0}|App.{MyApp}:{1.0.1}|key1:{value1}|key2:{value2}".to_string();
+        let expected_header =
+            "Kusto.MyConnector:{1.0}|App.{MyApp}:{1.0.1}|key1:{value1}|key2:{value2}".to_string();
 
         assert_eq!(header, expected_header);
 
@@ -228,7 +224,8 @@ mod tests {
 
         let (header, user) = set_connector_details(details);
 
-        let expected_header = "Kusto.MyConnector:{1.0}|App.{MyApp}:{1.0.1}|key1:{value1}|key2:{value2}".to_string();
+        let expected_header =
+            "Kusto.MyConnector:{1.0}|App.{MyApp}:{1.0.1}|key1:{value1}|key2:{value2}".to_string();
 
         assert_eq!(header, expected_header);
 
@@ -246,7 +243,8 @@ mod tests {
 
         let (header, user) = set_connector_details(details);
 
-        let expected_header = "Kusto.MyConnector:{1.0}|App.{MyApp}:{1.0.1}|key1:{value1}|key2:{value2}".to_string();
+        let expected_header =
+            "Kusto.MyConnector:{1.0}|App.{MyApp}:{1.0.1}|key1:{value1}|key2:{value2}".to_string();
 
         // We don't know the actual user that will be returned, but we can at least check
         // that it's not an empty string.
