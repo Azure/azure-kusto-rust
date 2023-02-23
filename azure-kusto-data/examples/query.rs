@@ -62,13 +62,12 @@ async fn progressive(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Er
         .execute_query(
             args.database.clone(),
             args.query.clone(),
-            Some(
-                ClientRequestProperties::from(OptionsBuilder::default()
+            Some(ClientRequestProperties::from(
+                OptionsBuilder::default()
                     .with_results_progressive_enabled(true)
                     .build()
-                    .unwrap()
-                )
-            ),
+                    .unwrap(),
+            )),
         )
         .into_stream()
         .await?;
@@ -103,13 +102,13 @@ async fn non_progressive(args: &Args, client: &KustoClient) {
         .execute_query(
             args.database.clone(),
             args.query.clone(),
-            Some(
-                ClientRequestProperties::from(OptionsBuilder::default()
+            Some(ClientRequestProperties::from(
+                OptionsBuilder::default()
                     .with_results_progressive_enabled(false)
                     .build()
-                    .unwrap()
-                )
-        ))
+                    .unwrap(),
+            )),
+        )
         .await
         .unwrap();
 
@@ -164,7 +163,9 @@ async fn to_struct(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Erro
 }), true, 0.99, "zxcv", 9223372036854775805, guid(d8e3575c-a7a0-47b3-8c73-9a7a6aaabc12),
 ]"#;
 
-    let response = client.execute_query(args.database.clone(), query, None).await?;
+    let response = client
+        .execute_query(args.database.clone(), query, None)
+        .await?;
 
     let results = response
         .into_primary_results()

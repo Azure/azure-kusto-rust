@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::client_details;
+use crate::client_details::{ClientDetails, ConnectorDetails};
 use azure_core::auth::TokenCredential;
 use azure_identity::{
     AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
@@ -13,8 +15,6 @@ use azure_identity::{
 };
 use hashbrown::HashMap;
 use once_cell::sync::Lazy;
-use crate::client_details;
-use crate::client_details::{ClientDetails, ConnectorDetails};
 
 use crate::credentials::{CallbackTokenCredential, ConstTokenCredential};
 use crate::error::ConnectionStringError;
@@ -549,7 +549,7 @@ impl ConnectionString {
                 key: "data_source".to_string(),
             },
         )?)
-            .to_string();
+        .to_string();
 
         let federated_security = result_map
             .get(&ConnectionStringKey::FederatedSecurity)
@@ -568,7 +568,7 @@ impl ConnectionString {
                     password: (*password).to_string(),
                 },
                 application: None,
-                user: None
+                user: None,
             })
         } else if let Some(token) = result_map.get(&ConnectionStringKey::ApplicationToken) {
             Ok(Self {
@@ -578,7 +578,7 @@ impl ConnectionString {
                     token: (*token).to_string(),
                 },
                 application: None,
-                user: None
+                user: None,
             })
         } else if let Some(token) = result_map.get(&ConnectionStringKey::UserToken) {
             Ok(Self {
@@ -588,7 +588,7 @@ impl ConnectionString {
                     token: (*token).to_string(),
                 },
                 application: None,
-                user: None
+                user: None,
             })
         } else if let Some(client_id) = result_map.get(&ConnectionStringKey::ApplicationClientId) {
             let client_secret = result_map
@@ -606,7 +606,7 @@ impl ConnectionString {
                     client_authority: (*client_authority).to_string(),
                 },
                 application: None,
-                user: None
+                user: None,
             })
         } else if let Some(client_id) = result_map.get(&ConnectionStringKey::ApplicationCertificate)
         {
@@ -633,7 +633,7 @@ impl ConnectionString {
                     client_authority: (*client_authority).to_string(),
                 },
                 application: None,
-                user: None
+                user: None,
             })
         } else if result_map
             .get(&ConnectionStringKey::MsiAuth)
@@ -651,7 +651,7 @@ impl ConnectionString {
                     user_id: msi_user_id,
                 },
                 application: None,
-                user: None
+                user: None,
             })
         } else if result_map
             .get(&ConnectionStringKey::AzCli)
@@ -664,7 +664,7 @@ impl ConnectionString {
                 federated_security,
                 auth: ConnectionStringAuth::AzureCli,
                 application: None,
-                user: None
+                user: None,
             })
         } else if result_map
             .get(&ConnectionStringKey::InteractiveLogin)
@@ -677,7 +677,7 @@ impl ConnectionString {
                 federated_security,
                 auth: ConnectionStringAuth::InteractiveLogin,
                 application: None,
-                user: None
+                user: None,
             })
         } else {
             Ok(Self {
@@ -685,7 +685,7 @@ impl ConnectionString {
                 federated_security,
                 auth: ConnectionStringAuth::Default,
                 application: None,
-                user: None
+                user: None,
             })
         }
     }
@@ -710,7 +710,7 @@ impl ConnectionString {
             federated_security: true,
             auth: ConnectionStringAuth::Default,
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -740,7 +740,7 @@ impl ConnectionString {
                 password: password.into(),
             },
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -765,7 +765,7 @@ impl ConnectionString {
                 token: token.into(),
             },
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -797,7 +797,7 @@ impl ConnectionString {
                 time_to_live,
             },
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -831,7 +831,7 @@ impl ConnectionString {
                 client_authority: client_authority.into(),
             },
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -867,7 +867,7 @@ impl ConnectionString {
                 client_authority: client_authority.into(),
             },
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -896,7 +896,7 @@ impl ConnectionString {
                 user_id: user_id.into(),
             },
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -920,7 +920,7 @@ impl ConnectionString {
             federated_security: true,
             auth: ConnectionStringAuth::AzureCli,
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -949,7 +949,7 @@ impl ConnectionString {
             federated_security: true,
             auth: ConnectionStringAuth::DeviceCode { callback },
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -972,7 +972,7 @@ impl ConnectionString {
             federated_security: true,
             auth: ConnectionStringAuth::InteractiveLogin,
             application: None,
-            user: None
+            user: None,
         }
     }
 
@@ -1004,7 +1004,7 @@ impl ConnectionString {
                 credential: token_credential,
             },
             application: None,
-            user: None
+            user: None,
         }
     }
 
