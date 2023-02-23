@@ -14,7 +14,7 @@ async fn deserialize_single<T: DeserializeOwned>(
     reader: &mut (impl AsyncBufRead + Send + Unpin),
     buf: &mut Vec<u8>,
 ) -> io::Result<T> {
-    buf.resize(0, 0);
+    buf.clear();
     let size = reader.read_until(b'\n', buf).await?;
     return Ok(serde_json::from_slice(&buf[..size - 1])?);
 }
