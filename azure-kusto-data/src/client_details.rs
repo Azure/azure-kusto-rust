@@ -4,14 +4,14 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ClientDetails {
+pub(crate) struct ClientDetails {
     pub application: String,
     pub user: String,
     pub version: String,
 }
 
 impl ClientDetails {
-    pub fn new(application: Option<String>, user: Option<String>) -> Self {
+    pub(crate) fn new(application: Option<String>, user: Option<String>) -> Self {
         ClientDetails {
             application: application.unwrap_or_else(|| DEFAULT_APPLICATION.to_string()),
             user: user.unwrap_or_else(|| DEFAULT_USER.to_string()),
@@ -103,12 +103,20 @@ pub(crate) fn set_connector_details(details: ConnectorDetails) -> (String, Strin
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, derive_builder::Builder)]
 #[builder(setter(into, strip_option, prefix = "with"), default)]
+/// Connector details for tracing.
 pub struct ConnectorDetails<'a> {
+    /// Connector name.
     name: &'a str,
+    /// Connector version.
     version: &'a str,
+    /// Whether to send user details.
     send_user: bool,
+    /// Override default user.
     override_user: Option<&'a str>,
+    /// Name of the containing application.
     app_name: Option<&'a str>,
+    /// Version of the containing application.
     app_version: Option<&'a str>,
+    /// Additional fields to add to the header.
     additional_fields: Vec<(&'a str, &'a str)>,
 }
