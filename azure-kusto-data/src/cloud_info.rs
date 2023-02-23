@@ -83,6 +83,7 @@ impl CloudInfo {
         })
     }
 
+    /// Add a custom settings for a url, and cache them.
     pub async fn add_to_cache(endpoint: &str, cloud_info: CloudInfo) {
         CLOUDINFO_CACHE
             .lock()
@@ -90,10 +91,12 @@ impl CloudInfo {
             .insert(endpoint.to_string(), cloud_info);
     }
 
+    /// Check if a url is in the cache.
     pub async fn is_in_cache(endpoint: &str) -> bool {
         CLOUDINFO_CACHE.lock().await.contains_key(endpoint)
     }
 
+    /// Get a url from the cache.
     pub async fn get_from_cache(endpoint: &str) -> Option<CloudInfo> {
         CLOUDINFO_CACHE.lock().await.get(endpoint).cloned()
     }

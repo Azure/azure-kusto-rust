@@ -1,7 +1,9 @@
 use std::borrow::Cow;
+
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClientDetails {
     pub application: String,
     pub user: String,
@@ -42,7 +44,6 @@ static DEFAULT_VERSION: Lazy<String> = Lazy::new(|| {
         ("Kusto.Rust.Client".into(), env!("CARGO_PKG_VERSION").into()),
         ("Os".into(), std::env::consts::OS.into()),
         ("Arch".into(), std::env::consts::ARCH.into()),
-        ("Rust".into(), std::env::var("RUSTC_VERSION").unwrap_or_else(|_| UNKNOWN.to_string()).into()),
     ])
 });
 
@@ -57,7 +58,16 @@ fn escape_value(s: Cow<str>) -> String {
     format!("{{{}}}", ESCAPE_REGEX.replace_all(s.as_ref(), "_"))
 }
 
-pub(crate) fn set_connector_details<'a>(name: &'a str, version: &'a str, send_user: bool, override_user: Option<&'a str>, app_name: Option<&'a str>, app_version: Option<&'a str>, additional_fields: Vec<(&'a str, &'a str)>) -> (String, String) {
+pub(crate) fn set_connector_details(details: ConnectorDetails) -> (String, String) {
+    let ConnectorDetails {
+        name, app_name,
+        app_version,
+        additional_fields,
+        send_user,
+        override_user,
+        version,
+    } = details;
+
     let mut fields: Vec<(Cow<str>, Cow<str>)> = vec![
         (format!("Kusto.{name}").into(), version.into()),
     ];
@@ -70,7 +80,7 @@ pub(crate) fn set_connector_details<'a>(name: &'a str, version: &'a str, send_us
     fields.extend(additional_fields.into_iter().map(|(k, v)| (k.into(), v.into())));
 
     let user = if send_user {
-        override_user.unwrap_or_else(|| DEFAULT_USER.as_str())
+        override_user.unwrap_or(DEFAULT_USER.as_str())
     } else {
         NONE
     };
@@ -79,4 +89,16 @@ pub(crate) fn set_connector_details<'a>(name: &'a str, version: &'a str, send_us
         format_header(fields),
         user.to_string(),
     )
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, derive_builder::Builder)]
+#[builder(setter(into, strip_option, prefix = "with"), default)]
+pub struct ConnectorDetails<'a> {
+    name: &'a str,
+    version: &'a str,
+    send_user: bool,
+    override_user: Option<&'a str>,
+    app_name: Option<&'a str>,
+    app_version: Option<&'a str>,
+    additional_fields: Vec<(&'a str, &'a str)>,
 }

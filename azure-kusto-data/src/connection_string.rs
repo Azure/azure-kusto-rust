@@ -14,7 +14,7 @@ use azure_identity::{
 use hashbrown::HashMap;
 use once_cell::sync::Lazy;
 use crate::client_details;
-use crate::client_details::ClientDetails;
+use crate::client_details::{ClientDetails, ConnectorDetails};
 
 use crate::credentials::{CallbackTokenCredential, ConstTokenCredential};
 use crate::error::ConnectionStringError;
@@ -1062,12 +1062,14 @@ impl ConnectionString {
         (self.data_source, self.auth)
     }
 
-    pub fn set_connector_details<'a>(&mut self, name: &'a str, version: &'a str, send_user: bool, override_user: Option<&'a str>, app_name: Option<&'a str>, app_version: Option<&'a str>, additional_fields: Vec<(&'a str, &'a str)>) {
-        let (app, user) = client_details::set_connector_details(name, version, send_user, override_user, app_name, app_version, additional_fields);
+    /// Sets the application and user for a connector.
+    pub fn set_connector_details(&mut self, details: ConnectorDetails) {
+        let (app, user) = client_details::set_connector_details(details);
         self.application = app.into();
         self.user = user.into();
     }
 
+    /// Extracts the client details from the connection string.
     pub fn client_details(&self) -> ClientDetails {
         ClientDetails::new(self.application.clone(), self.user.clone())
     }

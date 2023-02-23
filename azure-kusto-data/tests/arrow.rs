@@ -42,7 +42,7 @@ async fn arrow_roundtrip() {
         ]
     ";
     let response = client
-        .execute_query(database, query)
+        .execute_query(database, query, None)
         .await
         .expect("Failed to run query");
     let batches = response
@@ -72,7 +72,7 @@ async fn arrow_roundtrip() {
         "+----+------------+----------+---------+------------+-----------+---------------------+",
         "| id | string_col | bool_col | int_col | bigint_col | float_col | timestamp_col       |",
         "+----+------------+----------+---------+------------+-----------+---------------------+",
-        "| 6  | Hello      | true     | 0       | 0          | 0         | 2009-04-01T00:00:00 |",
+        "| 6  | Hello      | true     | 0       | 0          | 0.0       | 2009-04-01T00:00:00 |",
         "| 7  | World      | false    | 1       | 10         | 1.1       | 2009-04-01T00:01:00 |",
         "+----+------------+----------+---------+------------+-----------+---------------------+",
     ];

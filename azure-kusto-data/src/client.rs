@@ -177,7 +177,6 @@ impl KustoClient {
     /// use azure_kusto_data::prelude::*;
     /// # #[tokio::main] async fn main() -> Result<(), Error> {
     /// use azure_kusto_data::client::QueryKind;
-    /// use azure_kusto_data::request_options::RequestOptionsBuilder;
     ///
     /// let client = KustoClient::new(
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
@@ -185,7 +184,7 @@ impl KustoClient {
     ///    let result = client.execute_query(
     ///         "some_database",
     ///         "MyTable | take 10",
-    ///         Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
+    ///         Some(OptionsBuilder::default().with_request_app_name("app name").build().unwrap().into()))
     ///     .await?;
     ///
     ///   for table in result.into_primary_results() {
@@ -263,7 +262,7 @@ impl KustoClient {
     ///    KustoClientOptions::default())?;
     ///
     ///    let result = client.execute_command("some_database", ".show version",
-    ///     Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
+    ///     Some(OptionsBuilder::default().with_request_app_name("app name").build().unwrap().into()))
     ///     .await?;
     ///
     /// for table in result.tables {

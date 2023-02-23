@@ -70,26 +70,27 @@ pub struct ClientRequestProperties {
 }
 
 impl ClientRequestProperties {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
+    /// Add a query parameter with a string value.
     pub fn add_string_parameter(&mut self, name: Cow<str>, value: Cow<str>) {
         self.add_parameter(name, serde_json::Value::String(value.into()));
     }
 
+    /// Add a query parameter with an integer value.
     pub fn add_i64_parameter(&mut self, name: Cow<str>, value: i64) {
         self.add_parameter(name, serde_json::Value::Number(value.into()));
     }
 
+    /// Add a query parameter with a float value.
     pub fn add_f64_parameter(&mut self, name: Cow<str>, value: f64) {
         self.add_parameter(name, Number::from_f64(value).map(serde_json::Value::Number).unwrap_or_else(||serde_json::Value::String(value.to_string())));
     }
 
+    /// Add a query parameter with a boolean value.
     pub fn add_bool_parameter(&mut self, name: Cow<str>, value: bool) {
         self.add_parameter(name, serde_json::Value::Bool(value));
     }
 
+    /// Add a query parameter with a generic value.
     pub fn add_parameter(&mut self, name: Cow<str>, value: serde_json::Value) {
         if self.parameters.is_none() {
             self.parameters = Some(HashMap::new());
