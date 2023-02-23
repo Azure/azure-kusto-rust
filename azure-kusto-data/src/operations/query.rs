@@ -3,14 +3,14 @@ use crate::arrow::convert_table;
 use crate::client::{KustoClient, QueryKind};
 
 use crate::error::{Error, Result};
-use crate::models::{
-    DataTable, QueryBody, TableFragmentType, TableKind, TableV1, V2QueryResult,
-};
+use crate::models::{DataTable, QueryBody, TableFragmentType, TableKind, TableV1, V2QueryResult};
 use crate::operations::async_deserializer;
+use crate::prelude::ClientRequestProperties;
 #[cfg(feature = "arrow")]
 use arrow::record_batch::RecordBatch;
 use async_convert::TryFrom;
 use azure_core::error::Error as CoreError;
+use azure_core::headers::Headers;
 use azure_core::prelude::*;
 use azure_core::{CustomHeaders, Method, Request, Response as HttpResponse, Response};
 use futures::future::BoxFuture;
@@ -19,8 +19,6 @@ use serde::{Deserialize, Serialize};
 use std::future::IntoFuture;
 use std::io::ErrorKind;
 use std::sync::Arc;
-use azure_core::headers::Headers;
-use crate::prelude::ClientRequestProperties;
 
 type QueryRun = BoxFuture<'static, Result<KustoResponse>>;
 type V1QueryRun = BoxFuture<'static, Result<KustoResponseDataSetV1>>;

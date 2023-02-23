@@ -1,11 +1,11 @@
 //! Request options for the Azure Data Explorer Client.
 
-use std::borrow::Cow;
 use crate::types::{KustoDateTime, KustoDuration};
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use serde_with::skip_serializing_none;
+use std::borrow::Cow;
 
 /// Controls the hot or cold cache for the scope of the query.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -66,7 +66,7 @@ pub struct ClientRequestProperties {
     pub application: Option<String>,
     #[serde(skip)]
     /// User name for tracing.
-    pub user: Option<String>
+    pub user: Option<String>,
 }
 
 impl ClientRequestProperties {
@@ -82,7 +82,12 @@ impl ClientRequestProperties {
 
     /// Add a query parameter with a float value.
     pub fn add_f64_parameter(&mut self, name: Cow<str>, value: f64) {
-        self.add_parameter(name, Number::from_f64(value).map(serde_json::Value::Number).unwrap_or_else(||serde_json::Value::String(value.to_string())));
+        self.add_parameter(
+            name,
+            Number::from_f64(value)
+                .map(serde_json::Value::Number)
+                .unwrap_or_else(|| serde_json::Value::String(value.to_string())),
+        );
     }
 
     /// Add a query parameter with a boolean value.

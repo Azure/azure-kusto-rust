@@ -8,6 +8,7 @@
 mod arrow;
 mod authorization_policy;
 pub mod client;
+mod client_details;
 mod cloud_info;
 pub mod connection_string;
 pub mod credentials;
@@ -17,4 +18,3 @@ mod operations;
 pub mod prelude;
 pub mod request_options;
 pub mod types;
-mod client_details;

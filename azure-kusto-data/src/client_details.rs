@@ -36,7 +36,9 @@ static DEFAULT_USER: Lazy<String> = Lazy::new(|| {
 });
 
 static DEFAULT_APPLICATION: Lazy<String> = Lazy::new(|| {
-    std::env::current_exe().map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|_| UNKNOWN.to_string())
+    std::env::current_exe()
+        .map(|x| x.to_string_lossy().to_string())
+        .unwrap_or_else(|_| UNKNOWN.to_string())
 });
 
 static DEFAULT_VERSION: Lazy<String> = Lazy::new(|| {
@@ -47,7 +49,7 @@ static DEFAULT_VERSION: Lazy<String> = Lazy::new(|| {
     ])
 });
 
-fn format_header<'a, T: IntoIterator<Item=(Cow<'a, str>, Cow<'a, str>)>>(args: T) -> String {
+fn format_header<'a, T: IntoIterator<Item = (Cow<'a, str>, Cow<'a, str>)>>(args: T) -> String {
     args.into_iter()
         .map(|(k, v)| format!("{}:{}", k, escape_value(v)))
         .collect::<Vec<_>>()
@@ -60,7 +62,8 @@ fn escape_value(s: Cow<str>) -> String {
 
 pub(crate) fn set_connector_details(details: ConnectorDetails) -> (String, String) {
     let ConnectorDetails {
-        name, app_name,
+        name,
+        app_name,
         app_version,
         additional_fields,
         send_user,
@@ -68,16 +71,26 @@ pub(crate) fn set_connector_details(details: ConnectorDetails) -> (String, Strin
         version,
     } = details;
 
-    let mut fields: Vec<(Cow<str>, Cow<str>)> = vec![
-        (format!("Kusto.{name}").into(), version.into()),
-    ];
+    let mut fields: Vec<(Cow<str>, Cow<str>)> =
+        vec![(format!("Kusto.{name}").into(), version.into())];
 
-    let app_name = app_name.map(Cow::Borrowed).unwrap_or_else(|| DEFAULT_APPLICATION.clone().into());
-    let app_version = app_version.map(Cow::Borrowed).unwrap_or_else(|| UNKNOWN.clone().into());
+    let app_name = app_name
+        .map(Cow::Borrowed)
+        .unwrap_or_else(|| DEFAULT_APPLICATION.clone().into());
+    let app_version = app_version
+        .map(Cow::Borrowed)
+        .unwrap_or_else(|| UNKNOWN.clone().into());
 
-    fields.push((format!("App.{}", escape_value(app_name)).into(), app_version));
+    fields.push((
+        format!("App.{}", escape_value(app_name)).into(),
+        app_version,
+    ));
 
-    fields.extend(additional_fields.into_iter().map(|(k, v)| (k.into(), v.into())));
+    fields.extend(
+        additional_fields
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into())),
+    );
 
     let user = if send_user {
         override_user.unwrap_or(DEFAULT_USER.as_str())
@@ -85,10 +98,7 @@ pub(crate) fn set_connector_details(details: ConnectorDetails) -> (String, Strin
         NONE
     };
 
-    (
-        format_header(fields),
-        user.to_string(),
-    )
+    (format_header(fields), user.to_string())
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, derive_builder::Builder)]

@@ -7,14 +7,14 @@ use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V
 
 use azure_core::{ClientOptions, Pipeline};
 
+use crate::client_details::ClientDetails;
+use crate::prelude::ClientRequestProperties;
+use azure_core::headers::Headers;
+use azure_core::prelude::{Accept, AcceptEncoding, ClientVersion, ContentType};
 use serde::de::DeserializeOwned;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
-use azure_core::headers::Headers;
-use azure_core::prelude::{Accept, AcceptEncoding, ClientVersion, ContentType};
-use crate::client_details::ClientDetails;
-use crate::prelude::ClientRequestProperties;
 
 /// Options for specifying how a Kusto client will behave
 #[derive(Clone, Default)]
@@ -238,7 +238,9 @@ impl KustoClient {
         query: impl Into<String>,
         client_request_properties: Option<ClientRequestProperties>,
     ) -> Result<Vec<T>> {
-        let response = self.execute_query(database, query, client_request_properties).await?;
+        let response = self
+            .execute_query(database, query, client_request_properties)
+            .await?;
 
         let results = response
             .into_primary_results()
