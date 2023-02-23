@@ -1,3 +1,4 @@
+//! This module contains the logic to fetch the cloud info from the metadata endpoint.
 use std::borrow::Cow;
 
 use azure_core::error::Error as CoreError;
@@ -70,6 +71,7 @@ impl CloudInfo {
         }
     }
 
+    /// Fetch the metadata from the endpoint, and cache it.
     pub async fn get(
         pipeline: &Pipeline,
         endpoint: &str,
@@ -101,6 +103,12 @@ impl CloudInfo {
         CLOUDINFO_CACHE.lock().await.get(endpoint).cloned()
     }
 
+    /// Remove a url from the cache.
+    pub async fn remove_from_cache(endpoint: &str) {
+        CLOUDINFO_CACHE.lock().await.remove(endpoint);
+    }
+
+    /// Gets the resource uri for the kusto service.
     pub fn get_resource_uri(self) -> Cow<'static, str> {
         let mut resource_uri = self.kusto_service_resource_id;
         if self.login_mfa_required {

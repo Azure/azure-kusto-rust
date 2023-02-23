@@ -73,7 +73,7 @@ pub(crate) fn set_connector_details(details: ConnectorDetails) -> (String, Strin
     ];
 
     let app_name = app_name.map(Cow::Borrowed).unwrap_or_else(|| DEFAULT_APPLICATION.clone().into());
-    let app_version = app_version.map(Cow::Borrowed).unwrap_or_else(|| UNKNOWN.clone().into());
+    let app_version = app_version.map(Cow::Borrowed).unwrap_or_else(|| UNKNOWN.into());
 
     fields.push((format!("App.{}", escape_value(app_name)).into(), app_version));
 
