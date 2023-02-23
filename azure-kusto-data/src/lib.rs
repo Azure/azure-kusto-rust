@@ -17,3 +17,4 @@ mod operations;
 pub mod prelude;
 pub mod request_options;
 pub mod types;
+mod client_details;

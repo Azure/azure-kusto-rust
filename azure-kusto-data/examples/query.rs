@@ -1,6 +1,5 @@
 use azure_kusto_data::models::V2QueryResult;
 use azure_kusto_data::prelude::*;
-use azure_kusto_data::request_options::RequestOptionsBuilder;
 use azure_kusto_data::types::{KustoDateTime, KustoDuration};
 use clap::Parser;
 use futures::{pin_mut, TryStreamExt};
@@ -60,14 +59,15 @@ async fn progressive(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Er
     println!("Querying {} with streaming client", args.query);
 
     let stream = client
-        .execute_query_with_options(
+        .execute_query(
             args.database.clone(),
             args.query.clone(),
             Some(
-                RequestOptionsBuilder::default()
+                ClientRequestProperties::from(OptionsBuilder::default()
                     .with_results_progressive_enabled(true)
                     .build()
-                    .expect("Failed to create request options"),
+                    .unwrap()
+                )
             ),
         )
         .into_stream()
@@ -100,16 +100,16 @@ async fn non_progressive(args: &Args, client: &KustoClient) {
     println!("Querying {} with regular client", args.query);
 
     let response = client
-        .execute_query_with_options(
+        .execute_query(
             args.database.clone(),
             args.query.clone(),
             Some(
-                RequestOptionsBuilder::default()
-                    .with_results_progressive_enabled(false) // change to true to enable progressive results
+                ClientRequestProperties::from(OptionsBuilder::default()
+                    .with_results_progressive_enabled(false)
                     .build()
-                    .expect("Failed to create request options"),
-            ),
-        )
+                    .unwrap()
+                )
+        ))
         .await
         .unwrap();
 
@@ -164,7 +164,7 @@ async fn to_struct(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Erro
 }), true, 0.99, "zxcv", 9223372036854775805, guid(d8e3575c-a7a0-47b3-8c73-9a7a6aaabc12),
 ]"#;
 
-    let response = client.execute_query(args.database.clone(), query).await?;
+    let response = client.execute_query(args.database.clone(), query, None).await?;
 
     let results = response
         .into_primary_results()

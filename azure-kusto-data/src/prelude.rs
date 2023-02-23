@@ -18,7 +18,7 @@ pub use crate::connection_string::{
 pub use crate::error::Error;
 pub use crate::models::{DataTable, V2QueryResult};
 pub use crate::operations::query::{KustoResponse, KustoResponseDataSetV1, KustoResponseDataSetV2};
-pub use crate::request_options::{RequestOptions, RequestOptionsBuilder};
+pub use crate::request_options::{Options, OptionsBuilder, ClientRequestProperties, ClientRequestPropertiesBuilder};
 
 // Token credentials are re-exported for user convenience
 pub use azure_identity::{

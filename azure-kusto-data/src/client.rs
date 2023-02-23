@@ -5,13 +5,16 @@ use crate::connection_string::{ConnectionString, ConnectionStringAuth};
 use crate::error::{Error, Result};
 use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V2QueryRunner};
 
-use azure_core::{ClientOptions, Context, Pipeline};
+use azure_core::{ClientOptions, Pipeline};
 
-use crate::request_options::RequestOptions;
 use serde::de::DeserializeOwned;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
+use azure_core::headers::Headers;
+use azure_core::prelude::{Accept, AcceptEncoding, ClientVersion, ContentType};
+use crate::client_details::ClientDetails;
+use crate::prelude::ClientRequestProperties;
 
 /// Options for specifying how a Kusto client will behave
 #[derive(Clone, Default)]
@@ -62,6 +65,7 @@ pub struct KustoClient {
     pipeline: Arc<Pipeline>,
     query_url: Arc<String>,
     management_url: Arc<String>,
+    default_headers: Arc<Headers>,
 }
 
 /// Denotes what kind of query is being executed.
@@ -87,6 +91,7 @@ impl KustoClient {
     /// assert!(client.is_ok());
     /// ```
     pub fn new(connection_string: ConnectionString, options: KustoClientOptions) -> Result<Self> {
+        let default_headers = Arc::new(Self::default_headers(connection_string.client_details()));
         let (data_source, credentials) = connection_string.into_data_source_and_auth();
         let service_url = Arc::new(data_source.trim_end_matches('/').to_string());
         let query_url = format!("{service_url}/v2/rest/query");
@@ -97,7 +102,23 @@ impl KustoClient {
             pipeline: pipeline.into(),
             query_url: query_url.into(),
             management_url: management_url.into(),
+            default_headers,
         })
+    }
+
+    pub(crate) fn default_headers(details: ClientDetails) -> Headers {
+        let mut headers = Headers::new();
+        const API_VERSION: &str = "2019-02-13";
+        headers.insert("x-ms-kusto-api-version", API_VERSION);
+        headers.insert("x-ms-app", details.application);
+        headers.insert("x-ms-user", details.user);
+        headers.add(Accept::from("application/json"));
+        headers.add(ContentType::new("application/json; charset=utf-8"));
+        headers.add(AcceptEncoding::from("gzip"));
+        headers.add(ClientVersion::from(details.version));
+        headers.insert("connection", "Keep-Alive");
+
+        headers
     }
 
     pub(crate) fn query_url(&self) -> &str {
@@ -135,15 +156,15 @@ impl KustoClient {
         database: impl Into<String>,
         query: impl Into<String>,
         kind: QueryKind,
-        options: impl Into<Option<RequestOptions>>,
+        client_request_properties: Option<ClientRequestProperties>,
     ) -> QueryRunner {
         QueryRunnerBuilder::default()
             .with_kind(kind)
             .with_client(self.clone())
             .with_database(database)
             .with_query(query)
-            .with_context(Context::new())
-            .with_options(options)
+            .with_default_headers(self.default_headers.clone())
+            .with_client_request_properties(client_request_properties)
             .build()
             .expect("Unexpected error when building query runner - please report this issue to the Kusto team")
     }
@@ -161,7 +182,7 @@ impl KustoClient {
     /// let client = KustoClient::new(
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
-    ///    let result = client.execute_query_with_options(
+    ///    let result = client.execute_query(
     ///         "some_database",
     ///         "MyTable | take 10",
     ///         Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
@@ -174,41 +195,13 @@ impl KustoClient {
     /// ```
     ///
     #[must_use]
-    pub fn execute_query_with_options(
-        &self,
-        database: impl Into<String>,
-        query: impl Into<String>,
-        options: impl Into<Option<RequestOptions>>,
-    ) -> V2QueryRunner {
-        V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, options))
-    }
-
-    /// Execute a KQL query.
-    /// To learn more about KQL go to [https://docs.microsoft.com/en-us/azure/kusto/query/](https://docs.microsoft.com/en-us/azure/kusto/query)
-    ///
-    /// # Example
-    /// ```no_run
-    /// use azure_kusto_data::prelude::*;
-    ///
-    /// # #[tokio::main] async fn main() -> Result<(), Error> {
-    /// let client = KustoClient::new(
-    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
-    ///    KustoClientOptions::default())?;
-    ///
-    ///    let result = client.execute_query("some_database", "MyTable | take 10").await?;
-    ///
-    ///    for table in result.into_primary_results() {
-    ///        println!("{}", table.table_name);
-    ///    }
-    /// # Ok(())}
-    /// ```
-    #[must_use]
     pub fn execute_query(
         &self,
         database: impl Into<String>,
         query: impl Into<String>,
+        options: Option<ClientRequestProperties>,
     ) -> V2QueryRunner {
-        V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, None))
+        V2QueryRunner(self.execute_with_options(database, query, QueryKind::Query, options))
     }
 
     /// Execute a KQL query into an array of structs.
@@ -235,7 +228,7 @@ impl KustoClient {
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
-    ///    let result: Vec<MyStruct> = client.execute_query_to_struct("some_database", "MyTable | take 10").await?;
+    ///    let result: Vec<MyStruct> = client.execute_query_to_struct("some_database", "MyTable | take 10", None).await?;
     ///    println!("{:?}", result); // prints [MyStruct { name: "foo", age: 42 }, MyStruct { name: "bar", age: 43 }]
     ///
     /// # Ok(())}
@@ -244,8 +237,9 @@ impl KustoClient {
         &self,
         database: impl Into<String>,
         query: impl Into<String>,
+        client_request_properties: Option<ClientRequestProperties>,
     ) -> Result<Vec<T>> {
-        let response = self.execute_query(database, query).await?;
+        let response = self.execute_query(database, query, client_request_properties).await?;
 
         let results = response
             .into_primary_results()
@@ -268,7 +262,7 @@ impl KustoClient {
     ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
     ///    KustoClientOptions::default())?;
     ///
-    ///    let result = client.execute_command_with_options("some_database", ".show version",
+    ///    let result = client.execute_command("some_database", ".show version",
     ///     Some(RequestOptionsBuilder::default().with_request_app_name("app name").build().unwrap()))
     ///     .await?;
     ///
@@ -278,42 +272,13 @@ impl KustoClient {
     /// # Ok(())}
     /// ```
     #[must_use]
-    pub fn execute_command_with_options(
-        &self,
-        database: impl Into<String>,
-        query: impl Into<String>,
-        options: impl Into<Option<RequestOptions>>,
-    ) -> V1QueryRunner {
-        V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, options))
-    }
-
-    /// Execute a management command.
-    /// To learn more about see [commands](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/)
-    ///
-    /// # Example
-    /// ```no_run
-    /// use azure_kusto_data::prelude::*;
-    ///
-    /// # #[tokio::main] async fn main() -> Result<(), Error> {
-    ///
-    /// let client = KustoClient::new(
-    ///    ConnectionString::with_default_auth("https://mycluster.region.kusto.windows.net/"),
-    ///    KustoClientOptions::default())?;
-    ///
-    ///    let result = client.execute_command("some_database", ".show version").await?;
-    ///
-    ///    for table in result.tables {
-    ///        println!("{}", table.table_name);
-    ///    }
-    /// # Ok(())}
-    /// ```
-    #[must_use]
     pub fn execute_command(
         &self,
         database: impl Into<String>,
         query: impl Into<String>,
+        options: Option<ClientRequestProperties>,
     ) -> V1QueryRunner {
-        V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, None))
+        V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, options))
     }
 }
 

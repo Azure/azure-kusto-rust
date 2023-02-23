@@ -1,8 +1,10 @@
 //! Request options for the Azure Data Explorer Client.
 
+use std::borrow::Cow;
 use crate::types::{KustoDateTime, KustoDuration};
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
+use serde_json::Number;
 use serde_with::skip_serializing_none;
 
 /// Controls the hot or cold cache for the scope of the query.
@@ -50,8 +52,66 @@ pub enum QueryConsistency {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default, derive_builder::Builder)]
 #[builder(setter(into, strip_option, prefix = "with"), default)]
+/// Properties for a query.
+pub struct ClientRequestProperties {
+    /// Options to control the query.
+    pub options: Option<Options>,
+    /// Parameters to pass to the query.
+    pub parameters: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip)]
+    /// Client request id.
+    pub client_request_id: Option<String>,
+    #[serde(skip)]
+    /// Application name for tracing.
+    pub application: Option<String>,
+    #[serde(skip)]
+    /// User name for tracing.
+    pub user: Option<String>
+}
+
+impl ClientRequestProperties {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn add_string_parameter(&mut self, name: Cow<str>, value: Cow<str>) {
+        self.add_parameter(name, serde_json::Value::String(value.into()));
+    }
+
+    pub fn add_i64_parameter(&mut self, name: Cow<str>, value: i64) {
+        self.add_parameter(name, serde_json::Value::Number(value.into()));
+    }
+
+    pub fn add_f64_parameter(&mut self, name: Cow<str>, value: f64) {
+        self.add_parameter(name, Number::from_f64(value).map(serde_json::Value::Number).unwrap_or_else(||serde_json::Value::String(value.to_string())));
+    }
+
+    pub fn add_bool_parameter(&mut self, name: Cow<str>, value: bool) {
+        self.add_parameter(name, serde_json::Value::Bool(value));
+    }
+
+    pub fn add_parameter(&mut self, name: Cow<str>, value: serde_json::Value) {
+        if self.parameters.is_none() {
+            self.parameters = Some(HashMap::new());
+        }
+        self.parameters.as_mut().unwrap().insert(name.into(), value);
+    }
+}
+
+impl From<Options> for ClientRequestProperties {
+    fn from(options: Options) -> Self {
+        Self {
+            options: Some(options),
+            ..Default::default()
+        }
+    }
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, derive_builder::Builder)]
+#[builder(setter(into, strip_option, prefix = "with"), default)]
 /// Request options for queries, can be used to set the size, consistency, and other options.
-pub struct RequestOptions {
+pub struct Options {
     /// If set and positive, indicates the maximum number of HTTP redirects that the client will process.
     pub client_max_redirect_count: Option<i64>,
     /// If true, disables reporting partial query failures as part of the result set

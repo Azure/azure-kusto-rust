@@ -1,5 +1,4 @@
 use std::io;
-use std::io::Read;
 
 use futures::{stream, AsyncBufRead, AsyncBufReadExt, AsyncReadExt, Stream};
 use serde::de::DeserializeOwned;

@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let client = KustoClient::try_from(kcsb).expect("Failed to create Kusto client");
 
     let response = client
-        .execute_command(database, query)
+        .execute_command(database, query, None)
         .await
         .expect("Failed to execute query");
 
