@@ -1,104 +1,59 @@
-use futures::io::BufReader;
-use futures::{pin_mut, stream, AsyncRead, AsyncReadExt, Stream, TryStreamExt};
-use serde::de::DeserializeOwned;
 use std::io;
-use std::pin::Pin;
+use std::io::Read;
+
+use futures::{stream, AsyncBufRead, AsyncBufReadExt, AsyncReadExt, Stream};
+use serde::de::DeserializeOwned;
 
 // TODO: Find a crate that does this better / move this into another crate
-
-async fn read_skipping_ws(reader: impl AsyncRead + Send) -> io::Result<u8> {
-    pin_mut!(reader);
-    loop {
-        let mut byte = 0u8;
-        reader.read_exact(std::slice::from_mut(&mut byte)).await?;
-        print!("{}", byte as char);
-        if !byte.is_ascii_whitespace() {
-            return Ok(byte);
-        }
-    }
-}
 
 fn invalid_data(msg: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, msg)
 }
 
-const BUFFER_SIZE: usize = 4096;
+async fn deserialize_single<T: DeserializeOwned>(
+    reader: &mut (impl AsyncBufRead + Send + Unpin),
+    buf: &mut Vec<u8>,
+) -> io::Result<T> {
+    buf.clear();
+    let size = reader.read_until(b'\n', buf).await?;
+    return Ok(serde_json::from_slice(&buf[..size - 1])?);
+}
 
-async fn deserialize_single<T: DeserializeOwned, R: AsyncRead + Send>(
-    reader: R,
-) -> io::Result<(T, Vec<u8>)> {
-    let mut vec = Vec::with_capacity(BUFFER_SIZE);
-    let mut buf = [0; BUFFER_SIZE];
-    let mut leftover = Vec::with_capacity(BUFFER_SIZE);
+async fn read_byte(reader: &mut (impl AsyncBufRead + Send + Unpin)) -> io::Result<u8> {
+    let mut buf = [0u8; 1];
+    reader.read_exact(&mut buf).await?;
+    Ok(buf[0])
+}
 
-    pin_mut!(reader);
-
-    loop {
-        let size = reader.read(&mut buf).await?;
-        print!("{}", String::from_utf8_lossy(&buf[..size]));
-        vec.extend_from_slice(&buf[..size]);
-
-        let res = serde_json::from_slice::<T>(vec.as_slice());
-
-        match res {
-            Ok(t) => return Ok((t, leftover)),
-            Err(e) => {
-                if e.is_syntax() {
-                    let i = e.column() - 1;
-                    leftover.extend_from_slice(&vec[i..]);
-                    return Ok((serde_json::from_slice::<T>(&vec[..i])?, leftover));
-                } else if e.is_eof() {
-                    continue;
-                }
-                return Err(e.into());
+async fn yield_next_obj<T: DeserializeOwned>(
+    reader: &mut (impl AsyncBufRead + Send + Unpin),
+    buf: &mut Vec<u8>,
+) -> Result<Option<T>, io::Error> {
+    Ok(Some(match read_byte(reader).await? {
+        b'[' => {
+            let newline = read_byte(reader).await?;
+            if newline != b'\n' {
+                return Err(invalid_data(&format!(
+                    "Expected newline after opening '[', found {:?}",
+                    newline
+                )));
             }
+            deserialize_single(reader, buf).await?
         }
-    }
+        b',' => deserialize_single(reader, buf).await?,
+        b']' => return Ok(None),
+        b => return Err(invalid_data(&format!("Unexpected byte {:?}", b))),
+    }))
 }
 
-async fn yield_next_obj<T: DeserializeOwned, R: AsyncRead + Send>(
-    reader: R,
-    first_time: bool,
-) -> io::Result<Option<(T, Vec<u8>)>> {
-    pin_mut!(reader);
-
-    match read_skipping_ws(&mut reader).await? {
-        b'[' if first_time => {
-            let (result, leftover) = deserialize_single(&mut reader).await?;
-            Ok(Some((result, leftover)))
-        }
-        b',' if !first_time => {
-            let (result, leftover) = deserialize_single(&mut reader).await?;
-            Ok(Some((result, leftover)))
-        }
-        b']' if !first_time => Ok(None),
-        c => Err(invalid_data(&format!("Unexpected char {}", c as char))),
-    }
-}
-
-pub fn iter_results<T: DeserializeOwned, R: AsyncRead + Send + 'static>(
-    reader: R,
+pub fn iter_results<T: DeserializeOwned>(
+    reader: (impl AsyncBufRead + Send + Unpin),
 ) -> impl Stream<Item = Result<T, io::Error>> {
-    stream::try_unfold(
-        (
-            Box::pin(BufReader::new(reader)) as Pin<Box<dyn AsyncRead + Send>>,
-            true,
-        ),
-        |(mut reader, first_time)| async move {
-            let result = yield_next_obj::<T, _>(reader.as_mut(), first_time).await?;
-            Ok(result.map(|(result, leftover)| {
-                (
-                    result,
-                    (
-                        Box::pin(
-                            stream::iter(vec![Ok(leftover.into_iter())])
-                                .into_async_read()
-                                .chain(reader),
-                        ) as Pin<Box<dyn AsyncRead + Send>>,
-                        false,
-                    ),
-                )
-            }))
-        },
-    )
+    let buf = vec![];
+
+    stream::try_unfold((buf, reader), move |(mut buf, mut reader)| async {
+        yield_next_obj(&mut reader, &mut buf)
+            .await
+            .map(|r| r.map(|obj| (obj, (buf, reader))))
+    })
 }
