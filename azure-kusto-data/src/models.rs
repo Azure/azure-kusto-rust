@@ -1,8 +1,6 @@
 //! Models to parse responses from ADX.
-
-use crate::request_options::RequestOptions;
+use crate::prelude::ClientRequestProperties;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[allow(non_snake_case)]
@@ -13,16 +11,7 @@ pub(crate) struct QueryBody {
     pub csl: String,
     /// Additional parameters and options for fine-grained control of the request behavior
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<RequestProperties>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub(crate) struct RequestProperties {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) parameters: Option<HashMap<String, serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) options: Option<RequestOptions>,
+    pub properties: Option<ClientRequestProperties>,
 }
 
 /// Represents the scalar data types of ADX. see [the docs for more information](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/scalar-data-types/)

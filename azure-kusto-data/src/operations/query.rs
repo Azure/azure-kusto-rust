@@ -2,24 +2,23 @@
 use crate::arrow::convert_table;
 use crate::client::{KustoClient, QueryKind};
 
-use crate::error::{Error, InvalidArgumentError, Result};
-use crate::models::{
-    DataTable, QueryBody, RequestProperties, TableFragmentType, TableKind, TableV1, V2QueryResult,
-};
+use crate::error::{Error, Result};
+use crate::models::{DataTable, QueryBody, TableFragmentType, TableKind, TableV1, V2QueryResult};
 use crate::operations::async_deserializer;
-use crate::request_options::RequestOptions;
+use crate::prelude::ClientRequestProperties;
 #[cfg(feature = "arrow")]
 use arrow::record_batch::RecordBatch;
 use async_convert::TryFrom;
 use azure_core::error::Error as CoreError;
+use azure_core::headers::Headers;
 use azure_core::prelude::*;
-use azure_core::{Method, Request, Response as HttpResponse, Response, Url};
+use azure_core::{CustomHeaders, Method, Request, Response as HttpResponse, Response};
 use futures::future::BoxFuture;
 use futures::{Stream, TryFutureExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::io::ErrorKind;
+use std::sync::Arc;
 
 type QueryRun = BoxFuture<'static, Result<KustoResponse>>;
 type V1QueryRun = BoxFuture<'static, Result<KustoResponseDataSetV1>>;
@@ -32,17 +31,8 @@ pub struct QueryRunner {
     database: String,
     query: String,
     kind: QueryKind,
-    #[builder(default)]
-    client_request_id: Option<ClientRequestId>,
-    #[builder(default, setter(strip_option))]
-    app: Option<App>,
-    #[builder(default, setter(strip_option))]
-    user: Option<User>,
-    #[builder(default, setter(strip_option))]
-    parameters: Option<HashMap<String, serde_json::Value>>,
-    #[builder(default)]
-    options: Option<RequestOptions>,
-    context: Context,
+    client_request_properties: Option<ClientRequestProperties>,
+    default_headers: Arc<Headers>,
 }
 pub struct V1QueryRunner(pub QueryRunner);
 
@@ -61,36 +51,36 @@ impl QueryRunner {
             QueryKind::Management => self.client.management_url(),
             QueryKind::Query => self.client.query_url(),
         };
-        let mut request = prepare_request(url.parse().map_err(CoreError::from)?, Method::Post);
+        let mut request = Request::new(url.parse().map_err(CoreError::from)?, Method::Post);
 
-        if let Some(request_id) = &self.client_request_id {
-            request.insert_headers(request_id);
-        };
-        if let Some(app) = &self.app {
-            request.insert_headers(app);
-        };
-        if let Some(user) = &self.user {
-            request.insert_headers(user);
-        };
+        let mut context = Context::new();
+        let mut headers = self.default_headers.as_ref().clone();
+
+        if let Some(client_request_properties) = &self.client_request_properties {
+            if let Some(client_request_id) = &client_request_properties.client_request_id {
+                headers.insert("x-ms-client-request-id", client_request_id);
+            }
+
+            if let Some(application) = &client_request_properties.application {
+                headers.insert("x-ms-app", application);
+            }
+        }
+
+        context.insert(CustomHeaders::from(headers));
 
         let body = QueryBody {
             db: self.database,
             csl: self.query,
-            properties: Some(RequestProperties {
-                options: self.options,
-                parameters: self.parameters,
-            }),
+            properties: self.client_request_properties,
         };
+
         let bytes = bytes::Bytes::from(serde_json::to_string(&body)?);
-        request.insert_headers(&ContentLength::new(
-            std::convert::TryInto::try_into(bytes.len()).map_err(InvalidArgumentError::from)?,
-        ));
         request.set_body(bytes);
 
         let response = self
             .client
             .pipeline()
-            .send(&mut self.context.clone(), &mut request)
+            .send(&mut context, &mut request)
             .await?;
         Ok(response)
     }
@@ -526,22 +516,6 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV1 {
         let data = pinned_stream.collect().await?;
         Ok(serde_json::from_slice(&data)?)
     }
-}
-
-pub fn prepare_request(url: Url, http_method: Method) -> Request {
-    const API_VERSION: &str = "2019-02-13";
-
-    let mut request = Request::new(url, http_method);
-    request.insert_headers(&Version::from(API_VERSION));
-    request.insert_headers(&Accept::from("application/json"));
-    request.insert_headers(&ContentType::new("application/json; charset=utf-8"));
-    request.insert_headers(&AcceptEncoding::from("gzip"));
-    request.insert_headers(&ClientVersion::from(format!(
-        "Kusto.Rust.Client:{}",
-        env!("CARGO_PKG_VERSION"),
-    )));
-    request.insert_header("connection", "Keep-Alive");
-    request
 }
 
 #[cfg(test)]

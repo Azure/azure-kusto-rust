@@ -1,5 +1,4 @@
 use std::io;
-use std::io::Read;
 
 use futures::{stream, AsyncBufRead, AsyncBufReadExt, AsyncReadExt, Stream};
 use serde::de::DeserializeOwned;
@@ -16,7 +15,7 @@ async fn deserialize_single<T: DeserializeOwned>(
 ) -> io::Result<T> {
     buf.clear();
     let size = reader.read_until(b'\n', buf).await?;
-    return Ok(serde_json::from_slice(&buf[..size - 1])?);
+    Ok(serde_json::from_slice(&buf[..size - 1])?)
 }
 
 async fn read_byte(reader: &mut (impl AsyncBufRead + Send + Unpin)) -> io::Result<u8> {

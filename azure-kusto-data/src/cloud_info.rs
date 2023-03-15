@@ -1,3 +1,4 @@
+//! This module contains the logic to fetch the cloud info from the metadata endpoint.
 use std::borrow::Cow;
 
 use azure_core::error::Error as CoreError;
@@ -14,12 +15,19 @@ static CLOUDINFO_CACHE: Lazy<Mutex<HashMap<String, CloudInfo>>> =
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
+/// Represents the information from the metadata endpoint about a cloud.
 pub struct CloudInfo {
+    /// Whether the cloud requires MFA for login.
     pub login_mfa_required: bool,
+    /// The login endpoint for the cloud.
     pub login_endpoint: Cow<'static, str>,
+    /// The client app id for kusto for the cloud.
     pub kusto_client_app_id: Cow<'static, str>,
+    /// The client redirect uri for kusto for the cloud.
     pub kusto_client_redirect_uri: Cow<'static, str>,
+    /// The service resource id for kusto for the cloud.
     pub kusto_service_resource_id: Cow<'static, str>,
+    /// The first party authority url for the cloud.
     pub first_party_authority_url: Cow<'static, str>,
 }
 
@@ -70,6 +78,7 @@ impl CloudInfo {
         }
     }
 
+    /// Fetch the metadata from the endpoint, and cache it.
     pub async fn get(
         pipeline: &Pipeline,
         endpoint: &str,
@@ -83,6 +92,7 @@ impl CloudInfo {
         })
     }
 
+    /// Add a custom settings for a url, and cache them.
     pub async fn add_to_cache(endpoint: &str, cloud_info: CloudInfo) {
         CLOUDINFO_CACHE
             .lock()
@@ -90,14 +100,22 @@ impl CloudInfo {
             .insert(endpoint.to_string(), cloud_info);
     }
 
+    /// Check if a url is in the cache.
     pub async fn is_in_cache(endpoint: &str) -> bool {
         CLOUDINFO_CACHE.lock().await.contains_key(endpoint)
     }
 
+    /// Get a url from the cache.
     pub async fn get_from_cache(endpoint: &str) -> Option<CloudInfo> {
         CLOUDINFO_CACHE.lock().await.get(endpoint).cloned()
     }
 
+    /// Remove a url from the cache.
+    pub async fn remove_from_cache(endpoint: &str) {
+        CLOUDINFO_CACHE.lock().await.remove(endpoint);
+    }
+
+    /// Gets the resource uri for the kusto service.
     pub fn get_resource_uri(self) -> Cow<'static, str> {
         let mut resource_uri = self.kusto_service_resource_id;
         if self.login_mfa_required {

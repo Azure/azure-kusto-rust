@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::client_details;
+use crate::client_details::{ClientDetails, ConnectorDetails};
 use azure_core::auth::TokenCredential;
 use azure_identity::{
     AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
@@ -169,6 +171,10 @@ pub struct ConnectionString {
 
     /// The authentication method to use.
     pub auth: ConnectionStringAuth,
+    /// Application name for tracing.
+    pub application: Option<String>,
+    /// User name for tracing.
+    pub user: Option<String>,
 }
 
 /// Authentication methods to use when connecting to an ADX cluster.
@@ -561,6 +567,8 @@ impl ConnectionString {
                     user_id: (*user_id).to_string(),
                     password: (*password).to_string(),
                 },
+                application: None,
+                user: None,
             })
         } else if let Some(token) = result_map.get(&ConnectionStringKey::ApplicationToken) {
             Ok(Self {
@@ -569,6 +577,8 @@ impl ConnectionString {
                 auth: ConnectionStringAuth::Token {
                     token: (*token).to_string(),
                 },
+                application: None,
+                user: None,
             })
         } else if let Some(token) = result_map.get(&ConnectionStringKey::UserToken) {
             Ok(Self {
@@ -577,6 +587,8 @@ impl ConnectionString {
                 auth: ConnectionStringAuth::Token {
                     token: (*token).to_string(),
                 },
+                application: None,
+                user: None,
             })
         } else if let Some(client_id) = result_map.get(&ConnectionStringKey::ApplicationClientId) {
             let client_secret = result_map
@@ -593,6 +605,8 @@ impl ConnectionString {
                     client_secret: (*client_secret).to_string(),
                     client_authority: (*client_authority).to_string(),
                 },
+                application: None,
+                user: None,
             })
         } else if let Some(client_id) = result_map.get(&ConnectionStringKey::ApplicationCertificate)
         {
@@ -618,6 +632,8 @@ impl ConnectionString {
                     thumbprint: (*thumbprint).to_string(),
                     client_authority: (*client_authority).to_string(),
                 },
+                application: None,
+                user: None,
             })
         } else if result_map
             .get(&ConnectionStringKey::MsiAuth)
@@ -634,6 +650,8 @@ impl ConnectionString {
                 auth: ConnectionStringAuth::ManagedIdentity {
                     user_id: msi_user_id,
                 },
+                application: None,
+                user: None,
             })
         } else if result_map
             .get(&ConnectionStringKey::AzCli)
@@ -645,6 +663,8 @@ impl ConnectionString {
                 data_source,
                 federated_security,
                 auth: ConnectionStringAuth::AzureCli,
+                application: None,
+                user: None,
             })
         } else if result_map
             .get(&ConnectionStringKey::InteractiveLogin)
@@ -656,12 +676,16 @@ impl ConnectionString {
                 data_source,
                 federated_security,
                 auth: ConnectionStringAuth::InteractiveLogin,
+                application: None,
+                user: None,
             })
         } else {
             Ok(Self {
                 data_source,
                 federated_security,
                 auth: ConnectionStringAuth::Default,
+                application: None,
+                user: None,
             })
         }
     }
@@ -685,6 +709,8 @@ impl ConnectionString {
             data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::Default,
+            application: None,
+            user: None,
         }
     }
 
@@ -713,6 +739,8 @@ impl ConnectionString {
                 user_id: user_id.into(),
                 password: password.into(),
             },
+            application: None,
+            user: None,
         }
     }
 
@@ -736,6 +764,8 @@ impl ConnectionString {
             auth: ConnectionStringAuth::Token {
                 token: token.into(),
             },
+            application: None,
+            user: None,
         }
     }
 
@@ -766,6 +796,8 @@ impl ConnectionString {
                 token_callback,
                 time_to_live,
             },
+            application: None,
+            user: None,
         }
     }
 
@@ -798,6 +830,8 @@ impl ConnectionString {
                 client_secret: client_secret.into(),
                 client_authority: client_authority.into(),
             },
+            application: None,
+            user: None,
         }
     }
 
@@ -832,6 +866,8 @@ impl ConnectionString {
                 thumbprint: thumbprint.into(),
                 client_authority: client_authority.into(),
             },
+            application: None,
+            user: None,
         }
     }
 
@@ -859,6 +895,8 @@ impl ConnectionString {
             auth: ConnectionStringAuth::ManagedIdentity {
                 user_id: user_id.into(),
             },
+            application: None,
+            user: None,
         }
     }
 
@@ -881,6 +919,8 @@ impl ConnectionString {
             data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::AzureCli,
+            application: None,
+            user: None,
         }
     }
 
@@ -908,6 +948,8 @@ impl ConnectionString {
             data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::DeviceCode { callback },
+            application: None,
+            user: None,
         }
     }
 
@@ -929,6 +971,8 @@ impl ConnectionString {
             data_source: data_source.into(),
             federated_security: true,
             auth: ConnectionStringAuth::InteractiveLogin,
+            application: None,
+            user: None,
         }
     }
 
@@ -959,6 +1003,8 @@ impl ConnectionString {
             auth: ConnectionStringAuth::TokenCredential {
                 credential: token_credential,
             },
+            application: None,
+            user: None,
         }
     }
 
@@ -1015,6 +1061,18 @@ impl ConnectionString {
     pub(crate) fn into_data_source_and_auth(self) -> (String, ConnectionStringAuth) {
         (self.data_source, self.auth)
     }
+
+    /// Extracts the client details from the connection string.
+    pub(crate) fn client_details(&self) -> ClientDetails {
+        ClientDetails::new(self.application.clone(), self.user.clone())
+    }
+
+    /// Sets the application and user for a connector.
+    pub fn set_connector_details(&mut self, details: ConnectorDetails) {
+        let (app, user) = client_details::set_connector_details(details);
+        self.application = app.into();
+        self.user = user.into();
+    }
 }
 
 fn parse_boolean(term: &str, name: &str) -> Result<bool, ConnectionStringError> {
@@ -1056,6 +1114,8 @@ mod tests {
                 data_source: "ds".to_string(),
                 federated_security: false,
                 auth: ConnectionStringAuth::Default,
+                application: None,
+                user: None
             })
         );
         assert_eq!(
@@ -1064,6 +1124,8 @@ mod tests {
                 data_source: "ds".to_string(),
                 federated_security: false,
                 auth: ConnectionStringAuth::Default,
+                application: None,
+                user: None
             })
         );
         assert_eq!(
@@ -1078,6 +1140,8 @@ mod tests {
                     client_secret: "key".to_string(),
                     client_authority: "tid".to_string(),
                 },
+                application: None,
+                user: None
             })
         );
         assert_eq!(
@@ -1090,6 +1154,8 @@ mod tests {
                 auth: ConnectionStringAuth::Token {
                     token: "token".to_string()
                 },
+                application: None,
+                user: None
             })
         );
     }

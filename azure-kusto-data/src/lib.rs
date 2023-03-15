@@ -8,7 +8,8 @@
 mod arrow;
 mod authorization_policy;
 pub mod client;
-mod cloud_info;
+pub mod client_details;
+pub mod cloud_info;
 pub mod connection_string;
 pub mod credentials;
 pub mod error;
