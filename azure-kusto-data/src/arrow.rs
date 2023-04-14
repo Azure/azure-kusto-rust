@@ -3,15 +3,11 @@ use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use arrow::array::TimestampNanosecondArray;
-use arrow::{
-    array::{
-        ArrayRef, BooleanArray, DurationNanosecondArray, Float64Array, Int32Array, Int64Array,
-        StringArray,
-    },
-    datatypes::{DataType, Field, Schema, TimeUnit},
-    record_batch::RecordBatch,
+use arrow_array::{
+    ArrayRef, BooleanArray, DurationNanosecondArray, Float64Array, Int32Array, Int64Array,
+    RecordBatch, StringArray, TimestampNanosecondArray,
 };
+use arrow_schema::{DataType, Field, Schema, TimeUnit};
 use azure_core::error::{ErrorKind, ResultExt};
 use serde_json::Value;
 

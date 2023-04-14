@@ -7,7 +7,7 @@ use crate::models::{DataTable, QueryBody, TableFragmentType, TableKind, TableV1,
 use crate::operations::async_deserializer;
 use crate::prelude::ClientRequestProperties;
 #[cfg(feature = "arrow")]
-use arrow::record_batch::RecordBatch;
+use arrow_array::RecordBatch;
 use async_convert::TryFrom;
 use azure_core::error::Error as CoreError;
 use azure_core::headers::Headers;
