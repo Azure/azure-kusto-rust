@@ -47,7 +47,7 @@ jobs:
       - uses: actions-rs/grcov@v0.1
         id: coverage
       - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v1
+        uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
