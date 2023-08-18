@@ -43,7 +43,7 @@ impl QueuedIngestionMessage {
     pub fn new(
         blob_descriptor: BlobDescriptor,
         ingestion_properties: &IngestionProperties,
-        auth_context: &KustoIdentityToken,
+        auth_context: KustoIdentityToken,
     ) -> Self {
         let additional_properties = AdditionalProperties {
             ingestion_mapping: None,
@@ -76,7 +76,7 @@ impl QueuedIngestionMessage {
             ignore_size_limit: Some(false),
             // TODO: configurability of creation time
             source_message_creation_time: String::from("2023-08-16T13:30:04.639714"),
-            additional_properties: additional_properties,
+            additional_properties,
         }
     }
 }

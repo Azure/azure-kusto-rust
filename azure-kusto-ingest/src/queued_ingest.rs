@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::sync::Arc;
 
 use anyhow::Result;
 use azure_core::base64;
@@ -13,31 +13,31 @@ use crate::result::{IngestionResult, IngestionStatus};
 pub struct QueuedIngestClient {
     // The KustoClient is used to get the ingestion resources, it should be a client against the ingestion cluster endpoint
     // kusto_client: KustoClient,
-    resource_manager: ResourceManager,
+    resource_manager: Arc<ResourceManager>,
 }
 
 impl QueuedIngestClient {
-    pub fn new(kusto_client: KustoClient, refresh_period: Duration) -> Self {
-        let resource_manager = ResourceManager::new(kusto_client, refresh_period);
+    pub fn new(kusto_client: KustoClient) -> Self {
+        let resource_manager = Arc::new(ResourceManager::new(kusto_client));
 
         Self { resource_manager }
     }
 
     pub async fn ingest_from_blob(
-        mut self,
+        self,
         blob_descriptor: BlobDescriptor,
         ingestion_properties: &IngestionProperties,
     ) -> Result<IngestionResult> {
-        // the queues returned here should ideally be the storage queue client from azure-storage-queue
-        // as such, it may be better for ResourceManager to return a struct that contains the storage queue client
+        // The queues returned here should ideally be the storage queue client from azure-storage-queue
+        // As such, it may be better for ResourceManager to return a struct that contains the storage queue client
         let ingestion_queues = self
             .resource_manager
             .secured_ready_for_aggregation_queues()
             .await?;
+        println!("queues: {:#?}", ingestion_queues);
 
         let auth_context = self.resource_manager.authorization_context().await?;
-
-        println!("queues: {:#?}", ingestion_queues);
+        println!("auth_context: {:#?}\n", auth_context);
 
         let message = QueuedIngestionMessage::new(
             blob_descriptor.clone(),
