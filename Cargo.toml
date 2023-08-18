@@ -1,2 +1,2 @@
 [workspace]
-members = ["azure-kusto-data"]
+members = ["azure-kusto-data", "azure-kusto-ingest"]
