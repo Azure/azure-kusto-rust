@@ -19,5 +19,6 @@ azure_core = "0.13"
 azure_storage = "0.13"
 azure_storage_blobs = "0.13"
 azure_storage_queues = "0.13"
+azure_data_tables = "0.13"
+
 time = { version = "0.3", features = ["serde"] }
-azure_identity = "0.13.0"

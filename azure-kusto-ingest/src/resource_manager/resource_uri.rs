@@ -1,3 +1,4 @@
+use azure_data_tables::{clients::TableServiceClientBuilder, prelude::TableClient};
 use azure_storage::StorageCredentials;
 use azure_storage_blobs::prelude::{ClientBuilder, ContainerClient};
 use azure_storage_queues::{QueueClient, QueueServiceClientBuilder};
@@ -5,12 +6,31 @@ use url::Url;
 
 use anyhow::Result;
 
+/// Parsing logic of resource URIs as returned by the Kusto management endpoint
 #[derive(Debug, Clone)]
 pub struct ResourceUri {
     uri: String,
     service_uri: String,
     object_name: String,
     sas_token: StorageCredentials,
+}
+
+impl ResourceUri {
+    pub fn uri(&self) -> &str {
+        self.uri.as_str()
+    }
+
+    pub fn service_uri(&self) -> &str {
+        self.service_uri.as_str()
+    }
+
+    pub fn object_name(&self) -> &str {
+        self.object_name.as_str()
+    }
+
+    pub fn sas_token(&self) -> &StorageCredentials {
+        &self.sas_token
+    }
 }
 
 impl TryFrom<String> for ResourceUri {
@@ -44,26 +64,8 @@ impl TryFrom<String> for ResourceUri {
     }
 }
 
-impl ResourceUri {
-    pub fn uri(&self) -> &str {
-        self.uri.as_str()
-    }
-
-    pub fn service_uri(&self) -> &str {
-        self.service_uri.as_str()
-    }
-
-    pub fn object_name(&self) -> &str {
-        self.object_name.as_str()
-    }
-
-    pub fn sas_token(&self) -> &StorageCredentials {
-        &self.sas_token
-    }
-}
-
-impl From<&ResourceUri> for QueueClient {
-    fn from(resource_uri: &ResourceUri) -> Self {
+impl From<ResourceUri> for QueueClient {
+    fn from(resource_uri: ResourceUri) -> Self {
         let queue_service =
             QueueServiceClientBuilder::with_location(azure_storage::CloudLocation::Custom {
                 uri: resource_uri.service_uri().to_string(),
@@ -75,12 +77,25 @@ impl From<&ResourceUri> for QueueClient {
     }
 }
 
-impl From<&ResourceUri> for ContainerClient {
-    fn from(resource_uri: &ResourceUri) -> Self {
+impl From<ResourceUri> for ContainerClient {
+    fn from(resource_uri: ResourceUri) -> Self {
         ClientBuilder::with_location(azure_storage::CloudLocation::Custom {
             uri: resource_uri.service_uri().to_string(),
             credentials: resource_uri.sas_token().clone(),
         })
         .container_client(resource_uri.object_name())
+    }
+}
+
+impl From<ResourceUri> for TableClient {
+    fn from(resource_uri: ResourceUri) -> Self {
+        let table_service =
+            TableServiceClientBuilder::with_location(azure_storage::CloudLocation::Custom {
+                uri: resource_uri.service_uri().to_string(),
+                credentials: resource_uri.sas_token().clone(),
+            })
+            .build();
+
+        table_service.table_client(resource_uri.object_name())
     }
 }

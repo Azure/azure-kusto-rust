@@ -1,7 +1,4 @@
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{sync::Arc, time::Duration};
 
 pub mod authorization_context;
 pub mod cache;
@@ -12,47 +9,59 @@ use anyhow::{Ok, Result};
 use azure_kusto_data::prelude::KustoClient;
 use tokio::sync::RwLock;
 
+use azure_data_tables::prelude::TableClient;
+use azure_storage_blobs::prelude::ContainerClient;
 use azure_storage_queues::QueueClient;
 
 use self::{
     authorization_context::AuthorizationContext,
     cache::{Cached, Refreshing},
+    resource_uri::ResourceUri,
 };
 
 use self::ingest_client_resources::RawIngestClientResources;
 
 pub(crate) const RESOURCE_REFRESH_PERIOD: Duration = Duration::from_secs(60 * 60);
 
+pub struct InnerIngestClientResources {
+    kusto_response: Option<RawIngestClientResources>,
+    secured_ready_for_aggregation_queues: Vec<QueueClient>,
+    temp_storage: Vec<ContainerClient>,
+    ingestions_status_tables: Vec<TableClient>,
+    successful_ingestions_queues: Vec<QueueClient>,
+    failed_ingestions_queues: Vec<QueueClient>,
+}
+
+impl InnerIngestClientResources {
+    pub fn new() -> Self {
+        Self {
+            kusto_response: None,
+            secured_ready_for_aggregation_queues: Vec::new(),
+            temp_storage: Vec::new(),
+            ingestions_status_tables: Vec::new(),
+            successful_ingestions_queues: Vec::new(),
+            failed_ingestions_queues: Vec::new(),
+        }
+    }
+}
+
 pub struct IngestClientResources {
     client: KustoClient,
-    kusto_response: Refreshing<Option<RawIngestClientResources>>,
-    secured_ready_for_aggregation_queues: Refreshing<Vec<QueueClient>>,
-    // secured_ready_for_aggregation_queues: Vec<ResourceUri>,
-    // failed_ingestions_queues: Vec<ResourceUri>,
-    // successful_ingestions_queues: Vec<ResourceUri>,
-    // temp_storage: Vec<ResourceUri>,
-    // ingestions_status_tables: Vec<ResourceUri>,
+    resources: Refreshing<InnerIngestClientResources>,
 }
 
 impl IngestClientResources {
     pub fn new(client: KustoClient) -> Self {
         Self {
             client,
-            kusto_response: Arc::new(RwLock::new(Cached::new(None, RESOURCE_REFRESH_PERIOD))),
-            secured_ready_for_aggregation_queues: Arc::new(RwLock::new(Cached::new(
-                Vec::new(),
+            resources: Arc::new(RwLock::new(Cached::new(
+                InnerIngestClientResources::new(),
                 RESOURCE_REFRESH_PERIOD,
             ))),
-            // secured_ready_for_aggregation_queues: Vec::new(),
-            // failed_ingestions_queues: Vec::new(),
-            // successful_ingestions_queues: Vec::new(),
-            // temp_storage: Vec::new(),
-            // ingestions_status_tables: Vec::new(),
-            // last_update: None,
         }
     }
 
-    // TODO: Logic to get the Kusto identity token from Kusto management endpoint - handle validation here
+    // TODO: Logic to get the Kusto identity token from Kusto management endpoint - handle any validation of the response from the query here
     async fn execute_kql_mgmt_query(client: KustoClient) -> Result<RawIngestClientResources> {
         let results = client
             .execute_command("NetDefaultDB", ".get ingestion resources", None)
@@ -63,67 +72,161 @@ impl IngestClientResources {
         RawIngestClientResources::try_from(table)
     }
 
-    async fn get(&self) -> Result<(RawIngestClientResources, Instant)> {
-        let kusto_response = self.kusto_response.read().await;
-        if !kusto_response.is_expired() {
-            if let Some(inner_value) = kusto_response.get() {
-                return Ok((
-                    inner_value.clone(),
-                    kusto_response.get_last_updated().clone(),
-                ));
+    fn create_clients_vec<T>(resource_uris: &Vec<ResourceUri>) -> Vec<T>
+    where
+        T: From<ResourceUri>,
+    {
+        resource_uris.iter().map(|uri| T::from(uri.clone())).collect()
+    }
+
+    fn update_clients_vec<T>(
+        current_resources: Vec<T>,
+        resource_uris: Vec<ResourceUri>,
+    ) -> Vec<T>
+    where
+        T: From<ResourceUri>,
+    {
+        if !current_resources.is_empty() {
+            Self::create_clients_vec(&resource_uris)
+        } else {
+            current_resources
+        }
+    }
+
+    // 1. Get the kusto response
+    // 2. Update the kusto response, and the dependent resources if they are not empty, do this by a hashmap on the URI returned
+    // 3. Update the time
+    // 4. Return the kusto response
+    // As such, at any one time it is guaranteed that anything that has been queried before will be available and up to date
+    // Anything that has not been queried before will be available to create, but not as Azure clients until explicitly queried
+    async fn update_from_kusto(&self) -> Result<RawIngestClientResources> {
+        let resources = self.resources.read().await;
+        if !resources.is_expired() {
+            if let Some(ref inner_value) = resources.get().kusto_response {
+                return Ok(inner_value.clone());
             }
         }
-        // otherwise, drop the read lock and get a write lock to refresh the token
-        drop(kusto_response);
-        let mut kusto_response = self.kusto_response.write().await;
+        // otherwise, drop the read lock and get a write lock to refresh the kusto response
+        drop(resources);
+        let mut resources = self.resources.write().await;
 
-        // check again in case another thread refreshed the token while we were
-        // waiting on the write lock
-        if let Some(inner_value) = kusto_response.get() {
-            return Ok((
-                inner_value.clone(),
-                kusto_response.get_last_updated().clone(),
-            ));
+        // check again in case another thread refreshed the while we were waiting on the write lock
+        if let Some(inner_value) = &resources.get().kusto_response {
+            return Ok(inner_value.clone());
         }
 
         let raw_ingest_client_resources = Self::execute_kql_mgmt_query(self.client.clone()).await?;
-        let last_updated = Instant::now();
-        kusto_response.update_with_time(
-            Some(raw_ingest_client_resources.clone()),
-            last_updated.clone(),
-        );
+        let mut_resources = resources.get_mut();
 
-        Ok((raw_ingest_client_resources, last_updated))
+        mut_resources.kusto_response = Some(raw_ingest_client_resources.clone());
+        
+        // This is ugly... the logic is to check whether we have already created clients previously, and if so, updating them
+        mut_resources.secured_ready_for_aggregation_queues = Self::update_clients_vec(
+            mut_resources.secured_ready_for_aggregation_queues.clone(),
+            raw_ingest_client_resources.secured_ready_for_aggregation_queues.clone(),
+        );
+        mut_resources.temp_storage = Self::update_clients_vec(
+            mut_resources.temp_storage.clone(),
+            raw_ingest_client_resources.temp_storage.clone(),
+        );
+        mut_resources.ingestions_status_tables = Self::update_clients_vec(
+            mut_resources.ingestions_status_tables.clone(),
+            raw_ingest_client_resources.ingestions_status_tables.clone(),
+        );
+        mut_resources.successful_ingestions_queues = Self::update_clients_vec(
+            mut_resources.successful_ingestions_queues.clone(),
+            raw_ingest_client_resources.successful_ingestions_queues.clone(),
+        );
+        mut_resources.failed_ingestions_queues = Self::update_clients_vec(
+            mut_resources.failed_ingestions_queues.clone(),
+            raw_ingest_client_resources.failed_ingestions_queues.clone(),
+        );
+        Ok(raw_ingest_client_resources)
     }
 
-    pub async fn get_ingestion_queues(&self) -> Result<Vec<QueueClient>> {
-        let secured_ready_for_aggregation_queues =
-            self.secured_ready_for_aggregation_queues.read().await;
-
-        if !secured_ready_for_aggregation_queues.is_expired() {
-            let vecs = secured_ready_for_aggregation_queues.get();
+    // Logic here
+    // Get a read lock, try and return the secured ready for aggregation queues
+    // If they are not empty, return them
+    // Otherwise, drop the read lock and get a write lock
+    // Check again if they are empty, if not return them assuming something has changed in between
+    // Otherwise, get the kusto response, create the queues
+    // Store the queues, and also return them
+    pub async fn get_clients<T, F, Fx, Fy>(
+        &self,
+        field_fn: F,
+        create_client_vec_fn: Fx,
+        set_value: Fy,
+    ) -> Result<Vec<T>>
+    where
+        F: Fn(&InnerIngestClientResources) -> &Vec<T>,
+        Fx: Fn(&RawIngestClientResources) -> &Vec<ResourceUri>,
+        Fy: Fn(&mut InnerIngestClientResources, &Vec<T>),
+        T: From<ResourceUri> + Clone,
+    {
+        let resources = self.resources.read().await;
+        if !resources.is_expired() {
+            let vecs = field_fn(resources.get());
             if !vecs.is_empty() {
                 return Ok(vecs.clone());
             }
         }
 
-        drop(secured_ready_for_aggregation_queues);
-        let mut secured_ready_for_aggregation_queues =
-            self.secured_ready_for_aggregation_queues.write().await;
+        drop(resources);
 
-        let vecs = secured_ready_for_aggregation_queues.get();
+        let raw_ingest_client_resources = self.update_from_kusto().await?;
+
+        let mut resources = self.resources.write().await;
+        let vecs = field_fn(resources.get_mut());
         if !vecs.is_empty() {
             return Ok(vecs.clone());
         }
 
-        let (raw_ingest_client_resources, last_updated) = self.get().await?;
-        let queue_uris = raw_ingest_client_resources.secured_ready_for_aggregation_queues;
-        let queue_clients: Vec<QueueClient> =
-            queue_uris.iter().map(|q| QueueClient::from(q)).collect();
+        // First time, so create the resources outside
+        let mut_resources = resources.get_mut();
+        let new_resources = Self::create_clients_vec(create_client_vec_fn(&raw_ingest_client_resources));
+        set_value(mut_resources, &new_resources);
 
-        secured_ready_for_aggregation_queues.update_with_time(queue_clients.clone(), last_updated);
+        Ok(new_resources)
+    }
 
-        Ok(queue_clients)
+    pub async fn get_secured_ready_for_aggregation_queues(&self) -> Result<Vec<QueueClient>> {
+        self.get_clients(
+            |resources| &resources.secured_ready_for_aggregation_queues,
+            |resources| &resources.secured_ready_for_aggregation_queues,
+            |mut_resources, new_resources| mut_resources.secured_ready_for_aggregation_queues = new_resources.clone(),
+        ).await
+    }
+    
+    pub async fn get_temp_storage(&self) -> Result<Vec<ContainerClient>> {
+        self.get_clients(
+            |resources| &resources.temp_storage,
+            |resources| &resources.temp_storage,
+            |mut_resources, new_resources| mut_resources.temp_storage = new_resources.clone(),
+        ).await
+    }
+    
+    pub async fn get_ingestions_status_tables(&self) -> Result<Vec<TableClient>> {
+        self.get_clients(
+            |resources| &resources.ingestions_status_tables,
+            |resources| &resources.ingestions_status_tables,
+            |mut_resources, new_resources| mut_resources.ingestions_status_tables = new_resources.clone(),
+        ).await
+    }
+
+    pub async fn get_successful_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
+        self.get_clients(
+            |resources| &resources.successful_ingestions_queues,
+            |resources| &resources.successful_ingestions_queues,
+            |mut_resources, new_resources| mut_resources.successful_ingestions_queues = new_resources.clone(),
+        ).await
+    }
+
+    pub async fn get_failed_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
+        self.get_clients(
+            |resources| &resources.failed_ingestions_queues,
+            |resources| &resources.failed_ingestions_queues,
+            |mut_resources, new_resources| mut_resources.failed_ingestions_queues = new_resources.clone(),
+        ).await
     }
 }
 
@@ -143,57 +246,30 @@ impl ResourceManager {
     }
 
     pub async fn secured_ready_for_aggregation_queues(&self) -> Result<Vec<QueueClient>> {
-        self.ingest_client_resources.get_ingestion_queues().await
+        self.ingest_client_resources
+            .get_secured_ready_for_aggregation_queues()
+            .await
     }
 
-    // pub async fn failed_ingestions_queues(&mut self) -> Result<Vec<QueueClient>> {
-    //     // TODO: proper refresh and caching logic so we don't need to generate new clients every time
-    //     self.ingest_client_resources
-    //         .get_ingest_client_resources()
-    //         .await?;
+    pub async fn temp_storage(&self) -> Result<Vec<ContainerClient>> {
+        self.ingest_client_resources.get_temp_storage().await
+    }
 
-    //     let queue_uris = self
-    //         .ingest_client_resources
-    //         .failed_ingestions_queues
-    //         .clone();
+    pub async fn ingestions_status_tables(&self) -> Result<Vec<TableClient>> {
+        self.ingest_client_resources.get_ingestions_status_tables().await
+    }
 
-    //     Ok(queue_uris.iter().map(|q| QueueClient::from(q)).collect())
-    // }
+    pub async fn successful_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
+        self.ingest_client_resources
+            .get_successful_ingestions_queues()
+            .await
+    }
 
-    // pub async fn successful_ingestions_queues(&mut self) -> Result<Vec<QueueClient>> {
-    //     // TODO: proper refresh and caching logic so we don't need to generate new clients every time
-    //     self.ingest_client_resources
-    //         .get_ingest_client_resources()
-    //         .await?;
-
-    //     let queue_uris = self
-    //         .ingest_client_resources
-    //         .successful_ingestions_queues
-    //         .clone();
-
-    //     Ok(queue_uris.iter().map(|q| QueueClient::from(q)).collect())
-    // }
-
-    // pub async fn temp_storage(&mut self) -> Result<Vec<ContainerClient>> {
-    //     // TODO: proper refresh and caching logic so we don't need to generate new clients every time
-    //     self.ingest_client_resources
-    //         .get_ingest_client_resources()
-    //         .await?;
-
-    //     let container_uris = self.ingest_client_resources.temp_storage.clone();
-
-    //     Ok(container_uris
-    //         .iter()
-    //         .map(|c| ContainerClient::from(c))
-    //         .collect())
-    // }
-
-    // pub async fn ingestions_status_tables(
-    //     &mut self,
-    //     client: KustoClient,
-    // ) -> Result<Vec<ResourceUri>> {
-    //     unimplemented!()
-    // }
+    pub async fn failed_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
+        self.ingest_client_resources
+            .get_failed_ingestions_queues()
+            .await
+    }
 
     // pub fn retrieve_service_type(self) -> ServiceType {
     //     unimplemented!()

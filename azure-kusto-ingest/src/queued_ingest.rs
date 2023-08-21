@@ -10,6 +10,7 @@ use crate::ingestion_properties::IngestionProperties;
 use crate::resource_manager::ResourceManager;
 use crate::result::{IngestionResult, IngestionStatus};
 
+#[derive(Clone)]
 pub struct QueuedIngestClient {
     // The KustoClient is used to get the ingestion resources, it should be a client against the ingestion cluster endpoint
     // kusto_client: KustoClient,
@@ -34,10 +35,10 @@ impl QueuedIngestClient {
             .resource_manager
             .secured_ready_for_aggregation_queues()
             .await?;
-        println!("queues: {:#?}", ingestion_queues);
+        // println!("queues: {:#?}", ingestion_queues);
 
         let auth_context = self.resource_manager.authorization_context().await?;
-        println!("auth_context: {:#?}\n", auth_context);
+        // println!("auth_context: {:#?}\n", auth_context);
 
         let message = QueuedIngestionMessage::new(
             blob_descriptor.clone(),
@@ -45,21 +46,21 @@ impl QueuedIngestClient {
             auth_context,
         );
 
-        println!("message as struct: {:#?}\n", message);
+        // println!("message as struct: {:#?}\n", message);
 
         // TODO: pick a random queue from the queue clients returned by the resource manager
         let queue_client = ingestion_queues.first().unwrap().clone();
-        println!("queue_client: {:#?}\n", queue_client);
+        // println!("queue_client: {:#?}\n", queue_client);
 
         let message = serde_json::to_string(&message).unwrap();
-        println!("message as string: {}\n", message);
+        // println!("message as string: {}\n", message);
         // Base64 encode the ingestion message
         let message = base64::encode(&message);
-        println!("message as base64 encoded string: {}\n", message);
+        // println!("message as base64 encoded string: {}\n", message);
 
         let resp = queue_client.put_message(message).await?;
 
-        println!("resp: {:#?}\n", resp);
+        // println!("resp: {:#?}\n", resp);
 
         Ok(IngestionResult::new(
             IngestionStatus::Queued,

@@ -5,6 +5,8 @@ use std::{
 
 use tokio::sync::RwLock;
 
+/// Wrapper around a value that allows for storing when the value was last updated, 
+/// as well as the period after which it should be refreshed (i.e. expired)
 #[derive(Debug, Clone)]
 pub struct Cached<T> {
     inner: T,
@@ -25,8 +27,8 @@ impl<T> Cached<T> {
         &self.inner
     }
 
-    pub fn get_last_updated(&self) -> &Instant {
-        &self.last_updated
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.inner
     }
 
     pub fn is_expired(&self) -> bool {
@@ -36,11 +38,6 @@ impl<T> Cached<T> {
     pub fn update(&mut self, inner: T) {
         self.inner = inner;
         self.last_updated = Instant::now();
-    }
-
-    pub fn update_with_time(&mut self, inner: T, last_updated: Instant) {
-        self.inner = inner;
-        self.last_updated = last_updated;
     }
 }
 

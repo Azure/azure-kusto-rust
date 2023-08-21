@@ -48,8 +48,8 @@ impl BlobDescriptor {
                 uri.set_query(Some("sas_token"));
                 uri.to_string()
             },
-            Some(BlobAuth::UserAssignedManagedIdentity(identity)) => {
-                format!("{};managed_identity={}", self.uri, identity)
+            Some(BlobAuth::UserAssignedManagedIdentity(object_id)) => {
+                format!("{};managed_identity={}", self.uri, object_id)
             },
             Some(BlobAuth::SystemAssignedManagedIdentity) => {
                 format!("{};managed_identity=system", self.uri)

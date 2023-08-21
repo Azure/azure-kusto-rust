@@ -24,7 +24,6 @@ impl RawIngestClientResources {
             .position(|c| c.column_name == "ResourceTypeName")
             .unwrap();
 
-        println!("table: {:#?}", table);
         let resource_uris: Result<Vec<ResourceUri>> = table
             .rows
             .iter()

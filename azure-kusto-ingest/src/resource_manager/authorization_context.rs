@@ -8,6 +8,8 @@ use super::cache::{Cached, Refreshing};
 use super::RESOURCE_REFRESH_PERIOD;
 
 pub type KustoIdentityToken = String;
+
+/// Logic to obtain a Kusto identity token from the management endpoint
 #[derive(Debug, Clone)]
 pub struct AuthorizationContext {
     client: KustoClient,
@@ -22,17 +24,14 @@ impl AuthorizationContext {
         }
     }
 
-    // Logic to get the Kusto identity token from Kusto management endpoint - handle validation here
+    /// Executes a KQL query to get the Kusto identity token from the management endpoint
     async fn execute_kql_mgmt_query(client: KustoClient) -> Result<KustoIdentityToken> {
         let results = client
             .execute_command("NetDefaultDB", ".get kusto identity token", None)
             .await?;
-        // TODO: any other checks, plus error handling
+
+        // TODO: improve validation checks here
         let table = results.tables.first().unwrap();
-
-        println!("table: {:#?}", table);
-
-        // TODO: any other checks, plus error handling
         let kusto_identity_token = table
             .rows
             .first()
@@ -47,25 +46,24 @@ impl AuthorizationContext {
             return Err(anyhow::anyhow!("Kusto identity token is empty"));
         }
 
-        println!("kusto_identity_token: {:#?}", kusto_identity_token);
-
         Ok(kusto_identity_token)
     }
 
-    // handle caching here
+    /// Fetches the latest Kusto identity token, either from the cache or by executing a KQL query
     pub async fn get(&self) -> Result<KustoIdentityToken> {
+        // First, attempt to get the return the token from the cache
         let auth_context_cache = self.auth_context_cache.read().await;
         if !auth_context_cache.is_expired() {
             if let Some(inner_value) = auth_context_cache.get() {
                 return Ok(inner_value.clone());
             }
         }
-        // otherwise, drop the read lock and get a write lock to refresh the token
+        // Drop the read lock and get a write lock to refresh the token
         drop(auth_context_cache);
         let mut auth_context_cache = self.auth_context_cache.write().await;
 
-        // check again in case another thread refreshed the token while we were
-        // waiting on the write lock
+        // Again attempt to return from cache, check is done in case another thread 
+        // refreshed the token while we were waiting on the write lock
         if let Some(inner_value) = auth_context_cache.get() {
             return Ok(inner_value.clone());
         }
