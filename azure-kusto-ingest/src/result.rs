@@ -4,7 +4,7 @@ pub enum IngestionStatus {
     // The ingestion was queued.
     Queued,
     // The ingestion was successfully streamed
-    Success
+    Success,
 }
 
 // The result of an ingestion.
@@ -18,7 +18,7 @@ pub struct IngestionResult {
     // The source id of the ingestion.
     source_id: Uuid,
     // The blob uri of the ingestion, if exists.
-    blob_uri: Option<String>
+    blob_uri: Option<String>,
 }
 
 impl IngestionResult {

@@ -45,7 +45,10 @@ impl QueuedIngestClient {
         Self::new_with_client_options(kusto_client, QueuedIngestClientOptions::default())
     }
 
-    pub fn new_with_client_options(kusto_client: KustoClient, options: QueuedIngestClientOptions) -> Self {
+    pub fn new_with_client_options(
+        kusto_client: KustoClient,
+        options: QueuedIngestClientOptions,
+    ) -> Self {
         let resource_manager = Arc::new(ResourceManager::new(kusto_client, options));
 
         Self { resource_manager }

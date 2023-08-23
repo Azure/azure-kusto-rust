@@ -1,4 +1,4 @@
-use std::{io::Read, path::PathBuf, fmt::format};
+use std::{fmt::format, io::Read, path::PathBuf};
 
 use azure_storage::StorageCredentials;
 use url::Url;
@@ -10,7 +10,7 @@ pub enum BlobAuth {
     // adds `;managed_identity=<identity>` to the blob path
     UserAssignedManagedIdentity(String),
     // adds `;managed_identity=system` to the blob path
-    SystemAssignedManagedIdentity
+    SystemAssignedManagedIdentity,
 }
 
 #[derive(Clone, Debug)]
@@ -18,7 +18,7 @@ pub struct BlobDescriptor {
     uri: Url,
     pub(crate) size: Option<u64>,
     pub(crate) source_id: Uuid,
-    blob_auth: Option<BlobAuth>
+    blob_auth: Option<BlobAuth>,
 }
 
 impl BlobDescriptor {
@@ -47,13 +47,13 @@ impl BlobDescriptor {
                 let mut uri = self.uri.clone();
                 uri.set_query(Some("sas_token"));
                 uri.to_string()
-            },
+            }
             Some(BlobAuth::UserAssignedManagedIdentity(object_id)) => {
                 format!("{};managed_identity={}", self.uri, object_id)
-            },
+            }
             Some(BlobAuth::SystemAssignedManagedIdentity) => {
                 format!("{};managed_identity=system", self.uri)
-            },
+            }
             None => self.uri.to_string(),
         }
     }

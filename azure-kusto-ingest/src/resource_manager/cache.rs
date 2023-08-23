@@ -5,7 +5,7 @@ use std::{
 
 use tokio::sync::RwLock;
 
-/// Wrapper around a value that allows for storing when the value was last updated, 
+/// Wrapper around a value that allows for storing when the value was last updated,
 /// as well as the period after which it should be refreshed (i.e. expired)
 #[derive(Debug, Clone)]
 pub struct Cached<T> {

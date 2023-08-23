@@ -62,7 +62,7 @@ impl AuthorizationContext {
         drop(auth_context_cache);
         let mut auth_context_cache = self.auth_context_cache.write().await;
 
-        // Again attempt to return from cache, check is done in case another thread 
+        // Again attempt to return from cache, check is done in case another thread
         // refreshed the token while we were waiting on the write lock
         if let Some(inner_value) = auth_context_cache.get() {
             return Ok(inner_value.clone());

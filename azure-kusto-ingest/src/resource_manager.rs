@@ -19,7 +19,7 @@ use crate::queued_ingest::QueuedIngestClientOptions;
 use self::{
     authorization_context::AuthorizationContext,
     cache::{Cached, Refreshing},
-    resource_uri::{ResourceUri, ClientFromResourceUri},
+    resource_uri::{ClientFromResourceUri, ResourceUri},
 };
 
 use self::ingest_client_resources::RawIngestClientResources;
@@ -62,7 +62,7 @@ impl IngestClientResources {
                 InnerIngestClientResources::new(),
                 RESOURCE_REFRESH_PERIOD,
             ))),
-            client_options
+            client_options,
         }
     }
 
@@ -76,17 +76,23 @@ impl IngestClientResources {
         RawIngestClientResources::try_from(table)
     }
 
-    fn create_clients_vec<T>(resource_uris: &Vec<ResourceUri>, client_options: ClientOptions) -> Vec<T>
+    fn create_clients_vec<T>(
+        resource_uris: &Vec<ResourceUri>,
+        client_options: ClientOptions,
+    ) -> Vec<T>
     where
         T: ClientFromResourceUri,
     {
-        resource_uris.iter().map(|uri| T::create_client(uri.clone(), client_options.clone())).collect()
+        resource_uris
+            .iter()
+            .map(|uri| T::create_client(uri.clone(), client_options.clone()))
+            .collect()
     }
 
     fn update_clients_vec<T>(
         current_resources: Vec<T>,
         resource_uris: Vec<ResourceUri>,
-        client_options: ClientOptions
+        client_options: ClientOptions,
     ) -> Vec<T>
     where
         T: ClientFromResourceUri,
@@ -124,11 +130,13 @@ impl IngestClientResources {
         let mut_resources = resources.get_mut();
 
         mut_resources.kusto_response = Some(raw_ingest_client_resources.clone());
-        
+
         // This is ugly... the logic is to check whether we have already created clients previously, and if so, updating them
         mut_resources.secured_ready_for_aggregation_queues = Self::update_clients_vec(
             mut_resources.secured_ready_for_aggregation_queues.clone(),
-            raw_ingest_client_resources.secured_ready_for_aggregation_queues.clone(),
+            raw_ingest_client_resources
+                .secured_ready_for_aggregation_queues
+                .clone(),
             self.client_options.queue_service.clone(),
         );
         mut_resources.temp_storage = Self::update_clients_vec(
@@ -143,7 +151,9 @@ impl IngestClientResources {
         );
         mut_resources.successful_ingestions_queues = Self::update_clients_vec(
             mut_resources.successful_ingestions_queues.clone(),
-            raw_ingest_client_resources.successful_ingestions_queues.clone(),
+            raw_ingest_client_resources
+                .successful_ingestions_queues
+                .clone(),
             self.client_options.queue_service.clone(),
         );
         mut_resources.failed_ingestions_queues = Self::update_clients_vec(
@@ -166,7 +176,7 @@ impl IngestClientResources {
         field_fn: F,
         create_client_vec_fn: Fx,
         set_value: Fy,
-        client_options: ClientOptions
+        client_options: ClientOptions,
     ) -> Result<Vec<T>>
     where
         F: Fn(&InnerIngestClientResources) -> &Vec<T>,
@@ -194,7 +204,10 @@ impl IngestClientResources {
 
         // First time, so create the resources outside
         let mut_resources = resources.get_mut();
-        let new_resources = Self::create_clients_vec(create_client_vec_fn(&raw_ingest_client_resources), client_options);
+        let new_resources = Self::create_clients_vec(
+            create_client_vec_fn(&raw_ingest_client_resources),
+            client_options,
+        );
         set_value(mut_resources, &new_resources);
 
         Ok(new_resources)
@@ -204,45 +217,58 @@ impl IngestClientResources {
         self.get_clients(
             |resources| &resources.secured_ready_for_aggregation_queues,
             |resources| &resources.secured_ready_for_aggregation_queues,
-            |mut_resources, new_resources| mut_resources.secured_ready_for_aggregation_queues = new_resources.clone(),
+            |mut_resources, new_resources| {
+                mut_resources.secured_ready_for_aggregation_queues = new_resources.clone()
+            },
             self.client_options.queue_service.clone(),
-        ).await
+        )
+        .await
     }
-    
+
     pub async fn get_temp_storage(&self) -> Result<Vec<ContainerClient>> {
         self.get_clients(
             |resources| &resources.temp_storage,
             |resources| &resources.temp_storage,
             |mut_resources, new_resources| mut_resources.temp_storage = new_resources.clone(),
             self.client_options.blob_service.clone(),
-        ).await
+        )
+        .await
     }
-    
+
     pub async fn get_ingestions_status_tables(&self) -> Result<Vec<TableClient>> {
         self.get_clients(
             |resources| &resources.ingestions_status_tables,
             |resources| &resources.ingestions_status_tables,
-            |mut_resources, new_resources| mut_resources.ingestions_status_tables = new_resources.clone(),
+            |mut_resources, new_resources| {
+                mut_resources.ingestions_status_tables = new_resources.clone()
+            },
             self.client_options.table_service.clone(),
-        ).await
+        )
+        .await
     }
-    
+
     pub async fn get_successful_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
         self.get_clients(
             |resources| &resources.successful_ingestions_queues,
             |resources| &resources.successful_ingestions_queues,
-            |mut_resources, new_resources| mut_resources.successful_ingestions_queues = new_resources.clone(),
+            |mut_resources, new_resources| {
+                mut_resources.successful_ingestions_queues = new_resources.clone()
+            },
             self.client_options.queue_service.clone(),
-        ).await
+        )
+        .await
     }
-    
+
     pub async fn get_failed_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
         self.get_clients(
             |resources| &resources.failed_ingestions_queues,
             |resources| &resources.failed_ingestions_queues,
-            |mut_resources, new_resources| mut_resources.failed_ingestions_queues = new_resources.clone(),
+            |mut_resources, new_resources| {
+                mut_resources.failed_ingestions_queues = new_resources.clone()
+            },
             self.client_options.queue_service.clone(),
-        ).await
+        )
+        .await
     }
 }
 
@@ -256,7 +282,10 @@ pub struct ResourceManager {
 impl ResourceManager {
     pub fn new(client: KustoClient, client_options: QueuedIngestClientOptions) -> Self {
         Self {
-            ingest_client_resources: Arc::new(IngestClientResources::new(client.clone(), client_options)),
+            ingest_client_resources: Arc::new(IngestClientResources::new(
+                client.clone(),
+                client_options,
+            )),
             authorization_context: Arc::new(AuthorizationContext::new(client)),
         }
     }
@@ -272,7 +301,9 @@ impl ResourceManager {
     }
 
     pub async fn ingestions_status_tables(&self) -> Result<Vec<TableClient>> {
-        self.ingest_client_resources.get_ingestions_status_tables().await
+        self.ingest_client_resources
+            .get_ingestions_status_tables()
+            .await
     }
 
     pub async fn successful_ingestions_queues(&self) -> Result<Vec<QueueClient>> {

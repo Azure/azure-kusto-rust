@@ -53,7 +53,11 @@ impl TryFrom<String> for ResourceUri {
             .to_string();
         let sas_token = match parsed_uri.query() {
             Some(query) => query.to_string(),
-            None => return Err(anyhow::anyhow!("SAS token is missing in the URI as a query parameter")),
+            None => {
+                return Err(anyhow::anyhow!(
+                    "SAS token is missing in the URI as a query parameter"
+                ))
+            }
         };
         let sas_token = StorageCredentials::sas_token(sas_token)?;
 
