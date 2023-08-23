@@ -1,11 +1,11 @@
 use std::{io::Read, path::PathBuf};
 
-use azure_storage::shared_access_signature::SasToken;
 use url::Url;
 use uuid::Uuid;
 
 pub enum BlobAuth {
-    SASToken(Box<dyn SasToken>),
+    /// adds `?<sas_token>` to the blob path
+    SASToken(String),
     /// adds `;managed_identity=<identity>` to the blob path
     UserAssignedManagedIdentity(String),
     /// adds `;managed_identity=system` to the blob path
@@ -59,7 +59,7 @@ impl BlobDescriptor {
         match &self.blob_auth {
             Some(BlobAuth::SASToken(sas_token)) => {
                 let mut uri = self.uri.clone();
-                uri.set_query(Some(sas_token.token().as_str()));
+                uri.set_query(Some(sas_token.as_str()));
                 uri.to_string()
             }
             Some(BlobAuth::UserAssignedManagedIdentity(object_id)) => {

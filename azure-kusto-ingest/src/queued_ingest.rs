@@ -51,7 +51,7 @@ impl QueuedIngestClient {
     pub async fn ingest_from_blob(
         &self,
         blob_descriptor: BlobDescriptor,
-        ingestion_properties: &IngestionProperties,
+        ingestion_properties: IngestionProperties,
     ) -> Result<IngestionResult> {
         // The queues returned here should ideally be the storage queue client from azure-storage-queue
         // As such, it may be better for ResourceManager to return a struct that contains the storage queue client
@@ -65,7 +65,7 @@ impl QueuedIngestClient {
         // println!("auth_context: {:#?}\n", auth_context);
 
         let message =
-            QueuedIngestionMessage::new(&blob_descriptor, ingestion_properties, auth_context);
+            QueuedIngestionMessage::new(&blob_descriptor, &ingestion_properties, auth_context);
 
         // println!("message as struct: {:#?}\n", message);
 

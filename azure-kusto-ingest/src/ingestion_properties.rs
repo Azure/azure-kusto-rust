@@ -1,4 +1,5 @@
 use crate::data_format::{DataFormat, IngestionMappingKind};
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_repr::Serialize_repr;
 
@@ -22,6 +23,7 @@ pub struct IngestionProperties {
     pub report_level: Option<ReportLevel>,
     pub report_method: Option<ReportMethod>,
     pub validation_policy: Option<ValidationPolicy>,
+    pub creation_time: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize, Clone, Debug)]

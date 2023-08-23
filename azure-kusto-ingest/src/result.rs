@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub enum IngestionStatus {
     // The ingestion was queued.
     Queued,
@@ -7,7 +8,9 @@ pub enum IngestionStatus {
     Success,
 }
 
+
 // The result of an ingestion.
+#[derive(Debug)]
 pub struct IngestionResult {
     // Will be `Queued` if the ingestion is queued, or `Success` if the ingestion is streaming and successful.
     status: IngestionStatus,

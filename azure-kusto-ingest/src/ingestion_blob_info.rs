@@ -50,22 +50,18 @@ impl QueuedIngestionMessage {
         ingestion_properties: &IngestionProperties,
         authorization_context: KustoIdentityToken,
     ) -> Self {
+        // TODO: processing of additional tags, ingest_by_tags, drop_by_tags into just tags
+
         let additional_properties = AdditionalProperties {
             ingestion_mapping: None,
             ingestion_mapping_reference: None,
-            creation_time: None,
-            extend_schema: None,
-            folder: None,
+            creation_time: ingestion_properties.creation_time,
             data_format: ingestion_properties.data_format.clone(),
             ingest_if_not_exists: None,
             ignore_first_record: None,
-            policy_ingestiontime: None,
-            recreate_schema: None,
             tags: vec![],
             validation_policy: None,
-            zip_pattern: None,
             authorization_context,
-            extra_additional_properties: HashMap::new(),
         };
 
         Self {
@@ -88,41 +84,32 @@ impl QueuedIngestionMessage {
 // The additional properties struct is modelled on: https://learn.microsoft.com/en-us/azure/data-explorer/ingestion-properties
 #[derive(Serialize, Clone, Debug)]
 struct AdditionalProperties {
+    #[serde(rename = "authorizationContext")]
+    authorization_context: KustoIdentityToken,
+    #[serde(rename = "format")]
+    data_format: DataFormat,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "ingestionMapping")]
     ingestion_mapping: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "ingestionMappingReference")]
     ingestion_mapping_reference: Option<String>,
+    // TODO: is this required?
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "ingestionMappingType")]
+    // ingestion_mapping_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "creationTime")]
-    creation_time: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    extend_schema: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    folder: Option<String>,
-    #[serde(rename = "format")]
-    data_format: DataFormat,
+    creation_time: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "ingestIfNotExists")]
     ingest_if_not_exists: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "ignoreFirstRecord")]
     ignore_first_record: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    policy_ingestiontime: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    recreate_schema: Option<bool>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     tags: Vec<String>,
     #[serde(rename = "validationPolicy")]
     #[serde(skip_serializing_if = "Option::is_none")]
     validation_policy: Option<ValidationPolicy>,
-    #[serde(rename = "zipPattern")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    zip_pattern: Option<String>,
-    #[serde(rename = "authorizationContext")]
-    authorization_context: KustoIdentityToken,
-    #[serde(flatten)]
-    extra_additional_properties: HashMap<String, String>,
 }
