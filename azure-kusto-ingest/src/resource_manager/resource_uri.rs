@@ -1,3 +1,4 @@
+use azure_core::ClientOptions;
 use azure_data_tables::{clients::TableServiceClientBuilder, prelude::TableClient};
 use azure_storage::StorageCredentials;
 use azure_storage_blobs::prelude::{ClientBuilder, ContainerClient};
@@ -41,18 +42,19 @@ impl TryFrom<String> for ResourceUri {
         let parsed_uri = Url::parse(&uri)?;
         println!("parsed_uri: {:#?}", parsed_uri);
 
-        let service_uri = parsed_uri.scheme().to_string()
-            + "://"
-            + parsed_uri.host_str().expect("We should get result here");
+        let service_uri = match parsed_uri.host_str() {
+            Some(host_str) => parsed_uri.scheme().to_string() + "://" + host_str,
+            None => return Err(anyhow::anyhow!("Host is missing in the URI")),
+        };
         let object_name = parsed_uri
             .path()
             .trim_start()
             .trim_start_matches("/")
             .to_string();
-        let sas_token = parsed_uri
-            .query()
-            .expect("Returned URI should contain SAS token as query")
-            .to_string();
+        let sas_token = match parsed_uri.query() {
+            Some(query) => query.to_string(),
+            None => return Err(anyhow::anyhow!("SAS token is missing in the URI as a query parameter")),
+        };
         let sas_token = StorageCredentials::sas_token(sas_token)?;
 
         Ok(Self {
@@ -64,36 +66,43 @@ impl TryFrom<String> for ResourceUri {
     }
 }
 
-impl From<ResourceUri> for QueueClient {
-    fn from(resource_uri: ResourceUri) -> Self {
+pub trait ClientFromResourceUri {
+    fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self;
+}
+
+impl ClientFromResourceUri for QueueClient {
+    fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self {
         let queue_service =
             QueueServiceClientBuilder::with_location(azure_storage::CloudLocation::Custom {
                 uri: resource_uri.service_uri().to_string(),
                 credentials: resource_uri.sas_token().clone(),
             })
+            .client_options(client_options)
             .build();
 
         queue_service.queue_client(resource_uri.object_name())
     }
 }
 
-impl From<ResourceUri> for ContainerClient {
-    fn from(resource_uri: ResourceUri) -> Self {
+impl ClientFromResourceUri for ContainerClient {
+    fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self {
         ClientBuilder::with_location(azure_storage::CloudLocation::Custom {
             uri: resource_uri.service_uri().to_string(),
             credentials: resource_uri.sas_token().clone(),
         })
+        .client_options(client_options)
         .container_client(resource_uri.object_name())
     }
 }
 
-impl From<ResourceUri> for TableClient {
-    fn from(resource_uri: ResourceUri) -> Self {
+impl ClientFromResourceUri for TableClient {
+    fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self {
         let table_service =
             TableServiceClientBuilder::with_location(azure_storage::CloudLocation::Custom {
                 uri: resource_uri.service_uri().to_string(),
                 credentials: resource_uri.sas_token().clone(),
             })
+            .client_options(client_options)
             .build();
 
         table_service.table_client(resource_uri.object_name())

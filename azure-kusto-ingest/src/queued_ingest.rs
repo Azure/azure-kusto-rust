@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use azure_core::base64;
+use azure_core::{base64, ClientOptions};
 use azure_kusto_data::prelude::KustoClient;
 
 use crate::descriptors::{BlobDescriptor, FileDescriptor, StreamDescriptor};
@@ -10,16 +10,43 @@ use crate::ingestion_properties::IngestionProperties;
 use crate::resource_manager::ResourceManager;
 use crate::result::{IngestionResult, IngestionStatus};
 
+#[derive(Clone, Default)]
+pub struct QueuedIngestClientOptions {
+    pub queue_service: ClientOptions,
+    pub blob_service: ClientOptions,
+    pub table_service: ClientOptions,
+}
+
+impl QueuedIngestClientOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl From<ClientOptions> for QueuedIngestClientOptions {
+    /// Creates a `QueuedIngestClientOptions` struct where all the client options are the same
+    fn from(client_options: ClientOptions) -> Self {
+        Self {
+            queue_service: client_options.clone(),
+            blob_service: client_options.clone(),
+            table_service: client_options,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct QueuedIngestClient {
     // The KustoClient is used to get the ingestion resources, it should be a client against the ingestion cluster endpoint
-    // kusto_client: KustoClient,
     resource_manager: Arc<ResourceManager>,
 }
 
 impl QueuedIngestClient {
     pub fn new(kusto_client: KustoClient) -> Self {
-        let resource_manager = Arc::new(ResourceManager::new(kusto_client));
+        Self::new_with_client_options(kusto_client, QueuedIngestClientOptions::default())
+    }
+
+    pub fn new_with_client_options(kusto_client: KustoClient, options: QueuedIngestClientOptions) -> Self {
+        let resource_manager = Arc::new(ResourceManager::new(kusto_client, options));
 
         Self { resource_manager }
     }
