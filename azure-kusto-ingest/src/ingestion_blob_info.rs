@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 use crate::{
@@ -14,28 +15,32 @@ use crate::{
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct QueuedIngestionMessage {
+    /// Message identifier (GUID)
     id: uuid::Uuid,
+    /// Path (URI) to the blob, including the SAS key granting permissions to read/write/delete it.
+    /// Permissions are required so that the ingestion service can delete the blob once it has completed ingesting the data.
     blob_path: String,
+    /// Target database name
     database_name: String,
+    /// Target table name
     table_name: String,
+    /// Size of the uncompressed data in bytes. Providing this value allows the ingestion service to optimize ingestion by potentially aggregating multiple blobs. This property is optional, but if not given, the service will access the blob just to retrieve the size.
     #[serde(skip_serializing_if = "Option::is_none")]
     raw_data_size: Option<u64>,
+    /// If set to `true`, the blob won't be deleted once ingestion is successfully completed. Default is `false`
     #[serde(skip_serializing_if = "Option::is_none")]
     retain_blob_on_success: Option<bool>,
+    /// If set to `true`, any aggregation will be skipped. Default is `false`
     #[serde(skip_serializing_if = "Option::is_none")]
     flush_immediately: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ignore_size_limit: Option<bool>,
     // according to Go impl, the report level and method could be Option
-    report_level: ReportLevel,
-    report_method: ReportMethod,
-    // TODO: implement this
-    // #[serde(skip_serializing_if = "Option::is_none")]s
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // #[serde(with= "time::serde::iso8601")]
-    source_message_creation_time: String,
-    // The additional properties struct is modelled on:
-    // https://learn.microsoft.com/en-us/azure/data-explorer/ingestion-properties
+    #[serde(skip_serializing_if = "Option::is_none")]
+    report_level: Option<ReportLevel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    report_method: Option<ReportMethod>,
+    source_message_creation_time: DateTime<Utc>,
     additional_properties: AdditionalProperties,
 }
 
@@ -74,8 +79,7 @@ impl QueuedIngestionMessage {
             report_level: ingestion_properties.report_level.clone(),
             report_method: ingestion_properties.report_method.clone(),
             ignore_size_limit: Some(false),
-            // TODO: configurability of creation time
-            source_message_creation_time: String::from("2023-08-16T13:30:04.639714"),
+            source_message_creation_time: Utc::now(),
             additional_properties,
         }
     }
@@ -83,43 +87,42 @@ impl QueuedIngestionMessage {
 
 // The additional properties struct is modelled on: https://learn.microsoft.com/en-us/azure/data-explorer/ingestion-properties
 #[derive(Serialize, Clone, Debug)]
-pub struct AdditionalProperties {
+struct AdditionalProperties {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "ingestionMapping")]
-    pub ingestion_mapping: Option<String>,
+    ingestion_mapping: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "ingestionMappingReference")]
-    pub ingestion_mapping_reference: Option<String>,
+    ingestion_mapping_reference: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "creationTime")]
-    pub creation_time: Option<String>,
+    creation_time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub extend_schema: Option<bool>,
+    extend_schema: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub folder: Option<String>,
+    folder: Option<String>,
     #[serde(rename = "format")]
-    pub data_format: DataFormat,
+    data_format: DataFormat,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "ingestIfNotExists")]
-    pub ingest_if_not_exists: Option<String>,
+    ingest_if_not_exists: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "ignoreFirstRecord")]
-    pub ignore_first_record: Option<bool>,
+    ignore_first_record: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub policy_ingestiontime: Option<bool>,
+    policy_ingestiontime: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub recreate_schema: Option<bool>,
+    recreate_schema: Option<bool>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
+    tags: Vec<String>,
     #[serde(rename = "validationPolicy")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub validation_policy: Option<ValidationPolicy>,
+    validation_policy: Option<ValidationPolicy>,
     #[serde(rename = "zipPattern")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub zip_pattern: Option<String>,
-    // TODO: the user shouldn't be able to set this, we should expose certain properties via IngestionProperties rather than just the AdditionalProperties struct
+    zip_pattern: Option<String>,
     #[serde(rename = "authorizationContext")]
-    pub authorization_context: KustoIdentityToken,
+    authorization_context: KustoIdentityToken,
     #[serde(flatten)]
-    pub extra_additional_properties: HashMap<String, String>,
+    extra_additional_properties: HashMap<String, String>,
 }

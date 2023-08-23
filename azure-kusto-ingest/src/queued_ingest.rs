@@ -49,7 +49,7 @@ impl QueuedIngestClient {
     }
 
     pub async fn ingest_from_blob(
-        self,
+        &self,
         blob_descriptor: BlobDescriptor,
         ingestion_properties: &IngestionProperties,
     ) -> Result<IngestionResult> {
@@ -93,7 +93,7 @@ impl QueuedIngestClient {
     }
 
     pub async fn ingest_from_file(
-        self,
+        &self,
         file_descriptor: FileDescriptor,
         ingestion_properties: IngestionProperties,
     ) -> Result<IngestionResult> {
@@ -105,7 +105,7 @@ impl QueuedIngestClient {
     }
 
     pub async fn ingest_from_stream(
-        self,
+        &self,
         stream_descriptor: StreamDescriptor,
         ingestion_properties: IngestionProperties,
     ) -> Result<IngestionResult> {
@@ -117,7 +117,7 @@ impl QueuedIngestClient {
     }
 
     async fn upload_from_different_descriptor(
-        self,
+        &self,
         descriptor: FileDescriptor,
         ingestion_properties: &IngestionProperties,
     ) -> Result<BlobDescriptor> {

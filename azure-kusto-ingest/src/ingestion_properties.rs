@@ -2,7 +2,7 @@ use crate::data_format::{DataFormat, IngestionMappingKind};
 use serde::Serialize;
 use serde_repr::Serialize_repr;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct IngestionProperties {
     pub database_name: String,
     pub table_name: String,
@@ -19,19 +19,15 @@ pub struct IngestionProperties {
     pub drop_by_tags: Vec<String>,
     pub flush_immediately: Option<bool>,
     pub ignore_first_record: bool,
-    pub report_level: ReportLevel,
-    pub report_method: ReportMethod,
+    pub report_level: Option<ReportLevel>,
+    pub report_method: Option<ReportMethod>,
     pub validation_policy: Option<ValidationPolicy>,
-    // TODO: don't expose AdditionalProperties to user...
-    // pub additional_properties: AdditionalProperties,
-    // pub additional_properties: AdditionalProperties,
 }
 
 #[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "PascalCase")]
 pub struct ValidationPolicy {
-    #[serde(rename = "ValidationOptions")]
     validation_options: ValidationOptions,
-    #[serde(rename = "ValidationImplications")]
     validation_implications: ValidationImplications,
 }
 
@@ -82,27 +78,21 @@ pub enum TransformationMethod {
 /// pre-created (it is recommended to create the mappings in advance and use ingestionMappingReference).
 /// To read more about mappings look here: https://docs.microsoft.com/en-us/azure/kusto/management/mappings
 #[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "PascalCase")]
 pub struct ColumnMapping {
-    #[serde(rename = "Column")]
     column: String,
     // TODO: can this be an enum?
-    #[serde(rename = "DataType")]
-    datatype: String,
-    #[serde(rename = "Properties")]
+    data_type: String,
     properties: ColumnMappingProperties,
 }
 
 #[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "PascalCase")]
 pub struct ColumnMappingProperties {
-    #[serde(rename = "Path")]
     path: Option<String>,
-    #[serde(rename = "Transform")]
     transform: Option<TransformationMethod>,
-    #[serde(rename = "Ordinal")]
     // TODO: This should get serialized to a string
     ordinal: Option<u32>,
-    #[serde(rename = "ConstValue")]
     const_value: Option<String>,
-    #[serde(rename = "Field")]
     field: Option<String>,
 }

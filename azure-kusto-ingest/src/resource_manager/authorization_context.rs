@@ -49,7 +49,7 @@ impl AuthorizationContext {
         Ok(kusto_identity_token)
     }
 
-    /// Fetches the latest Kusto identity token, either from the cache or by executing a KQL query
+    /// Fetches the latest Kusto identity token, either retrieving from cache if valid, or by executing a KQL query
     pub async fn get(&self) -> Result<KustoIdentityToken> {
         // First, attempt to get the return the token from the cache
         let auth_context_cache = self.auth_context_cache.read().await;

@@ -19,41 +19,26 @@ pub enum IngestionMappingKind {
 }
 
 /// All data formats supported by Kusto
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Clone, Debug, Default)]
+#[serde(rename_all = "lowercase")]
 pub enum DataFormat {
-    #[serde(rename = "apacheavro")]
     ApacheAvro,
-    #[serde(rename = "avro")]
     Avro,
-    #[serde(rename = "csv")]
+    #[default]
     CSV,
-    #[serde(rename = "json")]
     JSON,
-    #[serde(rename = "multijson")]
     MultiJSON,
-    #[serde(rename = "orc")]
     ORC,
-    #[serde(rename = "parquet")]
     Parquet,
-    #[serde(rename = "psv")]
     PSV,
-    #[serde(rename = "raw")]
     RAW,
-    #[serde(rename = "scsv")]
     SCSV,
-    #[serde(rename = "sohsv")]
     SOHsv,
-    #[serde(rename = "singlejson")]
     SingleJSON,
-    #[serde(rename = "sstream")]
     SStream,
-    #[serde(rename = "tsv")]
     TSV,
-    #[serde(rename = "tsve")]
     TSVe,
-    #[serde(rename = "txt")]
     TXT,
-    #[serde(rename = "w3clogfile")]
     W3CLOGFILE,
 }
 
