@@ -41,9 +41,9 @@ pub struct QueuedIngestionMessage {
 
 impl QueuedIngestionMessage {
     pub fn new(
-        blob_descriptor: BlobDescriptor,
+        blob_descriptor: &BlobDescriptor,
         ingestion_properties: &IngestionProperties,
-        auth_context: KustoIdentityToken,
+        authorization_context: KustoIdentityToken,
     ) -> Self {
         let additional_properties = AdditionalProperties {
             ingestion_mapping: None,
@@ -59,13 +59,13 @@ impl QueuedIngestionMessage {
             tags: vec![],
             validation_policy: None,
             zip_pattern: None,
-            authorization_context: auth_context.clone(),
+            authorization_context,
             extra_additional_properties: HashMap::new(),
         };
 
         Self {
             id: blob_descriptor.source_id,
-            blob_path: blob_descriptor.uri().to_string(),
+            blob_path: blob_descriptor.uri(),
             raw_data_size: blob_descriptor.size,
             database_name: ingestion_properties.database_name.clone(),
             table_name: ingestion_properties.table_name.clone(),

@@ -24,15 +24,15 @@ pub struct IngestionResult {
 impl IngestionResult {
     pub fn new(
         status: IngestionStatus,
-        database: &String,
-        table: &String,
+        database: &str,
+        table: &str,
         source_id: Uuid,
         blob_uri: Option<String>,
     ) -> Self {
         Self {
             status,
-            database: database.clone(),
-            table: table.clone(),
+            database: database.to_owned(),
+            table: table.to_owned(),
             source_id,
             blob_uri,
         }

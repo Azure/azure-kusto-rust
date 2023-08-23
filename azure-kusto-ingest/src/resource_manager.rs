@@ -76,10 +76,7 @@ impl IngestClientResources {
         RawIngestClientResources::try_from(table)
     }
 
-    fn create_clients_vec<T>(
-        resource_uris: &Vec<ResourceUri>,
-        client_options: ClientOptions,
-    ) -> Vec<T>
+    fn create_clients_vec<T>(resource_uris: &[ResourceUri], client_options: ClientOptions) -> Vec<T>
     where
         T: ClientFromResourceUri,
     {

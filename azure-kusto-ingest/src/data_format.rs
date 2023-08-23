@@ -1,8 +1,9 @@
 use serde::Serialize;
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Clone, Debug, Default)]
 pub enum IngestionMappingKind {
     #[serde(rename = "Csv")]
+    #[default]
     CSV,
     #[serde(rename = "Json")]
     JSON,
@@ -57,10 +58,6 @@ pub enum DataFormat {
 }
 
 impl DataFormat {
-    pub fn default() -> Self {
-        DataFormat::CSV
-    }
-
     pub fn ingestion_mapping_kind(self) -> IngestionMappingKind {
         match self {
             DataFormat::CSV => IngestionMappingKind::CSV,

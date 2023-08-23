@@ -17,14 +17,8 @@ pub struct QueuedIngestClientOptions {
     pub table_service: ClientOptions,
 }
 
-impl QueuedIngestClientOptions {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 impl From<ClientOptions> for QueuedIngestClientOptions {
-    /// Creates a `QueuedIngestClientOptions` struct where all the client options are the same
+    /// Creates a `QueuedIngestClientOptions` struct where the same [ClientOptions] are used for all services
     fn from(client_options: ClientOptions) -> Self {
         Self {
             queue_service: client_options.clone(),
@@ -34,9 +28,9 @@ impl From<ClientOptions> for QueuedIngestClientOptions {
     }
 }
 
+// The KustoClient is used to get the ingestion resources, it should be a client against the ingestion cluster endpoint
 #[derive(Clone)]
 pub struct QueuedIngestClient {
-    // The KustoClient is used to get the ingestion resources, it should be a client against the ingestion cluster endpoint
     resource_manager: Arc<ResourceManager>,
 }
 
@@ -70,11 +64,8 @@ impl QueuedIngestClient {
         let auth_context = self.resource_manager.authorization_context().await?;
         // println!("auth_context: {:#?}\n", auth_context);
 
-        let message = QueuedIngestionMessage::new(
-            blob_descriptor.clone(),
-            ingestion_properties,
-            auth_context,
-        );
+        let message =
+            QueuedIngestionMessage::new(&blob_descriptor, ingestion_properties, auth_context);
 
         // println!("message as struct: {:#?}\n", message);
 

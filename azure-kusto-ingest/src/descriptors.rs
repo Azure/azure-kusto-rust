@@ -1,19 +1,33 @@
-use std::{fmt::format, io::Read, path::PathBuf};
+use std::{io::Read, path::PathBuf};
 
-use azure_storage::StorageCredentials;
+use azure_storage::shared_access_signature::SasToken;
 use url::Url;
 use uuid::Uuid;
 
-#[derive(Clone, Debug)]
 pub enum BlobAuth {
-    SASToken(),
-    // adds `;managed_identity=<identity>` to the blob path
+    SASToken(Box<dyn SasToken>),
+    /// adds `;managed_identity=<identity>` to the blob path
     UserAssignedManagedIdentity(String),
-    // adds `;managed_identity=system` to the blob path
+    /// adds `;managed_identity=system` to the blob path
     SystemAssignedManagedIdentity,
 }
 
-#[derive(Clone, Debug)]
+impl std::fmt::Debug for BlobAuth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BlobAuth::SASToken(_) => f.debug_struct("SASToken").finish(),
+            BlobAuth::UserAssignedManagedIdentity(object_id) => f
+                .debug_struct("UserAssignedManagedIdentity")
+                .field("object_id", object_id)
+                .finish(),
+            BlobAuth::SystemAssignedManagedIdentity => {
+                f.debug_struct("SystemAssignedManagedIdentity").finish()
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct BlobDescriptor {
     uri: Url,
     pub(crate) size: Option<u64>,
@@ -43,9 +57,9 @@ impl BlobDescriptor {
 
     pub fn uri(&self) -> String {
         match &self.blob_auth {
-            Some(BlobAuth::SASToken()) => {
+            Some(BlobAuth::SASToken(sas_token)) => {
                 let mut uri = self.uri.clone();
-                uri.set_query(Some("sas_token"));
+                uri.set_query(Some(sas_token.token().as_str()));
                 uri.to_string()
             }
             Some(BlobAuth::UserAssignedManagedIdentity(object_id)) => {
