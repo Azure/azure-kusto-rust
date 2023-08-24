@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
@@ -58,7 +56,7 @@ impl QueuedIngestionMessage {
             creation_time: ingestion_properties.creation_time,
             data_format: ingestion_properties.data_format.clone(),
             ingest_if_not_exists: None,
-            ignore_first_record: None,
+            ignore_first_record: ingestion_properties.ignore_first_record,
             tags: vec![],
             validation_policy: None,
             authorization_context,

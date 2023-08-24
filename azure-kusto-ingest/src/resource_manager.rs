@@ -67,11 +67,20 @@ impl IngestClientResources {
     }
 
     // TODO: Logic to get the Kusto identity token from Kusto management endpoint - handle any validation of the response from the query here
+    /// Executes a KQL management query that retrieves resource URIs for the various Azure resources used for ingestion
     async fn execute_kql_mgmt_query(client: KustoClient) -> Result<RawIngestClientResources> {
         let results = client
             .execute_command("NetDefaultDB", ".get ingestion resources", None)
             .await?;
-        let table = results.tables.first().unwrap();
+
+        let table = match results.tables.first() {
+            Some(a) => a,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "Kusto expected a table containing ingestion resource results, found no tables",
+                ))
+            }
+        };
 
         RawIngestClientResources::try_from(table)
     }
@@ -107,6 +116,7 @@ impl IngestClientResources {
     // 4. Return the kusto response
     // As such, at any one time it is guaranteed that anything that has been queried before will be available and up to date
     // Anything that has not been queried before will be available to create, but not as Azure clients until explicitly queried
+    ///
     async fn update_from_kusto(&self) -> Result<RawIngestClientResources> {
         let resources = self.resources.read().await;
         if !resources.is_expired() {
@@ -128,7 +138,6 @@ impl IngestClientResources {
 
         mut_resources.kusto_response = Some(raw_ingest_client_resources.clone());
 
-        // This is ugly... the logic is to check whether we have already created clients previously, and if so, updating them
         mut_resources.secured_ready_for_aggregation_queues = Self::update_clients_vec(
             mut_resources.secured_ready_for_aggregation_queues.clone(),
             raw_ingest_client_resources
@@ -222,61 +231,63 @@ impl IngestClientResources {
         .await
     }
 
-    pub async fn get_temp_storage(&self) -> Result<Vec<ContainerClient>> {
-        self.get_clients(
-            |resources| &resources.temp_storage,
-            |resources| &resources.temp_storage,
-            |mut_resources, new_resources| mut_resources.temp_storage = new_resources.clone(),
-            self.client_options.blob_service.clone(),
-        )
-        .await
-    }
+    // pub async fn get_temp_storage(&self) -> Result<Vec<ContainerClient>> {
+    //     self.get_clients(
+    //         |resources| &resources.temp_storage,
+    //         |resources| &resources.temp_storage,
+    //         |mut_resources, new_resources| mut_resources.temp_storage = new_resources.clone(),
+    //         self.client_options.blob_service.clone(),
+    //     )
+    //     .await
+    // }
 
-    pub async fn get_ingestions_status_tables(&self) -> Result<Vec<TableClient>> {
-        self.get_clients(
-            |resources| &resources.ingestions_status_tables,
-            |resources| &resources.ingestions_status_tables,
-            |mut_resources, new_resources| {
-                mut_resources.ingestions_status_tables = new_resources.clone()
-            },
-            self.client_options.table_service.clone(),
-        )
-        .await
-    }
+    // pub async fn get_ingestions_status_tables(&self) -> Result<Vec<TableClient>> {
+    //     self.get_clients(
+    //         |resources| &resources.ingestions_status_tables,
+    //         |resources| &resources.ingestions_status_tables,
+    //         |mut_resources, new_resources| {
+    //             mut_resources.ingestions_status_tables = new_resources.clone()
+    //         },
+    //         self.client_options.table_service.clone(),
+    //     )
+    //     .await
+    // }
 
-    pub async fn get_successful_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
-        self.get_clients(
-            |resources| &resources.successful_ingestions_queues,
-            |resources| &resources.successful_ingestions_queues,
-            |mut_resources, new_resources| {
-                mut_resources.successful_ingestions_queues = new_resources.clone()
-            },
-            self.client_options.queue_service.clone(),
-        )
-        .await
-    }
+    // pub async fn get_successful_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
+    //     self.get_clients(
+    //         |resources| &resources.successful_ingestions_queues,
+    //         |resources| &resources.successful_ingestions_queues,
+    //         |mut_resources, new_resources| {
+    //             mut_resources.successful_ingestions_queues = new_resources.clone()
+    //         },
+    //         self.client_options.queue_service.clone(),
+    //     )
+    //     .await
+    // }
 
-    pub async fn get_failed_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
-        self.get_clients(
-            |resources| &resources.failed_ingestions_queues,
-            |resources| &resources.failed_ingestions_queues,
-            |mut_resources, new_resources| {
-                mut_resources.failed_ingestions_queues = new_resources.clone()
-            },
-            self.client_options.queue_service.clone(),
-        )
-        .await
-    }
+    // pub async fn get_failed_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
+    //     self.get_clients(
+    //         |resources| &resources.failed_ingestions_queues,
+    //         |resources| &resources.failed_ingestions_queues,
+    //         |mut_resources, new_resources| {
+    //             mut_resources.failed_ingestions_queues = new_resources.clone()
+    //         },
+    //         self.client_options.queue_service.clone(),
+    //     )
+    //     .await
+    // }
 }
 
 pub type KustoIdentityToken = String;
 
+/// ResourceManager is a struct that keeps track of all the resources required for ingestion using the queued flavour
 pub struct ResourceManager {
     ingest_client_resources: Arc<IngestClientResources>,
     authorization_context: Arc<AuthorizationContext>,
 }
 
 impl ResourceManager {
+    /// Creates a new ResourceManager from the given [KustoClient] and the [QueuedIngestClientOptions] as provided by the user
     pub fn new(client: KustoClient, client_options: QueuedIngestClientOptions) -> Self {
         Self {
             ingest_client_resources: Arc::new(IngestClientResources::new(
@@ -293,30 +304,26 @@ impl ResourceManager {
             .await
     }
 
-    pub async fn temp_storage(&self) -> Result<Vec<ContainerClient>> {
-        self.ingest_client_resources.get_temp_storage().await
-    }
+    // pub async fn temp_storage(&self) -> Result<Vec<ContainerClient>> {
+    //     self.ingest_client_resources.get_temp_storage().await
+    // }
 
-    pub async fn ingestions_status_tables(&self) -> Result<Vec<TableClient>> {
-        self.ingest_client_resources
-            .get_ingestions_status_tables()
-            .await
-    }
+    // pub async fn ingestions_status_tables(&self) -> Result<Vec<TableClient>> {
+    //     self.ingest_client_resources
+    //         .get_ingestions_status_tables()
+    //         .await
+    // }
 
-    pub async fn successful_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
-        self.ingest_client_resources
-            .get_successful_ingestions_queues()
-            .await
-    }
+    // pub async fn successful_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
+    //     self.ingest_client_resources
+    //         .get_successful_ingestions_queues()
+    //         .await
+    // }
 
-    pub async fn failed_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
-        self.ingest_client_resources
-            .get_failed_ingestions_queues()
-            .await
-    }
-
-    // pub fn retrieve_service_type(self) -> ServiceType {
-    //     unimplemented!()
+    // pub async fn failed_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
+    //     self.ingest_client_resources
+    //         .get_failed_ingestions_queues()
+    //         .await
     // }
 
     pub async fn authorization_context(&self) -> Result<KustoIdentityToken> {

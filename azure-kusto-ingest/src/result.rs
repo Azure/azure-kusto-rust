@@ -8,7 +8,6 @@ pub enum IngestionStatus {
     Success,
 }
 
-
 // The result of an ingestion.
 #[derive(Debug)]
 pub struct IngestionResult {

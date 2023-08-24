@@ -4,12 +4,13 @@ use anyhow::Result;
 use azure_core::{base64, ClientOptions};
 use azure_kusto_data::prelude::KustoClient;
 
-use crate::descriptors::{BlobDescriptor, FileDescriptor, StreamDescriptor};
+use crate::descriptors::BlobDescriptor;
 use crate::ingestion_blob_info::QueuedIngestionMessage;
 use crate::ingestion_properties::IngestionProperties;
 use crate::resource_manager::ResourceManager;
 use crate::result::{IngestionResult, IngestionStatus};
 
+/// Allows configurability of ClientOptions for the storage clients used within [QueuedIngestClient]
 #[derive(Clone, Default)]
 pub struct QueuedIngestClientOptions {
     pub queue_service: ClientOptions,
@@ -28,17 +29,20 @@ impl From<ClientOptions> for QueuedIngestClientOptions {
     }
 }
 
-// The KustoClient is used to get the ingestion resources, it should be a client against the ingestion cluster endpoint
+/// Client for ingesting data into Kusto using the queued flavour of ingestion
 #[derive(Clone)]
 pub struct QueuedIngestClient {
     resource_manager: Arc<ResourceManager>,
 }
 
 impl QueuedIngestClient {
+    /// Creates a new client from the given [KustoClient]
     pub fn new(kusto_client: KustoClient) -> Self {
         Self::new_with_client_options(kusto_client, QueuedIngestClientOptions::default())
     }
 
+    /// Creates a new client from the given [KustoClient] and [QueuedIngestClientOptions]
+    /// This allows for customisation of the [ClientOptions] used for the storage clients
     pub fn new_with_client_options(
         kusto_client: KustoClient,
         options: QueuedIngestClientOptions,
@@ -48,6 +52,7 @@ impl QueuedIngestClient {
         Self { resource_manager }
     }
 
+    /// Ingest a file into Kusto from Azure Blob Storage
     pub async fn ingest_from_blob(
         &self,
         blob_descriptor: BlobDescriptor,
@@ -92,57 +97,21 @@ impl QueuedIngestClient {
         ))
     }
 
-    pub async fn ingest_from_file(
-        &self,
-        file_descriptor: FileDescriptor,
-        ingestion_properties: IngestionProperties,
-    ) -> Result<IngestionResult> {
-        unimplemented!()
-        // This function needs to upload the blob from the file, and then call on ingest_from_blob
+    // /// Ingest a local file into Kusto
+    // pub async fn ingest_from_file(
+    //     &self,
+    //     file_descriptor: FileDescriptor,
+    //     ingestion_properties: IngestionProperties,
+    // ) -> Result<IngestionResult> {
+    //     unimplemented!()
+    // }
 
-        // self.ingest_from_blob(blob_descriptor, &ingestion_properties)
-        //     .await
-    }
-
-    pub async fn ingest_from_stream(
-        &self,
-        stream_descriptor: StreamDescriptor,
-        ingestion_properties: IngestionProperties,
-    ) -> Result<IngestionResult> {
-        unimplemented!()
-        // This function needs to upload the blob from the stream, and then call on ingest_from_blob
-
-        // self.ingest_from_blob(blob_descriptor, &ingestion_properties)
-        //     .await
-    }
-
-    async fn upload_from_different_descriptor(
-        &self,
-        descriptor: FileDescriptor,
-        ingestion_properties: &IngestionProperties,
-    ) -> Result<BlobDescriptor> {
-        unimplemented!()
-        // WIP
-        // let blob_name = format!(
-        //     "{database_name}_{table_name}_{source_id}_{stream_name}",
-        //     database_name = ingestion_properties.database_name,
-        //     table_name = ingestion_properties.table_name,
-        //     source_id = descriptor.source_id,
-        //     stream_name = descriptor.stream_name.to_str().unwrap().to_string()
-        // );
-
-        // let container_clients = self.resource_manager.temp_storage().await?;
-        // // TODO: pick a random container client from the container clients returned by the resource manager
-        // let container_client = container_clients.first().unwrap().clone();
-        // let blob_client = container_client.blob_client(blob_name);
-
-        // blob_client.put_block_blob(body)
-
-        // blob_url = "";
-
-        // Ok(BlobDescriptor::new(
-        //     blob_url,
-        //     ingestion_properties.source_id,
-        // ))
-    }
+    // /// Ingest a stream into Kusto
+    // pub async fn ingest_from_stream(
+    //     &self,
+    //     stream_descriptor: StreamDescriptor,
+    //     ingestion_properties: IngestionProperties,
+    // ) -> Result<IngestionResult> {
+    //     unimplemented!()
+    // }
 }

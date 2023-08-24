@@ -9,7 +9,7 @@ use super::RESOURCE_REFRESH_PERIOD;
 
 pub type KustoIdentityToken = String;
 
-/// Logic to obtain a Kusto identity token from the management endpoint
+/// Logic to obtain a Kusto identity token from the management endpoint. This auth token is a temporary token
 #[derive(Debug, Clone)]
 pub struct AuthorizationContext {
     client: KustoClient,
@@ -30,8 +30,17 @@ impl AuthorizationContext {
             .execute_command("NetDefaultDB", ".get kusto identity token", None)
             .await?;
 
-        // TODO: improve validation checks here
-        let table = results.tables.first().unwrap();
+        let table = match &results.tables[..] {
+            [a] => a,
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Kusto Expected 1 table in results, found {}",
+                    results.tables.len()
+                ))
+            }
+        };
+
+        // TODO: add more validation here
         let kusto_identity_token = table
             .rows
             .first()

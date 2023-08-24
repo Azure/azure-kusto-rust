@@ -3,14 +3,18 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_repr::Serialize_repr;
 
+/// Properties used when ingesting data into Kusto, allowing for customisation of the ingestion process
 #[derive(Clone, Debug, Default)]
 pub struct IngestionProperties {
+    /// Name of the database to ingest into
     pub database_name: String,
+    /// Name of the table to ingest into
     pub table_name: String,
+    /// Whether the blob is retained after ingestion, note that this requires extra permissions
     pub retain_blob_on_success: Option<bool>,
+    /// Format of the data being ingested
     pub data_format: DataFormat,
-    // I think we could make this neater by using some enum wizardry to enforce certain checks that are being done currently
-    // I'm thinking of something like we give an ingestion mapping enum, with
+    // TODO: ingestion mappings could likely be made neater by using enums to enforce checks
     pub ingestion_mapping: Option<Vec<ColumnMapping>>,
     pub ingestion_mapping_type: Option<IngestionMappingKind>,
     pub ingestion_mapping_reference: Option<Vec<String>>,
@@ -19,10 +23,11 @@ pub struct IngestionProperties {
     pub ingest_by_tags: Vec<String>,
     pub drop_by_tags: Vec<String>,
     pub flush_immediately: Option<bool>,
-    pub ignore_first_record: bool,
+    pub ignore_first_record: Option<bool>,
     pub report_level: Option<ReportLevel>,
     pub report_method: Option<ReportMethod>,
     pub validation_policy: Option<ValidationPolicy>,
+    /// Allows for configurability of the `creationTime` property
     pub creation_time: Option<DateTime<Utc>>,
 }
 

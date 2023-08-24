@@ -29,11 +29,11 @@ impl ResourceUri {
     }
 }
 
-impl TryFrom<String> for ResourceUri {
+impl TryFrom<&str> for ResourceUri {
     type Error = anyhow::Error;
 
-    fn try_from(uri: String) -> Result<Self> {
-        let parsed_uri = Url::parse(&uri)?;
+    fn try_from(uri: &str) -> Result<Self> {
+        let parsed_uri = Url::parse(uri)?;
 
         let service_uri = match parsed_uri.host_str() {
             Some(host_str) => parsed_uri.scheme().to_string() + "://" + host_str,
@@ -62,6 +62,7 @@ impl TryFrom<String> for ResourceUri {
     }
 }
 
+/// Trait to be used to create an Azure client from a resource URI with configurability of ClientOptions
 pub trait ClientFromResourceUri {
     fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self;
 }
