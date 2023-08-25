@@ -17,7 +17,7 @@ use azure_storage_queues::QueueClient;
 use crate::client_options::QueuedIngestClientOptions;
 
 use self::{
-    authorization_context::AuthorizationContext,
+    authorization_context::{AuthorizationContext, KustoIdentityToken},
     cache::{Cached, Refreshing},
     resource_uri::{ClientFromResourceUri, ResourceUri},
 };
@@ -277,8 +277,6 @@ impl IngestClientResources {
     //     .await
     // }
 }
-
-pub type KustoIdentityToken = String;
 
 /// ResourceManager is a struct that keeps track of all the resources required for ingestion using the queued flavour
 pub struct ResourceManager {

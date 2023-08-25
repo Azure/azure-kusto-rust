@@ -5,7 +5,7 @@ use crate::{
     data_format::DataFormat,
     descriptors::BlobDescriptor,
     ingestion_properties::{IngestionProperties, ReportLevel, ReportMethod, ValidationPolicy},
-    resource_manager::KustoIdentityToken,
+    resource_manager::authorization_context::KustoIdentityToken,
 };
 
 // Basing the ingestion message on
