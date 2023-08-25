@@ -64,7 +64,8 @@ impl AuthorizationContext {
                     table.rows.len()
                 ))
             }
-        }.to_string();
+        }
+        .to_string();
 
         if kusto_identity_token.chars().all(char::is_whitespace) {
             return Err(anyhow::anyhow!("Kusto identity token is empty"));

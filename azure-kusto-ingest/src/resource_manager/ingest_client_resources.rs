@@ -12,7 +12,11 @@ pub struct RawIngestClientResources {
 }
 
 impl RawIngestClientResources {
-    fn get_resource_by_name(table: &TableV1, resource_name: String, err_if_not_found: bool) -> Result<Vec<ResourceUri>> {
+    fn get_resource_by_name(
+        table: &TableV1,
+        resource_name: String,
+        err_if_not_found: bool,
+    ) -> Result<Vec<ResourceUri>> {
         let storage_root_index = table
             .columns
             .iter()
@@ -39,7 +43,7 @@ impl RawIngestClientResources {
                 ))?)
             })
             .collect();
-        
+
         if err_if_not_found && resource_uris.is_empty() {
             return Err(anyhow::anyhow!(
                 "No {} resources found in the table",
@@ -55,7 +59,7 @@ impl TryFrom<&TableV1> for RawIngestClientResources {
     type Error = anyhow::Error;
 
     fn try_from(table: &TableV1) -> std::result::Result<Self, Self::Error> {
-        println!("table: {:?}", table);
+        // println!("table: {:?}", table);
         let secured_ready_for_aggregation_queues =
             Self::get_resource_by_name(table, "SecuredReadyForAggregationQueue".to_string(), true)?;
         let failed_ingestions_queues =

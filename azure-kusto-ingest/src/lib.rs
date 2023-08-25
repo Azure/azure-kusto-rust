@@ -1,3 +1,4 @@
+pub mod client_options;
 pub mod data_format;
 pub mod descriptors;
 pub(crate) mod ingestion_blob_info;

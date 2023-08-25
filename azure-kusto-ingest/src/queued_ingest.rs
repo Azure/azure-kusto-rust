@@ -1,33 +1,15 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use azure_core::{base64, ClientOptions};
+use azure_core::base64;
 use azure_kusto_data::prelude::KustoClient;
 
+use crate::client_options::QueuedIngestClientOptions;
 use crate::descriptors::BlobDescriptor;
 use crate::ingestion_blob_info::QueuedIngestionMessage;
 use crate::ingestion_properties::IngestionProperties;
 use crate::resource_manager::ResourceManager;
 use crate::result::{IngestionResult, IngestionStatus};
-
-/// Allows configurability of ClientOptions for the storage clients used within [QueuedIngestClient]
-#[derive(Clone, Default)]
-pub struct QueuedIngestClientOptions {
-    pub queue_service: ClientOptions,
-    pub blob_service: ClientOptions,
-    pub table_service: ClientOptions,
-}
-
-impl From<ClientOptions> for QueuedIngestClientOptions {
-    /// Creates a `QueuedIngestClientOptions` struct where the same [ClientOptions] are used for all services
-    fn from(client_options: ClientOptions) -> Self {
-        Self {
-            queue_service: client_options.clone(),
-            blob_service: client_options.clone(),
-            table_service: client_options,
-        }
-    }
-}
 
 /// Client for ingesting data into Kusto using the queued flavour of ingestion
 #[derive(Clone)]
@@ -47,6 +29,9 @@ impl QueuedIngestClient {
         kusto_client: KustoClient,
         options: QueuedIngestClientOptions,
     ) -> Self {
+        // TODO: add a validation check that the client provided is against the ingestion endpoint
+        // kusto_client.management_url()
+
         let resource_manager = Arc::new(ResourceManager::new(kusto_client, options));
 
         Self { resource_manager }

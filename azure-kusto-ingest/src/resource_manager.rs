@@ -14,7 +14,7 @@ use azure_data_tables::prelude::TableClient;
 use azure_storage_blobs::prelude::ContainerClient;
 use azure_storage_queues::QueueClient;
 
-use crate::queued_ingest::QueuedIngestClientOptions;
+use crate::client_options::QueuedIngestClientOptions;
 
 use self::{
     authorization_context::AuthorizationContext,
