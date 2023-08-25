@@ -12,7 +12,9 @@ pub type KustoIdentityToken = String;
 /// Logic to obtain a Kusto identity token from the management endpoint. This auth token is a temporary token
 #[derive(Debug, Clone)]
 pub struct AuthorizationContext {
+    /// A client against a Kusto ingestion cluster
     client: KustoClient,
+    /// Cache of the Kusto identity token
     auth_context_cache: Refreshing<Option<KustoIdentityToken>>,
 }
 
@@ -30,6 +32,7 @@ impl AuthorizationContext {
             .execute_command("NetDefaultDB", ".get kusto identity token", None)
             .await?;
 
+        // Check that there is only 1 table in the results returned by the query
         let table = match &results.tables[..] {
             [a] => a,
             _ => {
@@ -40,16 +43,28 @@ impl AuthorizationContext {
             }
         };
 
-        // TODO: add more validation here
-        let kusto_identity_token = table
-            .rows
-            .first()
-            .unwrap()
-            .first()
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
+        // Check that a column in this table actually exists called `AuthorizationContext`
+        let index = table
+            .columns
+            .iter()
+            .position(|c| c.column_name == "AuthorizationContext")
+            .ok_or(anyhow::anyhow!(
+                "AuthorizationContext column is missing in the table"
+            ))?;
+
+        // Check that there is only 1 row in the table, and that the value in the first row at the given index is not empty
+        let kusto_identity_token = match &table.rows[..] {
+            [row] => row.get(index).ok_or(anyhow::anyhow!(
+                "Kusto response did not contain a value in the first row at position {}",
+                index
+            ))?,
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Kusto Expected 1 row in results, found {}",
+                    table.rows.len()
+                ))
+            }
+        }.to_string();
 
         if kusto_identity_token.chars().all(char::is_whitespace) {
             return Err(anyhow::anyhow!("Kusto identity token is empty"));
@@ -77,6 +92,7 @@ impl AuthorizationContext {
             return Ok(inner_value.clone());
         }
 
+        // Fetch new token from Kusto, update the cache, and return the token
         let token = Self::execute_kql_mgmt_query(self.client.clone()).await?;
         auth_context_cache.update(Some(token.clone()));
 
