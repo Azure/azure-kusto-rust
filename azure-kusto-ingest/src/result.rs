@@ -12,15 +12,15 @@ pub enum IngestionStatus {
 #[derive(Debug)]
 pub struct IngestionResult {
     // Will be `Queued` if the ingestion is queued, or `Success` if the ingestion is streaming and successful.
-    status: IngestionStatus,
+    pub status: IngestionStatus,
     // The name of the database where the ingestion was performed.
-    database: String,
+    pub database: String,
     // The name of the table where the ingestion was performed.
-    table: String,
+    pub table: String,
     // The source id of the ingestion.
-    source_id: Uuid,
+    pub source_id: Uuid,
     // The blob uri of the ingestion, if exists.
-    blob_uri: Option<String>,
+    pub blob_uri: Option<String>,
 }
 
 impl IngestionResult {

@@ -27,10 +27,6 @@ impl<T> Cached<T> {
         &self.inner
     }
 
-    pub fn get_mut(&mut self) -> &mut T {
-        &mut self.inner
-    }
-
     pub fn is_expired(&self) -> bool {
         self.last_updated.elapsed() > self.refresh_period
     }

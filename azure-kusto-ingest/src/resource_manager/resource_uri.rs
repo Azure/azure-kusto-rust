@@ -1,5 +1,4 @@
 use azure_core::ClientOptions;
-use azure_data_tables::{clients::TableServiceClientBuilder, prelude::TableClient};
 use azure_storage::StorageCredentials;
 use azure_storage_blobs::prelude::{ClientBuilder, ContainerClient};
 use azure_storage_queues::{QueueClient, QueueServiceClientBuilder};
@@ -87,17 +86,5 @@ impl ClientFromResourceUri for ContainerClient {
         })
         .client_options(client_options)
         .container_client(resource_uri.object_name())
-    }
-}
-
-impl ClientFromResourceUri for TableClient {
-    fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self {
-        TableServiceClientBuilder::with_location(azure_storage::CloudLocation::Custom {
-            uri: resource_uri.service_uri().to_string(),
-            credentials: resource_uri.sas_token().clone(),
-        })
-        .client_options(client_options)
-        .build()
-        .table_client(resource_uri.object_name())
     }
 }

@@ -27,8 +27,9 @@ impl AuthorizationContext {
     }
 
     /// Executes a KQL query to get the Kusto identity token from the management endpoint
-    async fn execute_kql_mgmt_query(client: KustoClient) -> Result<KustoIdentityToken> {
-        let results = client
+    async fn execute_kql_mgmt_query(&self) -> Result<KustoIdentityToken> {
+        let results = self
+            .client
             .execute_command("NetDefaultDB", ".get kusto identity token", None)
             .await?;
 
@@ -89,12 +90,14 @@ impl AuthorizationContext {
 
         // Again attempt to return from cache, check is done in case another thread
         // refreshed the token while we were waiting on the write lock
-        if let Some(inner_value) = auth_context_cache.get() {
-            return Ok(inner_value.clone());
+        if !auth_context_cache.is_expired() {
+            if let Some(inner_value) = auth_context_cache.get() {
+                return Ok(inner_value.clone());
+            }
         }
 
         // Fetch new token from Kusto, update the cache, and return the token
-        let token = Self::execute_kql_mgmt_query(self.client.clone()).await?;
+        let token = self.execute_kql_mgmt_query().await?;
         auth_context_cache.update(Some(token.clone()));
 
         Ok(token)

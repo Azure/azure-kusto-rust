@@ -17,7 +17,7 @@ use self::{
     ingest_client_resources::IngestClientResources,
 };
 
-pub(crate) const RESOURCE_REFRESH_PERIOD: Duration = Duration::from_secs(60 * 60);
+pub const RESOURCE_REFRESH_PERIOD: Duration = Duration::from_secs(60 * 60);
 
 /// ResourceManager is a struct that keeps track of all the resources required for ingestion using the queued flavour
 pub struct ResourceManager {
@@ -38,31 +38,15 @@ impl ResourceManager {
     }
 
     pub async fn secured_ready_for_aggregation_queues(&self) -> Result<Vec<QueueClient>> {
-        self.ingest_client_resources
-            .get_secured_ready_for_aggregation_queues()
-            .await
+        Ok(self
+            .ingest_client_resources
+            .get()
+            .await?
+            .secured_ready_for_aggregation_queues)
     }
 
     // pub async fn temp_storage(&self) -> Result<Vec<ContainerClient>> {
-    //     self.ingest_client_resources.get_temp_storage().await
-    // }
-
-    // pub async fn ingestions_status_tables(&self) -> Result<Vec<TableClient>> {
-    //     self.ingest_client_resources
-    //         .get_ingestions_status_tables()
-    //         .await
-    // }
-
-    // pub async fn successful_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
-    //     self.ingest_client_resources
-    //         .get_successful_ingestions_queues()
-    //         .await
-    // }
-
-    // pub async fn failed_ingestions_queues(&self) -> Result<Vec<QueueClient>> {
-    //     self.ingest_client_resources
-    //         .get_failed_ingestions_queues()
-    //         .await
+    //     Ok(self.ingest_client_resources.get().await?.temp_storage)
     // }
 
     pub async fn authorization_context(&self) -> Result<KustoIdentityToken> {

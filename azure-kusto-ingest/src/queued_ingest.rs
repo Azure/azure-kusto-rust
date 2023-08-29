@@ -69,17 +69,17 @@ impl QueuedIngestClient {
         let message = base64::encode(&message);
         // println!("message as base64 encoded string: {}\n", message);
 
-        let resp = queue_client.put_message(message).await?;
+        let _resp = queue_client.put_message(message).await?;
 
         // println!("resp: {:#?}\n", resp);
 
-        Ok(IngestionResult::new(
-            IngestionStatus::Queued,
-            &ingestion_properties.database_name,
-            &ingestion_properties.table_name,
-            blob_descriptor.source_id,
-            Some(blob_descriptor.uri()),
-        ))
+        Ok(IngestionResult {
+            status: IngestionStatus::Queued,
+            database: ingestion_properties.database_name,
+            table: ingestion_properties.table_name,
+            source_id: blob_descriptor.source_id,
+            blob_uri: Some(blob_descriptor.uri()),
+        })
     }
 
     // /// Ingest a local file into Kusto
