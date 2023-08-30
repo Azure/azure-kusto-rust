@@ -10,7 +10,6 @@ use crate::descriptors::BlobDescriptor;
 use crate::ingestion_blob_info::QueuedIngestionMessage;
 use crate::ingestion_properties::IngestionProperties;
 use crate::resource_manager::ResourceManager;
-use crate::result::{IngestionResult, IngestionStatus};
 
 /// Client for ingesting data into Kusto using the queued flavour of ingestion
 #[derive(Clone)]
@@ -43,7 +42,7 @@ impl QueuedIngestClient {
         &self,
         blob_descriptor: BlobDescriptor,
         ingestion_properties: IngestionProperties,
-    ) -> Result<IngestionResult> {
+    ) -> Result<()> {
         // The queues returned here should ideally be the storage queue client from azure-storage-queue
         // As such, it may be better for ResourceManager to return a struct that contains the storage queue client
         let ingestion_queues = self
@@ -76,12 +75,6 @@ impl QueuedIngestClient {
         let _resp = queue_client.put_message(message).await?;
         // println!("resp: {:#?}\n", resp);
 
-        Ok(IngestionResult {
-            status: IngestionStatus::Queued,
-            database: ingestion_properties.database_name,
-            table: ingestion_properties.table_name,
-            source_id: blob_descriptor.source_id,
-            blob_uri: Some(blob_descriptor.uri()),
-        })
+        Ok(())
     }
 }
