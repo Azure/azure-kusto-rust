@@ -73,3 +73,69 @@ impl BlobDescriptor {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn blob_descriptor_with_no_auth_modification() {
+        let uri = "https://mystorageaccount.blob.core.windows.net/mycontainer/myblob";
+        let blob_descriptor = BlobDescriptor::new(uri.to_string(), None, None);
+
+        assert_eq!(blob_descriptor.uri(), uri);
+    }
+
+    #[test]
+    fn blob_descriptor_with_sas_token() {
+        let uri = "https://mystorageaccount.blob.core.windows.net/mycontainer/myblob";
+        let sas_token = "my_sas_token";
+        let blob_descriptor = BlobDescriptor::new(uri.to_string(), None, None)
+            .with_blob_auth(BlobAuth::SASToken(sas_token.to_string()));
+
+        assert_eq!(blob_descriptor.uri(), format!("{}?{}", uri, sas_token));
+    }
+
+    #[test]
+    fn blob_descriptor_with_user_assigned_managed_identity() {
+        let uri = "https://mystorageaccount.blob.core.windows.net/mycontainer/myblob";
+        let object_id = "my_object_id";
+        let blob_descriptor = BlobDescriptor::new(uri.to_string(), None, None)
+            .with_blob_auth(BlobAuth::UserAssignedManagedIdentity(object_id.to_string()));
+
+        assert_eq!(
+            blob_descriptor.uri(),
+            format!("{};managed_identity={}", uri, object_id)
+        );
+    }
+
+    #[test]
+    fn blob_descriptor_with_system_assigned_managed_identity() {
+        let uri = "https://mystorageaccount.blob.core.windows.net/mycontainer/myblob";
+        let blob_descriptor = BlobDescriptor::new(uri.to_string(), None, None)
+            .with_blob_auth(BlobAuth::SystemAssignedManagedIdentity);
+
+        assert_eq!(
+            blob_descriptor.uri(),
+            format!("{};managed_identity=system", uri)
+        );
+    }
+
+    #[test]
+    fn blob_descriptor_with_size() {
+        let uri = "https://mystorageaccount.blob.core.windows.net/mycontainer/myblob";
+        let size = 123;
+        let blob_descriptor = BlobDescriptor::new(uri.to_string(), Some(size), None);
+
+        assert_eq!(blob_descriptor.size, Some(size));
+    }
+
+    #[test]
+    fn blob_descriptor_with_source_id() {
+        let uri = "https://mystorageaccount.blob.core.windows.net/mycontainer/myblob";
+        let source_id = Uuid::new_v4();
+        let blob_descriptor = BlobDescriptor::new(uri.to_string(), None, Some(source_id));
+
+        assert_eq!(blob_descriptor.source_id, source_id);
+    }
+}
