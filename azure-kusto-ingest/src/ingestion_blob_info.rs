@@ -13,16 +13,18 @@ use crate::{
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct QueuedIngestionMessage {
-    /// Message identifier (GUID)
+    /// Message identifier for this upload
     id: uuid::Uuid,
     /// Path (URI) to the blob, including the SAS key granting permissions to read/write/delete it.
     /// Permissions are required so that the ingestion service can delete the blob once it has completed ingesting the data.
     blob_path: String,
-    /// Target database name
+    // Name of the Kusto database the data will ingest into
     database_name: String,
-    /// Target table name
+    // Name of the Kusto table the the data will ingest into
     table_name: String,
-    /// Size of the uncompressed data in bytes. Providing this value allows the ingestion service to optimize ingestion by potentially aggregating multiple blobs. This property is optional, but if not given, the service will access the blob just to retrieve the size.
+    /// Size of the uncompressed data in bytes.
+    /// Providing this value allows the ingestion service to optimize ingestion by potentially aggregating multiple blobs.
+    /// Although this property is optional, it is recommended to provide the size as otherwise the service will access the blob just to retrieve the size.
     #[serde(skip_serializing_if = "Option::is_none")]
     raw_data_size: Option<u64>,
     /// If set to `true`, the blob won't be deleted once ingestion is successfully completed. Default is `false`
@@ -31,11 +33,13 @@ pub struct QueuedIngestionMessage {
     /// If set to `true`, any aggregation will be skipped. Default is `false`
     #[serde(skip_serializing_if = "Option::is_none")]
     flush_immediately: Option<bool>,
+    /// Ignores the size limit for data ingestion
     #[serde(skip_serializing_if = "Option::is_none")]
     ignore_size_limit: Option<bool>,
-    // according to Go impl, the report level and method could be Option
+    /// Defines which if any ingestion states are reported
     #[serde(skip_serializing_if = "Option::is_none")]
     report_level: Option<ReportLevel>,
+    /// Defines which mechanisms are used to report the ingestion status
     #[serde(skip_serializing_if = "Option::is_none")]
     report_method: Option<ReportMethod>,
     source_message_creation_time: DateTime<Utc>,

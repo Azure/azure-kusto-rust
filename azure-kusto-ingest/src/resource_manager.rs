@@ -37,6 +37,7 @@ impl ResourceManager {
         }
     }
 
+    /// Returns the latest [QueueClient]s ready for posting ingestion messages to
     pub async fn secured_ready_for_aggregation_queues(&self) -> Result<Vec<QueueClient>> {
         Ok(self
             .ingest_client_resources

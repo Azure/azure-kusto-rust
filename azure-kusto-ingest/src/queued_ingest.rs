@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use azure_core::base64;
 use azure_kusto_data::prelude::KustoClient;
+use rand::seq::SliceRandom;
 
 use crate::client_options::QueuedIngestClientOptions;
 use crate::descriptors::BlobDescriptor;
@@ -56,21 +57,23 @@ impl QueuedIngestClient {
 
         let message =
             QueuedIngestionMessage::new(&blob_descriptor, &ingestion_properties, auth_context);
-
         // println!("message as struct: {:#?}\n", message);
 
-        // TODO: pick a random queue from the queue clients returned by the resource manager
-        let queue_client = ingestion_queues.first().unwrap().clone();
+        // Pick a random queue from the queue clients returned by the resource manager
+        let mut rng = rand::thread_rng();
+        let queue_client = ingestion_queues
+            .choose(&mut rng)
+            .ok_or(anyhow::anyhow!("Failed to pick a random queue"))?;
         // println!("queue_client: {:#?}\n", queue_client);
 
         let message = serde_json::to_string(&message).unwrap();
         // println!("message as string: {}\n", message);
+
         // Base64 encode the ingestion message
         let message = base64::encode(&message);
         // println!("message as base64 encoded string: {}\n", message);
 
         let _resp = queue_client.put_message(message).await?;
-
         // println!("resp: {:#?}\n", resp);
 
         Ok(IngestionResult {
@@ -81,22 +84,4 @@ impl QueuedIngestClient {
             blob_uri: Some(blob_descriptor.uri()),
         })
     }
-
-    // /// Ingest a local file into Kusto
-    // pub async fn ingest_from_file(
-    //     &self,
-    //     file_descriptor: FileDescriptor,
-    //     ingestion_properties: IngestionProperties,
-    // ) -> Result<IngestionResult> {
-    //     unimplemented!()
-    // }
-
-    // /// Ingest a stream into Kusto
-    // pub async fn ingest_from_stream(
-    //     &self,
-    //     stream_descriptor: StreamDescriptor,
-    //     ingestion_properties: IngestionProperties,
-    // ) -> Result<IngestionResult> {
-    //     unimplemented!()
-    // }
 }
