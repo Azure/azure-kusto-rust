@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use uuid::Uuid;
 
 use crate::{
     data_format::DataFormat, descriptors::BlobDescriptor,
@@ -13,7 +14,7 @@ use crate::{
 #[serde(rename_all = "PascalCase")]
 pub struct QueuedIngestionMessage {
     /// Message identifier for this upload
-    id: uuid::Uuid,
+    id: Uuid,
     /// Path (URI) to the blob, including the SAS key granting permissions to read/write/delete it.
     /// Permissions are required so that the ingestion service can delete the blob once it has completed ingesting the data.
     blob_path: String,
