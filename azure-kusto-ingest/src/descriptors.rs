@@ -1,7 +1,6 @@
-use url::Url;
 use uuid::Uuid;
 
-/// Helper enum for authentication information on a blob
+/// Helper for adding authentication information to a blob path in the format expected by Kusto
 #[derive(Clone)]
 pub enum BlobAuth {
     /// adds `?<sas_token>` to the blob path
@@ -30,7 +29,7 @@ impl std::fmt::Debug for BlobAuth {
 /// Encapsulates the information related to a blob that is required to ingest from a blob
 #[derive(Debug, Clone)]
 pub struct BlobDescriptor {
-    uri: Url,
+    uri: String,
     pub(crate) size: Option<u64>,
     pub(crate) source_id: Uuid,
     /// Authentication information for the blob; when [None], the uri is passed through as is
@@ -38,7 +37,7 @@ pub struct BlobDescriptor {
 }
 
 impl BlobDescriptor {
-    pub fn new(uri: Url, size: Option<u64>, source_id: Option<Uuid>) -> Self {
+    pub fn new(uri: String, size: Option<u64>, source_id: Option<Uuid>) -> Self {
         let source_id = match source_id {
             Some(source_id) => source_id,
             None => Uuid::new_v4(),
@@ -62,9 +61,7 @@ impl BlobDescriptor {
     pub fn uri(&self) -> String {
         match &self.blob_auth {
             Some(BlobAuth::SASToken(sas_token)) => {
-                let mut uri = self.uri.clone();
-                uri.set_query(Some(sas_token.as_str()));
-                uri.to_string()
+                format!("{}?{}", self.uri, sas_token.as_str())
             }
             Some(BlobAuth::UserAssignedManagedIdentity(object_id)) => {
                 format!("{};managed_identity={}", self.uri, object_id)
@@ -76,37 +73,3 @@ impl BlobDescriptor {
         }
     }
 }
-
-// #[derive(Clone, Debug)]
-// pub struct FileDescriptor {
-//     pub path: PathBuf,
-//     pub size: Option<u64>,
-//     pub source_id: Uuid,
-// }
-
-// impl FileDescriptor {
-//     pub fn new(path: PathBuf, size: Option<u64>, source_id: Option<Uuid>) -> Self {
-//         unimplemented!()
-//     }
-// }
-
-// #[derive(Clone, Debug)]
-// pub struct StreamDescriptor {
-//     stream: Box<dyn Read>,
-//     size: Option<u64>,
-//     source_id: Uuid,
-//     compressed: bool,
-//     stream_name: String,
-// }
-
-// impl StreamDescriptor {
-//     pub fn new(
-//         stream: Box<dyn Read>,
-//         size: Option<u64>,
-//         source_id: Option<Uuid>,
-//         compressed: bool,
-//         stream_name: String,
-//     ) -> Self {
-//         unimplemented!()
-//     }
-// }
