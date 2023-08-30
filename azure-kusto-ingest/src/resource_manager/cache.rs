@@ -38,3 +38,43 @@ impl<T> Cached<T> {
 }
 
 pub type Refreshing<T> = Arc<RwLock<Cached<T>>>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_cached_get() {
+        let value = "hello";
+        let cached = Cached::new(value.to_string(), Duration::from_secs(60));
+
+        assert_eq!(cached.get(), value);
+    }
+
+    #[test]
+    fn test_cached_is_expired() {
+        let value = "hello";
+        let mut cached = Cached::new(value.to_string(), Duration::from_secs(60));
+
+        assert!(!cached.is_expired());
+
+        cached.last_updated = Instant::now() - Duration::from_secs(61);
+
+        assert!(cached.is_expired());
+    }
+
+    #[test]
+    fn test_cached_update() {
+        let value = "hello";
+        let mut cached = Cached::new(value.to_string(), Duration::from_secs(60));
+
+        assert_eq!(cached.get(), value);
+
+        let new_value = "world";
+        cached.update(new_value.to_string());
+
+        assert!(!cached.is_expired());
+        assert_eq!(cached.get(), new_value);
+    }
+}
