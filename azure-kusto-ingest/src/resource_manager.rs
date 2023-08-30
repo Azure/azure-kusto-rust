@@ -46,6 +46,7 @@ impl ResourceManager {
             .secured_ready_for_aggregation_queues)
     }
 
+    /// Returns the latest [ContainerClient]s for temporary storage, where local data can be uploaded to Kusto-owned storage prior to ingestion
     // pub async fn temp_storage(&self) -> Result<Vec<ContainerClient>> {
     //     Ok(self.ingest_client_resources.get().await?.temp_storage)
     // }

@@ -1,31 +1,5 @@
 use uuid::Uuid;
 
-/// Helper for adding authentication information to a blob path in the format expected by Kusto
-#[derive(Clone)]
-pub enum BlobAuth {
-    /// adds `?<sas_token>` to the blob path
-    SASToken(String),
-    /// adds `;managed_identity=<identity>` to the blob path
-    UserAssignedManagedIdentity(String),
-    /// adds `;managed_identity=system` to the blob path
-    SystemAssignedManagedIdentity,
-}
-
-impl std::fmt::Debug for BlobAuth {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BlobAuth::SASToken(_) => f.debug_struct("SASToken").finish(),
-            BlobAuth::UserAssignedManagedIdentity(object_id) => f
-                .debug_struct("UserAssignedManagedIdentity")
-                .field("object_id", object_id)
-                .finish(),
-            BlobAuth::SystemAssignedManagedIdentity => {
-                f.debug_struct("SystemAssignedManagedIdentity").finish()
-            }
-        }
-    }
-}
-
 /// Encapsulates the information related to a blob that is required to ingest from a blob
 #[derive(Debug, Clone)]
 pub struct BlobDescriptor {
@@ -57,8 +31,8 @@ impl BlobDescriptor {
         self
     }
 
-    /// Returns the uri with the authentication information added
-    pub fn uri(&self) -> String {
+    /// Returns the uri with the authentication information added, ready to be serialized into the ingestion message
+    pub(crate) fn uri(&self) -> String {
         match &self.blob_auth {
             Some(BlobAuth::SASToken(sas_token)) => {
                 format!("{}?{}", self.uri, sas_token.as_str())
@@ -70,6 +44,32 @@ impl BlobDescriptor {
                 format!("{};managed_identity=system", self.uri)
             }
             None => self.uri.to_string(),
+        }
+    }
+}
+
+/// Helper for adding authentication information to a blob path in the format expected by Kusto
+#[derive(Clone)]
+pub enum BlobAuth {
+    /// adds `?<sas_token>` to the blob path
+    SASToken(String),
+    /// adds `;managed_identity=<identity>` to the blob path
+    UserAssignedManagedIdentity(String),
+    /// adds `;managed_identity=system` to the blob path
+    SystemAssignedManagedIdentity,
+}
+
+impl std::fmt::Debug for BlobAuth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BlobAuth::SASToken(_) => f.debug_struct("SASToken").finish(),
+            BlobAuth::UserAssignedManagedIdentity(object_id) => f
+                .debug_struct("UserAssignedManagedIdentity")
+                .field("object_id", object_id)
+                .finish(),
+            BlobAuth::SystemAssignedManagedIdentity => {
+                f.debug_struct("SystemAssignedManagedIdentity").finish()
+            }
         }
     }
 }

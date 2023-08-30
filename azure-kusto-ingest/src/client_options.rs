@@ -5,7 +5,6 @@ use azure_core::ClientOptions;
 pub struct QueuedIngestClientOptions {
     pub queue_service: ClientOptions,
     pub blob_service: ClientOptions,
-    pub table_service: ClientOptions,
 }
 
 impl From<ClientOptions> for QueuedIngestClientOptions {
@@ -13,8 +12,7 @@ impl From<ClientOptions> for QueuedIngestClientOptions {
     fn from(client_options: ClientOptions) -> Self {
         Self {
             queue_service: client_options.clone(),
-            blob_service: client_options.clone(),
-            table_service: client_options,
+            blob_service: client_options,
         }
     }
 }
@@ -24,7 +22,6 @@ impl From<ClientOptions> for QueuedIngestClientOptions {
 pub struct QueuedIngestClientOptionsBuilder {
     queue_service: ClientOptions,
     blob_service: ClientOptions,
-    table_service: ClientOptions,
 }
 
 impl QueuedIngestClientOptionsBuilder {
@@ -32,7 +29,6 @@ impl QueuedIngestClientOptionsBuilder {
         Self {
             queue_service: ClientOptions::default(),
             blob_service: ClientOptions::default(),
-            table_service: ClientOptions::default(),
         }
     }
 
@@ -46,16 +42,10 @@ impl QueuedIngestClientOptionsBuilder {
         self
     }
 
-    pub fn with_table_service(mut self, table_service: ClientOptions) -> Self {
-        self.table_service = table_service;
-        self
-    }
-
     pub fn build(self) -> QueuedIngestClientOptions {
         QueuedIngestClientOptions {
             queue_service: self.queue_service,
             blob_service: self.blob_service,
-            table_service: self.table_service,
         }
     }
 }
