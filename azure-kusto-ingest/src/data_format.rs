@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-/// All data formats supported by Kusto
+/// All data formats supported by Kusto.
 /// Default is [DataFormat::CSV]
 #[derive(Serialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
