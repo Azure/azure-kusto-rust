@@ -3,7 +3,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use azure_core::base64;
 use azure_kusto_data::prelude::KustoClient;
+use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
+use rand::SeedableRng;
 
 use crate::client_options::QueuedIngestClientOptions;
 use crate::descriptors::BlobDescriptor;
@@ -59,7 +61,7 @@ impl QueuedIngestClient {
         // println!("message as struct: {:#?}\n", message);
 
         // Pick a random queue from the queue clients returned by the resource manager
-        let mut rng = rand::thread_rng();
+        let mut rng: StdRng = SeedableRng::from_entropy();
         let queue_client = ingestion_queues
             .choose(&mut rng)
             .ok_or(anyhow::anyhow!("Failed to pick a random queue"))?;
