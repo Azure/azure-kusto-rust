@@ -65,14 +65,20 @@ impl AuthorizationContext {
                     table.rows.len()
                 ))
             }
-        }
-        .to_string();
+        };
+
+        // Convert the JSON string into a Rust string
+        let kusto_identity_token = kusto_identity_token
+            .as_str()
+            .ok_or(anyhow::anyhow!(
+                "Kusto response did not contain a string value"
+            ))?;
 
         if kusto_identity_token.chars().all(char::is_whitespace) {
             return Err(anyhow::anyhow!("Kusto identity token is empty"));
         }
 
-        Ok(kusto_identity_token)
+        Ok(kusto_identity_token.to_string())
     }
 
     /// Fetches the latest Kusto identity token, either retrieving from cache if valid, or by executing a KQL query
