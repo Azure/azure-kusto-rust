@@ -47,34 +47,34 @@ mod tests {
     #[test]
     fn test_cached_get() {
         let value = "hello";
-        let cached = Cached::new(value.to_string(), Duration::from_secs(60));
+        let cached_string = Cached::new(value.to_string(), Duration::from_secs(60));
 
-        assert_eq!(cached.get(), value);
+        assert_eq!(cached_string.get(), value);
     }
 
     #[test]
     fn test_cached_is_expired() {
         let value = "hello";
-        let mut cached = Cached::new(value.to_string(), Duration::from_secs(60));
+        let mut cached_string = Cached::new(value.to_string(), Duration::from_secs(60));
 
-        assert!(!cached.is_expired());
+        assert!(!cached_string.is_expired());
 
-        cached.last_updated = Instant::now() - Duration::from_secs(61);
+        cached_string.last_updated = Instant::now() - Duration::from_secs(61);
 
-        assert!(cached.is_expired());
+        assert!(cached_string.is_expired());
     }
 
     #[test]
     fn test_cached_update() {
         let value = "hello";
-        let mut cached = Cached::new(value.to_string(), Duration::from_secs(60));
+        let mut cached_string = Cached::new(value.to_string(), Duration::from_secs(60));
 
-        assert_eq!(cached.get(), value);
+        assert_eq!(cached_string.get(), value);
 
         let new_value = "world";
-        cached.update(new_value.to_string());
+        cached_string.update(new_value.to_string());
 
-        assert!(!cached.is_expired());
-        assert_eq!(cached.get(), new_value);
+        assert!(!cached_string.is_expired());
+        assert_eq!(cached_string.get(), new_value);
     }
 }

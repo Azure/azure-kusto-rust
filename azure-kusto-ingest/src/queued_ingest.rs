@@ -45,8 +45,6 @@ impl QueuedIngestClient {
         blob_descriptor: BlobDescriptor,
         ingestion_properties: IngestionProperties,
     ) -> Result<()> {
-        // The queues returned here should ideally be the storage queue client from azure-storage-queue
-        // As such, it may be better for ResourceManager to return a struct that contains the storage queue client
         let ingestion_queues = self
             .resource_manager
             .secured_ready_for_aggregation_queues()
