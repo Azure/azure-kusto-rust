@@ -28,7 +28,7 @@ impl<T> Cached<T> {
     }
 
     pub fn is_expired(&self) -> bool {
-        self.last_updated.elapsed() > self.refresh_period
+        self.last_updated.elapsed() >= self.refresh_period
     }
 
     pub fn update(&mut self, inner: T) {

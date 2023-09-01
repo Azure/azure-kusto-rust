@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 azure-kusto-data = {path = "../azure-kusto-data"}
-# Azure SDK for Rust crates versions should be kept in sync
+# Azure SDK for Rust crates versions must be kept in sync
 azure_core = "0.14"
 azure_storage = "0.14"
 azure_storage_blobs = "0.14"

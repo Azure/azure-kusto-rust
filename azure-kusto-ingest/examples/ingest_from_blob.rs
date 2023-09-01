@@ -18,7 +18,6 @@ async fn main() -> Result<()> {
     let user_mi_object_id = "<managed-identity-object-id>";
 
     // Create a Kusto client with managed identity authentication via the user assigned identity
-    // Note that this requires
     let kusto_client = KustoClient::new(
         ConnectionString::with_managed_identity_auth(
             cluster_uri,
@@ -47,7 +46,7 @@ async fn main() -> Result<()> {
     // Define the size of the blob if known, this improves ingestion performance as Kusto does not need to access the blob to determine the size
     let blob_size = 123;
     // Create the blob descriptor, also specifying that the blob should be accessed using the system assigned managed identity of the Kusto cluster
-    let blob_descriptor = BlobDescriptor::new(blob_uri.to_string(), Some(blob_size), None)
+    let blob_descriptor = BlobDescriptor::new(blob_uri, Some(blob_size), None)
         .with_blob_auth(BlobAuth::SystemAssignedManagedIdentity);
 
     queued_ingest_client

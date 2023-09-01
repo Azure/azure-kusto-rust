@@ -68,11 +68,9 @@ impl AuthorizationContext {
         };
 
         // Convert the JSON string into a Rust string
-        let kusto_identity_token = kusto_identity_token
-            .as_str()
-            .ok_or(anyhow::anyhow!(
-                "Kusto response did not contain a string value"
-            ))?;
+        let kusto_identity_token = kusto_identity_token.as_str().ok_or(anyhow::anyhow!(
+            "Kusto response did not contain a string value"
+        ))?;
 
         if kusto_identity_token.chars().all(char::is_whitespace) {
             return Err(anyhow::anyhow!("Kusto identity token is empty"));
@@ -83,7 +81,7 @@ impl AuthorizationContext {
 
     /// Fetches the latest Kusto identity token, either retrieving from cache if valid, or by executing a KQL query
     pub async fn get(&self) -> Result<KustoIdentityToken> {
-        // First, attempt to get the return the token from the cache
+        // Attempt to get the token from the cache
         let auth_context_cache = self.auth_context_cache.read().await;
         if !auth_context_cache.is_expired() {
             if let Some(inner_value) = auth_context_cache.get() {
