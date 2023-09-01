@@ -8,24 +8,10 @@ use anyhow::Result;
 
 /// Parsing logic of resource URIs as returned by the Kusto management endpoint
 #[derive(Debug, Clone)]
-pub struct ResourceUri {
-    service_uri: String,
-    object_name: String,
-    sas_token: StorageCredentials,
-}
-
-impl ResourceUri {
-    pub fn service_uri(&self) -> &str {
-        self.service_uri.as_str()
-    }
-
-    pub fn object_name(&self) -> &str {
-        self.object_name.as_str()
-    }
-
-    pub fn sas_token(&self) -> &StorageCredentials {
-        &self.sas_token
-    }
+pub(crate) struct ResourceUri {
+    pub(crate) service_uri: String,
+    pub(crate) object_name: String,
+    pub(crate) sas_token: StorageCredentials,
 }
 
 impl TryFrom<&str> for ResourceUri {
@@ -73,30 +59,30 @@ impl TryFrom<&str> for ResourceUri {
 }
 
 /// Trait to be used to create an Azure client from a resource URI with configurability of ClientOptions
-pub trait ClientFromResourceUri {
+pub(crate) trait ClientFromResourceUri {
     fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self;
 }
 
 impl ClientFromResourceUri for QueueClient {
     fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self {
         QueueServiceClientBuilder::with_location(azure_storage::CloudLocation::Custom {
-            uri: resource_uri.service_uri().to_string(),
-            credentials: resource_uri.sas_token().clone(),
+            uri: resource_uri.service_uri,
+            credentials: resource_uri.sas_token,
         })
         .client_options(client_options)
         .build()
-        .queue_client(resource_uri.object_name())
+        .queue_client(resource_uri.object_name)
     }
 }
 
 impl ClientFromResourceUri for ContainerClient {
     fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self {
         ClientBuilder::with_location(azure_storage::CloudLocation::Custom {
-            uri: resource_uri.service_uri().to_string(),
-            credentials: resource_uri.sas_token().clone(),
+            uri: resource_uri.service_uri,
+            credentials: resource_uri.sas_token,
         })
         .client_options(client_options)
-        .container_client(resource_uri.object_name())
+        .container_client(resource_uri.object_name)
     }
 }
 
@@ -111,17 +97,17 @@ mod tests {
         let resource_uri = ResourceUri::try_from(uri).unwrap();
 
         assert_eq!(
-            resource_uri.service_uri(),
+            resource_uri.service_uri,
             "https://storageaccountname.blob.core.windows.com"
         );
-        assert_eq!(resource_uri.object_name(), "containerobjectname");
+        assert_eq!(resource_uri.object_name, "containerobjectname");
 
         assert!(matches!(
-            resource_uri.sas_token(),
+            resource_uri.sas_token,
             StorageCredentials::SASToken(_)
         ));
 
-        if let StorageCredentials::SASToken(sas_vec) = resource_uri.sas_token() {
+        if let StorageCredentials::SASToken(sas_vec) = resource_uri.sas_token {
             assert_eq!(sas_vec.len(), 1);
             assert_eq!(sas_vec[0].0, "sas");
             assert_eq!(sas_vec[0].1, "token");
