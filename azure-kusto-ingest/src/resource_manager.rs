@@ -38,12 +38,8 @@ impl ResourceManager {
     }
 
     /// Returns the latest [QueueClient]s ready for posting ingestion messages to
-    pub async fn secured_ready_for_aggregation_queues(&self) -> Result<Vec<QueueClient>> {
-        Ok(self
-            .ingest_client_resources
-            .get()
-            .await?
-            .secured_ready_for_aggregation_queues)
+    pub async fn ingestion_queues(&self) -> Result<Vec<QueueClient>> {
+        Ok(self.ingest_client_resources.get().await?.ingestion_queues)
     }
 
     /// Returns the latest [ContainerClient]s for temporary storage, where local data can be uploaded to Kusto-owned storage prior to ingestion

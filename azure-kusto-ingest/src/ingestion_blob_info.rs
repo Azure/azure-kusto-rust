@@ -17,7 +17,7 @@ use crate::{
 pub(crate) struct QueuedIngestionMessage {
     /// Message identifier for this upload
     id: Uuid,
-    /// Path (URI) to the blob. 
+    /// Path (URI) to the blob.
     /// This should include any SAS token required to access the blob, or hints to use managed identity auth.
     /// Extra permissions are required if the `RetainBlobOnSuccess` option is not true so that the ingestion service can delete the blob once it has completed ingesting the data.
     blob_path: String,
@@ -30,11 +30,11 @@ pub(crate) struct QueuedIngestionMessage {
     /// Although this property is optional, it is recommended to provide the size as otherwise the service will access the blob just to retrieve the size.
     #[serde(skip_serializing_if = "Option::is_none")]
     raw_data_size: Option<u64>,
-    /// If set to `true`, the blob won't be deleted once ingestion is successfully completed. 
+    /// If set to `true`, the blob won't be deleted once ingestion is successfully completed.
     /// Default is `false` when this property is not specified. Note that this has implications on permissions required against the blob.
     #[serde(skip_serializing_if = "Option::is_none")]
     retain_blob_on_success: Option<bool>,
-    /// If set to `true`, any server side aggregation will be skipped - thus overriding the batching policy. Default is `false`. 
+    /// If set to `true`, any server side aggregation will be skipped - thus overriding the batching policy. Default is `false`.
     #[serde(skip_serializing_if = "Option::is_none")]
     flush_immediately: Option<bool>,
     source_message_creation_time: DateTime<Utc>,

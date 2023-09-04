@@ -45,10 +45,7 @@ impl QueuedIngestClient {
         blob_descriptor: BlobDescriptor,
         ingestion_properties: IngestionProperties,
     ) -> Result<()> {
-        let ingestion_queues = self
-            .resource_manager
-            .secured_ready_for_aggregation_queues()
-            .await?;
+        let ingestion_queues = self.resource_manager.ingestion_queues().await?;
         // println!("queues: {:#?}", ingestion_queues);
 
         let auth_context = self.resource_manager.authorization_context().await?;

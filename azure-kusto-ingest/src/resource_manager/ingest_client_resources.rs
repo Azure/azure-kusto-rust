@@ -67,8 +67,8 @@ where
 /// Storage of the clients required for ingestion
 #[derive(Debug, Clone)]
 pub struct InnerIngestClientResources {
-    pub secured_ready_for_aggregation_queues: Vec<QueueClient>,
-    pub temp_storage: Vec<ContainerClient>,
+    pub ingestion_queues: Vec<QueueClient>,
+    pub temp_storage_containers: Vec<ContainerClient>,
 }
 
 impl TryFrom<(&TableV1, &QueuedIngestClientOptions)> for InnerIngestClientResources {
@@ -81,11 +81,14 @@ impl TryFrom<(&TableV1, &QueuedIngestClientOptions)> for InnerIngestClientResour
         let temp_storage = get_resource_by_name(table, "TempStorage".to_string())?;
 
         Ok(Self {
-            secured_ready_for_aggregation_queues: create_clients_vec(
+            ingestion_queues: create_clients_vec(
                 &secured_ready_for_aggregation_queues,
                 &client_options.queue_service,
             ),
-            temp_storage: create_clients_vec(&temp_storage, &client_options.blob_service),
+            temp_storage_containers: create_clients_vec(
+                &temp_storage,
+                &client_options.blob_service,
+            ),
         })
     }
 }
@@ -105,7 +108,6 @@ impl IngestClientResources {
         }
     }
 
-    /// Gets the latest resources from Kusto, updating the cached resources if they are expired
     /// Executes a KQL management query that retrieves resource URIs for the various Azure resources used for ingestion
     async fn execute_kql_mgmt_query(&self) -> Result<InnerIngestClientResources> {
         let results = self
