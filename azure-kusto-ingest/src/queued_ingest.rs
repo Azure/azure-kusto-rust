@@ -6,6 +6,7 @@ use azure_kusto_data::prelude::KustoClient;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use tracing::debug;
 
 use crate::client_options::QueuedIngestClientOptions;
 use crate::descriptors::BlobDescriptor;
@@ -46,31 +47,31 @@ impl QueuedIngestClient {
         ingestion_properties: IngestionProperties,
     ) -> Result<()> {
         let ingestion_queues = self.resource_manager.ingestion_queues().await?;
-        // println!("queues: {:#?}", ingestion_queues);
+        debug!("ingestion queues: {:#?}", ingestion_queues);
 
         let auth_context = self.resource_manager.authorization_context().await?;
-        // println!("auth_context: {:#?}\n", auth_context);
+        debug!("auth_context: {:#?}\n", auth_context);
 
         let message =
             QueuedIngestionMessage::new(&blob_descriptor, &ingestion_properties, auth_context);
-        // println!("message as struct: {:#?}\n", message);
+        debug!("message: {:#?}\n", message);
 
         // Pick a random queue from the queue clients returned by the resource manager
         let mut rng: StdRng = SeedableRng::from_entropy();
         let queue_client = ingestion_queues
             .choose(&mut rng)
             .ok_or(anyhow::anyhow!("Failed to pick a random queue"))?;
-        // println!("queue_client: {:#?}\n", queue_client);
+        debug!("randomly seeded queue_client: {:#?}\n", queue_client);
 
         let message = serde_json::to_string(&message).unwrap();
-        // println!("message as string: {}\n", message);
+        debug!("message as string: {}\n", message);
 
         // Base64 encode the ingestion message
         let message = base64::encode(&message);
-        // println!("message as base64 encoded string: {}\n", message);
+        debug!("message as base64 encoded string: {}\n", message);
 
-        let _resp = queue_client.put_message(message).await?;
-        // println!("resp: {:#?}\n", resp);
+        let resp = queue_client.put_message(message).await?;
+        debug!("resp: {:#?}\n", resp);
 
         Ok(())
     }
