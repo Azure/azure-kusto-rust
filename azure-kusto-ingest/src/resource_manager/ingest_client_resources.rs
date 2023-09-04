@@ -109,7 +109,7 @@ impl IngestClientResources {
     }
 
     /// Executes a KQL management query that retrieves resource URIs for the various Azure resources used for ingestion
-    async fn execute_kql_mgmt_query(&self) -> Result<InnerIngestClientResources> {
+    async fn query_ingestion_resources(&self) -> Result<InnerIngestClientResources> {
         let results = self
             .client
             .execute_command("NetDefaultDB", ".get ingestion resources", None)
@@ -142,7 +142,7 @@ impl IngestClientResources {
             }
         }
 
-        let new_resources = self.execute_kql_mgmt_query().await?;
+        let new_resources = self.query_ingestion_resources().await?;
         resources.update(Some(new_resources.clone()));
 
         Ok(new_resources)

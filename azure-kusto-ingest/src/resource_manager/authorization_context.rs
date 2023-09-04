@@ -27,7 +27,7 @@ impl AuthorizationContext {
     }
 
     /// Executes a KQL query to get the Kusto identity token from the management endpoint
-    async fn execute_kql_mgmt_query(&self) -> Result<KustoIdentityToken> {
+    async fn query_kusto_identity_token(&self) -> Result<KustoIdentityToken> {
         let results = self
             .client
             .execute_command("NetDefaultDB", ".get kusto identity token", None)
@@ -101,7 +101,7 @@ impl AuthorizationContext {
         }
 
         // Fetch new token from Kusto, update the cache, and return the token
-        let token = self.execute_kql_mgmt_query().await?;
+        let token = self.query_kusto_identity_token().await?;
         auth_context_cache.update(Some(token.clone()));
 
         Ok(token)
