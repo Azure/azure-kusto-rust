@@ -42,11 +42,7 @@ impl ResourceManager {
         Ok(self.ingest_client_resources.get().await?.ingestion_queues)
     }
 
-    /// Returns the latest [ContainerClient]s for temporary storage, where local data can be uploaded to Kusto-owned storage prior to ingestion
-    // pub async fn temp_storage(&self) -> Result<Vec<ContainerClient>> {
-    //     Ok(self.ingest_client_resources.get().await?.temp_storage)
-    // }
-
+    /// Returns the latest [KustoIdentityToken] to be added as an authorization context to ingestion messages
     pub async fn authorization_context(&self) -> Result<KustoIdentityToken> {
         self.authorization_context.get().await
     }
