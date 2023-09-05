@@ -3,8 +3,9 @@ use std::sync::Arc;
 use crate::client_options::QueuedIngestClientOptions;
 
 use super::{
-    cache::{Cached, Refreshing},
+    cache::{Cached, ThreadSafeCachedValue},
     resource_uri::{ClientFromResourceUri, ResourceUri},
+    utils::get_column_index,
     RESOURCE_REFRESH_PERIOD,
 };
 use anyhow::Result;
@@ -13,19 +14,6 @@ use azure_kusto_data::{models::TableV1, prelude::KustoClient};
 use azure_storage_blobs::prelude::ContainerClient;
 use azure_storage_queues::QueueClient;
 use tokio::sync::RwLock;
-
-/// Helper to get a column index from a table
-// TODO: this could be moved upstream into Kusto Data - would likely result in a change to the API of this function to return an Option<usize>
-fn get_column_index(table: &TableV1, column_name: &str) -> Result<usize> {
-    table
-        .columns
-        .iter()
-        .position(|c| c.column_name == column_name)
-        .ok_or(anyhow::anyhow!(
-            "{} column is missing in the table",
-            column_name
-        ))
-}
 
 /// Helper to get a resource URI from a table, erroring if there are no resources of the given name
 fn get_resource_by_name(table: &TableV1, resource_name: String) -> Result<Vec<ResourceUri>> {
@@ -38,7 +26,8 @@ fn get_resource_by_name(table: &TableV1, resource_name: String) -> Result<Vec<Re
         .filter(|r| r[resource_type_name_index] == resource_name)
         .map(|r| {
             ResourceUri::try_from(r[storage_root_index].as_str().ok_or(anyhow::anyhow!(
-                "Response returned from Kusto could not be parsed as a string"
+                "Response returned from Kusto could not be parsed as a string {:?}",
+                r[storage_root_index]
             ))?)
         })
         .collect();
@@ -95,7 +84,7 @@ impl TryFrom<(&TableV1, &QueuedIngestClientOptions)> for InnerIngestClientResour
 
 pub struct IngestClientResources {
     client: KustoClient,
-    resources: Refreshing<Option<InnerIngestClientResources>>,
+    resources: ThreadSafeCachedValue<Option<InnerIngestClientResources>>,
     client_options: QueuedIngestClientOptions,
 }
 

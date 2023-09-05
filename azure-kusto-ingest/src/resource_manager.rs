@@ -4,6 +4,7 @@ pub mod authorization_context;
 pub mod cache;
 pub mod ingest_client_resources;
 pub mod resource_uri;
+pub mod utils;
 
 use anyhow::Result;
 use azure_kusto_data::prelude::KustoClient;

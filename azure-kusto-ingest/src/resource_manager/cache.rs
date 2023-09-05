@@ -37,7 +37,7 @@ impl<T> Cached<T> {
     }
 }
 
-pub type Refreshing<T> = Arc<RwLock<Cached<T>>>;
+pub type ThreadSafeCachedValue<T> = Arc<RwLock<Cached<T>>>;
 
 #[cfg(test)]
 mod tests {
