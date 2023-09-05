@@ -11,6 +11,12 @@ pub struct BlobDescriptor {
 }
 
 impl BlobDescriptor {
+    /// Create a new BlobDescriptor.
+    ///
+    /// Parameters:
+    /// - `uri`: the uri of the blob to ingest from, note you can use the optional helper method `with_blob_auth` to add authentication information to the uri
+    /// - `size`: although the size is not required, providing it is recommended as it allows Kusto to better plan the ingestion process
+    /// - `source_id`: optional, useful if tracking ingestion status, if not provided, a random uuid will be generated
     pub fn new(uri: impl Into<String>, size: Option<u64>, source_id: Option<Uuid>) -> Self {
         let source_id = match source_id {
             Some(source_id) => source_id,
@@ -31,7 +37,7 @@ impl BlobDescriptor {
         self
     }
 
-    /// Returns the uri with the authentication information added, ready to be serialized into the ingestion message
+    /// Returns the uri with the authentication information concatenated, ready to be serialized into the ingestion message
     pub(crate) fn uri(&self) -> String {
         match &self.blob_auth {
             Some(BlobAuth::SASToken(sas_token)) => {
@@ -59,6 +65,7 @@ pub enum BlobAuth {
     SystemAssignedManagedIdentity,
 }
 
+/// Custom impl of Debug to avoid leaking sensitive information
 impl std::fmt::Debug for BlobAuth {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
