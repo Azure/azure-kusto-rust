@@ -21,23 +21,24 @@ pub struct QueuedIngestClient {
 }
 
 impl QueuedIngestClient {
-    /// Creates a new client from the given [KustoClient]
+    /// Creates a new client from the given [KustoClient].
+    ///
+    /// **WARNING**: the [KustoClient] must be created with a connection string that points to the ingestion endpoint
     pub fn new(kusto_client: KustoClient) -> Self {
         Self::new_with_client_options(kusto_client, QueuedIngestClientOptions::default())
     }
 
     /// Creates a new client from the given [KustoClient] and [QueuedIngestClientOptions]
     /// This allows for customisation of the [ClientOptions] used for the storage clients
+    ///
+    /// **WARNING**: the [KustoClient] must be created with a connection string that points to the ingestion endpoint
     pub fn new_with_client_options(
         kusto_client: KustoClient,
         options: QueuedIngestClientOptions,
     ) -> Self {
-        // TODO: add a validation check that the client provided is against the ingestion endpoint
-        // kusto_client.management_url()
-
-        let resource_manager = Arc::new(ResourceManager::new(kusto_client, options));
-
-        Self { resource_manager }
+        Self {
+            resource_manager: Arc::new(ResourceManager::new(kusto_client, options)),
+        }
     }
 
     /// Ingest a file into Kusto from Azure Blob Storage

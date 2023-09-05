@@ -84,8 +84,8 @@ impl AuthorizationContext {
         // Attempt to get the token from the cache
         let auth_context_cache = self.auth_context_cache.read().await;
         if !auth_context_cache.is_expired() {
-            if let Some(inner_value) = auth_context_cache.get() {
-                return Ok(inner_value.clone());
+            if let Some(token) = auth_context_cache.get() {
+                return Ok(token.clone());
             }
         }
         // Drop the read lock and get a write lock to refresh the token
@@ -95,8 +95,8 @@ impl AuthorizationContext {
         // Again attempt to return from cache, check is done in case another thread
         // refreshed the token while we were waiting on the write lock
         if !auth_context_cache.is_expired() {
-            if let Some(inner_value) = auth_context_cache.get() {
-                return Ok(inner_value.clone());
+            if let Some(token) = auth_context_cache.get() {
+                return Ok(token.clone());
             }
         }
 
