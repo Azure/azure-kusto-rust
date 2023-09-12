@@ -8,13 +8,13 @@ edition = "2021"
 [dependencies]
 azure-kusto-data = {path = "../azure-kusto-data"}
 # Azure SDK for Rust crates versions must be kept in sync
-azure_core = "0.14"
-azure_storage = "0.14"
-azure_storage_blobs = "0.14"
-azure_storage_queues = "0.14"
+azure_core = "0.15"
+azure_storage = "0.15"
+azure_storage_blobs = "0.15"
+azure_storage_queues = "0.15"
 
 anyhow = "1"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
 rand = "0.8"
 serde = { version = "1", features = ["serde_derive"] }
 serde_json = "1"
