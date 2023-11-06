@@ -65,10 +65,12 @@ pub(crate) trait ClientFromResourceUri {
 
 impl ClientFromResourceUri for QueueClient {
     fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self {
-        QueueServiceClientBuilder::with_location(azure_storage::CloudLocation::Custom {
-            uri: resource_uri.service_uri,
-            credentials: resource_uri.sas_token,
-        })
+        QueueServiceClientBuilder::with_location(
+            azure_storage::CloudLocation::Custom {
+                uri: resource_uri.service_uri,
+            },
+            resource_uri.sas_token,
+        )
         .client_options(client_options)
         .build()
         .queue_client(resource_uri.object_name)
@@ -77,10 +79,12 @@ impl ClientFromResourceUri for QueueClient {
 
 impl ClientFromResourceUri for ContainerClient {
     fn create_client(resource_uri: ResourceUri, client_options: ClientOptions) -> Self {
-        ClientBuilder::with_location(azure_storage::CloudLocation::Custom {
-            uri: resource_uri.service_uri,
-            credentials: resource_uri.sas_token,
-        })
+        ClientBuilder::with_location(
+            azure_storage::CloudLocation::Custom {
+                uri: resource_uri.service_uri,
+            },
+            resource_uri.sas_token,
+        )
         .client_options(client_options)
         .container_client(resource_uri.object_name)
     }
@@ -88,6 +92,8 @@ impl ClientFromResourceUri for ContainerClient {
 
 #[cfg(test)]
 mod tests {
+    use azure_storage::StorageCredentialsInner;
+
     use super::*;
     use std::convert::TryFrom;
 
@@ -102,12 +108,15 @@ mod tests {
         );
         assert_eq!(resource_uri.object_name, "containerobjectname");
 
+        let storage_credential_inner = std::sync::Arc::into_inner(resource_uri.sas_token.0)
+            .unwrap()
+            .into_inner();
         assert!(matches!(
-            resource_uri.sas_token,
-            StorageCredentials::SASToken(_)
+            storage_credential_inner,
+            StorageCredentialsInner::SASToken(_)
         ));
 
-        if let StorageCredentials::SASToken(sas_vec) = resource_uri.sas_token {
+        if let StorageCredentialsInner::SASToken(sas_vec) = storage_credential_inner {
             assert_eq!(sas_vec.len(), 1);
             assert_eq!(sas_vec[0].0, "sas");
             assert_eq!(sas_vec[0].1, "token");
@@ -154,7 +163,7 @@ mod tests {
         let resource_uri = ResourceUri {
             service_uri: "https://mystorageaccount.queue.core.windows.net".to_string(),
             object_name: "queuename".to_string(),
-            sas_token: StorageCredentials::SASToken(vec![("sas".to_string(), "token".to_string())]),
+            sas_token: StorageCredentials::sas_token("sas=token").unwrap(),
         };
 
         let client_options = ClientOptions::default();
@@ -168,7 +177,7 @@ mod tests {
         let resource_uri = ResourceUri {
             service_uri: "https://mystorageaccount.blob.core.windows.net".to_string(),
             object_name: "containername".to_string(),
-            sas_token: StorageCredentials::SASToken(vec![("sas".to_string(), "token".to_string())]),
+            sas_token: StorageCredentials::sas_token("sas=token").unwrap(),
         };
 
         let client_options = ClientOptions::default();

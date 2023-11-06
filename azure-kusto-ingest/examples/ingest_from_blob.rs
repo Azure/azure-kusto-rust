@@ -18,14 +18,12 @@ use azure_kusto_ingest::queued_ingest::QueuedIngestClient;
 #[tokio::main]
 async fn main() -> Result<()> {
     let cluster_ingest_uri = env::var("KUSTO_INGEST_URI").expect("Must define KUSTO_INGEST_URI");
-    let user_mi_object_id = env::var("KUSTO_USER_MI_OBJECT_ID").expect("Must define KUSTO_USER_MI_OBJECT_ID");
+    let user_mi_object_id =
+        env::var("KUSTO_USER_MI_OBJECT_ID").expect("Must define KUSTO_USER_MI_OBJECT_ID");
 
     // Create a Kusto client with managed identity authentication via the user assigned identity
     let kusto_client = KustoClient::new(
-        ConnectionString::with_managed_identity_auth(
-            cluster_ingest_uri,
-            Some(user_mi_object_id),
-        ),
+        ConnectionString::with_managed_identity_auth(cluster_ingest_uri, Some(user_mi_object_id)),
         KustoClientOptions::default(),
     )?;
 
