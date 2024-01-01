@@ -1,7 +1,7 @@
-use std::pin::{Pin, pin};
-use std::task::{Context, Poll};
 use async_trait::async_trait;
 use futures::{AsyncBufRead, AsyncRead, AsyncReadExt};
+use std::pin::{pin, Pin};
+use std::task::{Context, Poll};
 
 /// A reader that converts kusto's json object format into json lines.
 pub struct ToJsonLinesReader<T: AsyncRead> {
@@ -24,13 +24,20 @@ impl<T: AsyncRead> ToJsonLinesReader<T> {
 
 #[async_trait]
 impl<T: AsyncRead> AsyncRead for ToJsonLinesReader<T> {
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
         pin!(self);
         if !self.read_initial_bracket {
             let mut bracket = [0u8; 1];
             futures::ready!(self.reader.read_exact(&mut bracket))?;
             if bracket[0] != b'[' {
-                return Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Expected initial bracket")));
+                return Poll::Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Expected initial bracket",
+                )));
             }
             self.read_initial_bracket = true;
         }
@@ -48,14 +55,22 @@ impl<T: AsyncRead> AsyncRead for ToJsonLinesReader<T> {
                     b']' => {
                         self.finished = true;
                         return Poll::Ready(Ok(actual_index));
-                    },
-                    _ => return Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Unexpected character after newline"))),
+                    }
+                    _ => {
+                        return Poll::Ready(Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Unexpected character after newline",
+                        )))
+                    }
                 }
             }
 
             if buf[i] == b'\n' {
                 if self.should_skip_next {
-                    return Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Unexpected newline")));
+                    return Poll::Ready(Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "Unexpected newline",
+                    )));
                 }
                 self.should_skip_next = true;
             }
@@ -63,7 +78,6 @@ impl<T: AsyncRead> AsyncRead for ToJsonLinesReader<T> {
             buf[actual_index] = buf[i];
             actual_index += 1;
         }
-
 
         Poll::Ready(Ok(actual_index))
     }

@@ -16,6 +16,6 @@ pub mod error;
 pub mod models;
 mod operations;
 pub mod prelude;
+mod query;
 pub mod request_options;
 pub mod types;
-mod query;

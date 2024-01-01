@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::prelude::ClientRequestProperties;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[allow(non_snake_case)]

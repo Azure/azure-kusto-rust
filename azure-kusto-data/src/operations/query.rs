@@ -3,11 +3,11 @@ use crate::arrow::convert_table;
 use crate::client::{KustoClient, QueryKind};
 
 use crate::error::{Error, Result};
-use crate::query::QueryBody;
+use crate::models::v1::Dataset as V1Dataset;
 use crate::models::v2::{DataTable, TableFragmentType, TableKind};
-use crate::models::v1::{Dataset as V1Dataset};
 use crate::operations::v2;
 use crate::prelude::ClientRequestProperties;
+use crate::query::QueryBody;
 #[cfg(feature = "arrow")]
 use arrow_array::RecordBatch;
 use async_convert::TryFrom;
@@ -521,8 +521,7 @@ mod tests {
         let data = std::fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("Failed to read {}", path.display()));
 
-        let parsed = serde_json::from_str::<V1Dataset>(&data)
-            .expect("Failed to parse response");
+        let parsed = serde_json::from_str::<V1Dataset>(&data).expect("Failed to parse response");
         assert_eq!(parsed.table_count(), 4);
     }
 }

@@ -1,15 +1,14 @@
 //! Types used for serialization and deserialization of ADX data.
 
 use azure_core::error::ResultExt;
-use std::fmt::{Debug};
+use derive_more::{Display, From, Into};
+use serde::{Deserialize, Serialize, Serializer};
+use std::fmt::Debug;
 use std::ops::Deref;
 use std::str::FromStr;
-use serde::{Deserialize, Serialize, Serializer};
 use time::OffsetDateTime;
-use derive_more::{From, Into, Display};
 
 mod timespan;
-
 
 macro_rules! kusto_type {
     ($name:ident, $type:ty, $dd:?) => {

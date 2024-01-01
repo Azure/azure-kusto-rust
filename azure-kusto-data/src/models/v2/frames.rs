@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use crate::models::v2::{Column, Row};
 use crate::models::v2::consts::{ErrorReportingPlacement, TableFragmentType, TableKind};
 use crate::models::v2::errors::OneApiError;
+use crate::models::v2::{Column, Row};
+use serde::{Deserialize, Serialize};
 
 /// The header of the V2 query response.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -17,7 +17,6 @@ pub struct DataSetHeader {
     /// Errors location.
     pub error_reporting_placement: Option<ErrorReportingPlacement>,
 }
-
 
 /// Query result DataTable, for a V2 Query.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]

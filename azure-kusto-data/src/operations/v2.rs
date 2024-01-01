@@ -1,12 +1,13 @@
 use std::io;
 
-use futures::{AsyncBufRead, AsyncBufReadExt, AsyncReadExt, Stream, stream};
-use futures::io::BufReader;
 use crate::models::v2;
 use crate::operations::skip_reader::ToJsonLinesReader;
+use futures::io::BufReader;
+use futures::{stream, AsyncBufRead, AsyncBufReadExt, AsyncReadExt, Stream};
 
-
-pub fn parse_frames_iterative(reader: (impl AsyncBufRead)) -> impl Stream<Item=Result<v2::Frame, io::Error>> {
+pub fn parse_frames_iterative(
+    reader: (impl AsyncBufRead),
+) -> impl Stream<Item = Result<v2::Frame, io::Error>> {
     let mut reader = BufReader::new(ToJsonLinesReader::new(reader));
     let mut buf = Vec::new();
 

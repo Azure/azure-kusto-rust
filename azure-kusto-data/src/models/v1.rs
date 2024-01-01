@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::models::ColumnType;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]

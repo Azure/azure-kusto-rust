@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize, Serializer};
-use time::Duration;
-use once_cell::sync::Lazy;
-use regex::{Captures, Regex};
-use std::fmt::{Debug, Display, Formatter};
-use std::str::FromStr;
 use crate::error::{Error, InvalidArgumentError};
 use crate::types::KustoTimespan;
+use once_cell::sync::Lazy;
+use regex::{Captures, Regex};
+use serde::{Deserialize, Serialize, Serializer};
+use std::fmt::{Debug, Display, Formatter};
+use std::str::FromStr;
+use time::Duration;
 
 fn parse_regex_segment(captures: &Captures, name: &str) -> i64 {
     captures
@@ -80,8 +80,8 @@ impl Debug for KustoTimespan {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::KustoTimespan;
     use super::*;
+    use crate::types::KustoTimespan;
 
     #[test]
     fn string_conversion() {

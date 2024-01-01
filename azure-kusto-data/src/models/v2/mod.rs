@@ -1,14 +1,14 @@
-use serde::{Deserialize, Serialize};
-use crate::models::ColumnType;
 use crate::models::v2::errors::OneApiError;
+use crate::models::ColumnType;
+use serde::{Deserialize, Serialize};
 
-mod frames;
-mod errors;
 mod consts;
+mod errors;
+mod frames;
 
-pub use frames::*;
-pub use errors::*;
 pub use consts::*;
+pub use errors::*;
+pub use frames::*;
 
 /// A result of a V2 query.
 /// Could be a table, a part of a table, or metadata about the dataset.

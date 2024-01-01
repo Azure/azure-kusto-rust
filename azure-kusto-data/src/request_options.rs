@@ -1,11 +1,11 @@
 //! Request options for the Azure Data Explorer Client.
 
+use crate::types::{KustoDateTime, KustoTimespan};
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
-use std::borrow::Cow;
 use serde_with::skip_serializing_none;
-use crate::types::{KustoDateTime, KustoTimespan};
+use std::borrow::Cow;
 
 /// Controls the hot or cold cache for the scope of the query.
 #[derive(Serialize, Deserialize, Debug, Clone)]

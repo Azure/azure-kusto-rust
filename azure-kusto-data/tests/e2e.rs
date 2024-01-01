@@ -3,9 +3,9 @@ use serde_json::Value;
 use std::str::FromStr;
 use time::Duration;
 
+use azure_kusto_data::types::timespan::{KustoDateTime, KustoTimespan};
 use decimal::d128;
 use uuid::Uuid;
-use azure_kusto_data::types::timespan::{KustoDateTime, KustoTimespan};
 
 mod setup;
 
