@@ -16,15 +16,14 @@ pub use crate::connection_string::{
     ConnectionString, ConnectionStringAuth, DeviceCodeFunction, TokenCallbackFunction,
 };
 pub use crate::error::Error;
-pub use crate::models::{DataTable, V2QueryResult};
-pub use crate::operations::query::{KustoResponse, KustoResponseDataSetV1, KustoResponseDataSetV2};
+pub use crate::operations::query::{KustoResponse};
 pub use crate::request_options::{
     ClientRequestProperties, ClientRequestPropertiesBuilder, Options, OptionsBuilder,
 };
 
 // Token credentials are re-exported for user convenience
 pub use azure_identity::{
-    AutoRefreshingTokenCredential, AzureCliCredential, ClientSecretCredential,
+    AzureCliCredential, ClientSecretCredential,
     DefaultAzureCredential, DefaultAzureCredentialBuilder, EnvironmentCredential,
-    TokenCredentialOptions,
+    TokenCredentialOptions,WorkloadIdentityCredential, ImdsManagedIdentityCredential
 };

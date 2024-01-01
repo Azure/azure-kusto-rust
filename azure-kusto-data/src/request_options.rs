@@ -1,11 +1,11 @@
 //! Request options for the Azure Data Explorer Client.
 
-use crate::types::{KustoDateTime, KustoDuration};
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
-use serde_with::skip_serializing_none;
 use std::borrow::Cow;
+use serde_with::skip_serializing_none;
+use crate::types::{KustoDateTime, KustoTimespan};
 
 /// Controls the hot or cold cache for the scope of the query.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -190,7 +190,7 @@ pub struct Options {
     /// If set, retrieves the schema of each tabular data in the results of the query instead of the data itself.
     pub query_results_apply_getschema: Option<bool>,
     /// If positive, controls the maximum age of the cached query results the service is allowed to return
-    pub query_results_cache_max_age: Option<KustoDuration>,
+    pub query_results_cache_max_age: Option<KustoTimespan>,
     /// If set, enables per-shard query cache.
     pub query_results_cache_per_shard: Option<bool>,
     /// Hint for Kusto as to how many records to send in each update (takes effect only if OptionResultsProgressiveEnabled is set)
@@ -226,7 +226,7 @@ pub struct Options {
     pub results_progressive_enabled: Option<bool>,
     /// Overrides the default request timeout.
     #[serde(rename = "servertimeout")]
-    pub server_timeout: Option<KustoDuration>,
+    pub server_timeout: Option<KustoTimespan>,
     /// Overrides the default maximum number of records a query is allowed to return to the caller (truncation).
     #[serde(rename = "truncationmaxrecords")]
     pub truncation_max_records: Option<i64>,

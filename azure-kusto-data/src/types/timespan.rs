@@ -1,91 +1,24 @@
-//! Types used for serialization and deserialization of ADX data.
-
-use azure_core::error::{ErrorKind, ResultExt};
+use serde::{Deserialize, Serialize, Serializer};
+use time::Duration;
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
-use serde_with::{DeserializeFromStr, SerializeDisplay};
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Deref;
 use std::str::FromStr;
-use time::{Duration, OffsetDateTime};
-
 use crate::error::{Error, InvalidArgumentError};
-use time::format_description::well_known::Rfc3339;
-
-/// Represents a datetime field for kusto, for serialization and deserialization.
-#[derive(PartialEq, Eq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
-pub struct KustoDateTime(pub OffsetDateTime);
-
-impl FromStr for KustoDateTime {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(OffsetDateTime::parse(s, &Rfc3339)
-            .map(KustoDateTime)
-            .context(ErrorKind::DataConversion, "Failed to parse KustoDateTime")?)
-    }
-}
-
-impl Display for KustoDateTime {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.0.format(&Rfc3339).unwrap_or_else(|_| "".into())
-        )?;
-        Ok(())
-    }
-}
-
-impl Debug for KustoDateTime {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self}")
-    }
-}
-
-impl From<OffsetDateTime> for KustoDateTime {
-    fn from(time: OffsetDateTime) -> Self {
-        Self(time)
-    }
-}
-
-impl Deref for KustoDateTime {
-    type Target = OffsetDateTime;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-/// Represent a timespan for kusto, for serialization and deserialization.
-#[derive(PartialEq, Eq, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
-pub struct KustoDuration(pub Duration);
-
-impl From<Duration> for KustoDuration {
-    fn from(duration: Duration) -> Self {
-        Self(duration)
-    }
-}
-
-impl Deref for KustoDuration {
-    type Target = Duration;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+use crate::types::KustoTimespan;
 
 fn parse_regex_segment(captures: &Captures, name: &str) -> i64 {
     captures
         .name(name)
         .map_or(0, |m| m.as_str().parse::<i64>().expect("Failed to parse regex segment as i64 - this is a bug - please report this issue to the Kusto team"))
 }
+
 static KUSTO_DURATION_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^(?P<neg>-)?((?P<days>\d+)\.)?(?P<hours>\d+):(?P<minutes>\d+):(?P<seconds>\d+)(\.(?P<nanos>\d+))?$")
-        .expect("Failed to compile KustoDuration regex, this should never happen - please report this issue to the Kusto team")
+        .expect("Failed to compile KustoTimespan regex, this should never happen - please report this issue to the Kusto team")
 });
 
-impl FromStr for KustoDuration {
+impl FromStr for KustoTimespan {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -113,7 +46,7 @@ impl FromStr for KustoDuration {
     }
 }
 
-impl Display for KustoDuration {
+impl Display for KustoTimespan {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let neg = if self.is_negative() {
             write!(f, "-")?;
@@ -139,7 +72,7 @@ impl Display for KustoDuration {
     }
 }
 
-impl Debug for KustoDuration {
+impl Debug for KustoTimespan {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self}")
     }
@@ -147,6 +80,7 @@ impl Debug for KustoDuration {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::KustoTimespan;
     use super::*;
 
     #[test]
@@ -164,7 +98,7 @@ mod tests {
 
         for (from, to) in refs {
             assert_eq!(
-                KustoDuration::from_str(from)
+                KustoTimespan::from_str(from)
                     .unwrap_or_else(|_| panic!("Failed to parse duration {}", from))
                     .whole_nanoseconds(),
                 i128::from(to)
@@ -184,7 +118,7 @@ mod tests {
         ];
 
         for duration in refs {
-            let parsed = KustoDuration::from_str(duration)
+            let parsed = KustoTimespan::from_str(duration)
                 .unwrap_or_else(|_| panic!("Failed to parse duration {}", duration));
             assert_eq!(format!("{:?}", parsed), duration);
         }

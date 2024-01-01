@@ -3,9 +3,9 @@ use serde_json::Value;
 use std::str::FromStr;
 use time::Duration;
 
-use azure_kusto_data::types::{KustoDateTime, KustoDuration};
 use decimal::d128;
 use uuid::Uuid;
+use azure_kusto_data::types::timespan::{KustoDateTime, KustoTimespan};
 
 mod setup;
 
@@ -14,7 +14,7 @@ struct Item {
     vnum: i32,
     vdec: d128,
     vdate: KustoDateTime,
-    vspan: KustoDuration,
+    vspan: KustoTimespan,
     vobj: Value,
     vb: bool,
     vreal: f64,
@@ -70,7 +70,7 @@ async fn create_query_delete_table() {
             vnum: 1,
             vdec: d128!(2.00000000000001),
             vdate: KustoDateTime::from_str("2020-03-04T14:05:01.3109965Z").unwrap(),
-            vspan: KustoDuration::from(
+            vspan: KustoTimespan::from(
                 Duration::seconds(3600 + 23 * 60 + 45) + Duration::microseconds(678900),
             ),
             vobj: Value::Object(serde_json::Map::from_iter(vec![(
@@ -87,7 +87,7 @@ async fn create_query_delete_table() {
             vnum: 2,
             vdec: d128!(5.00000000000005),
             vdate: KustoDateTime::from_str("2022-05-06T16:07:03.1234300Z").unwrap(),
-            vspan: KustoDuration::from(
+            vspan: KustoTimespan::from(
                 Duration::seconds(4 * 3600 + 56 * 60 + 59) + Duration::microseconds(912000),
             ),
             vobj: Value::Object(serde_json::Map::from_iter(vec![(
@@ -104,7 +104,7 @@ async fn create_query_delete_table() {
             vnum: 3,
             vdec: d128!(9.9999999999999),
             vdate: KustoDateTime::from_str("2023-07-08T18:09:05.5678000Z").unwrap(),
-            vspan: KustoDuration::from(
+            vspan: KustoTimespan::from(
                 Duration::seconds(7 * 3600 + 43 * 60 + 12) + Duration::microseconds(345600),
             ),
             vobj: Value::Object(serde_json::Map::from_iter(vec![(

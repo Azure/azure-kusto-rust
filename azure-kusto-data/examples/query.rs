@@ -1,11 +1,11 @@
 use azure_kusto_data::models::V2QueryResult;
 use azure_kusto_data::prelude::*;
-use azure_kusto_data::types::{KustoDateTime, KustoDuration};
 use clap::Parser;
 use futures::{pin_mut, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::error::Error;
+use azure_kusto_data::types::timespan::{KustoDateTime, KustoTimespan};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug, Clone)]
@@ -140,7 +140,7 @@ struct Item {
     vnum: i32,
     vdec: String, // optionally, you can use a decimal type here
     vdate: KustoDateTime,
-    vspan: KustoDuration,
+    vspan: KustoTimespan,
     vobj: Value,
     vb: bool,
     vreal: f64,

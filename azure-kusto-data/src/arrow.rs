@@ -13,8 +13,8 @@ use serde_json::Value;
 
 use crate::error::Result;
 use crate::models::ColumnType;
-use crate::models::{Column, DataTable};
-use crate::types::{KustoDateTime, KustoDuration};
+use crate::models::v2::{Column, DataTable};
+use crate::types::{KustoDateTime, KustoTimespan};
 
 fn convert_array_string(values: Vec<Value>) -> Result<ArrayRef> {
     let strings: Vec<Option<String>> = serde_json::from_value(Value::Array(values))?;
@@ -59,7 +59,7 @@ fn convert_array_timespan(values: Vec<Value>) -> Result<ArrayRef> {
     let durations: Vec<Option<i64>> = strings
         .iter()
         .map(|s| {
-            KustoDuration::from_str(s)
+            KustoTimespan::from_str(s)
                 .ok()
                 .and_then(|d| i64::try_from(d.whole_nanoseconds()).ok())
         })
@@ -150,7 +150,7 @@ pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{TableKind, V2QueryResult};
+    use crate::models::v2::{TableKind, Frame};
     use crate::operations::query::KustoResponseDataSetV2;
     use std::path::PathBuf;
 
@@ -205,7 +205,7 @@ mod tests {
         path.push("tests/inputs/dataframe.json");
 
         let data = std::fs::read_to_string(path).expect("Failed to read file");
-        let tables: Vec<V2QueryResult> =
+        let tables: Vec<Frame> =
             serde_json::from_str(&data).expect("Failed to deserialize result table");
         let response = KustoResponseDataSetV2 { results: tables };
         let record_batches = response
