@@ -29,7 +29,8 @@ impl TokenCredential for ConstTokenCredential {
 
 /// Uses a user provided callback that accepts the resource and returns a token in order to authenticate.
 pub struct CallbackTokenCredential {
-    pub(crate) token_callback: TokenCallbackFunction,
+    pub(crate) token_callback:
+    TokenCallbackFunction,
     pub(crate) time_to_live: Option<Duration>,
 }
 

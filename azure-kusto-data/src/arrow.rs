@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use std::sync::Arc;
 
 use arrow_array::{
@@ -6,14 +5,14 @@ use arrow_array::{
     RecordBatch, StringArray, TimestampNanosecondArray,
 };
 use arrow_schema::{DataType, Field, Schema, TimeUnit};
-use async_convert::TryInto;
 use azure_core::error::{ErrorKind, ResultExt};
 use serde_json::Value;
 
 use crate::error::Result;
 use crate::models::v2::{Column, DataTable};
 use crate::models::ColumnType;
-use crate::types::{KustoDateTime, KustoTimespan};
+use crate::models::v2::Row::Values;
+use crate::types::{KustoDateTime, Timespan};
 
 fn convert_array_string(values: Vec<Value>) -> Result<ArrayRef> {
     let strings: Vec<Option<String>> = serde_json::from_value(Value::Array(values))?;
@@ -26,11 +25,10 @@ fn convert_array_datetime(values: Vec<Value>) -> Result<ArrayRef> {
     let timestamps = dates
         .into_iter()
         .map(|d| {
-            let duration = d.try_into()
+            d.parse::<KustoDateTime>()
                 .ok()
-                .map(KustoDateTime::from)
-                .map(|d| d.0.unix_timestamp_nanos())
-                .and_then(|n| n.try_into().ok());
+                .and_then(|d| d.0.map(|ts| ts.unix_timestamp_nanos()))
+                .and_then(|n| n.try_into().ok())
         })
         .collect::<Vec<Option<i64>>>();
     let dates_array = Arc::new(TimestampNanosecondArray::from(timestamps));
@@ -59,9 +57,9 @@ fn convert_array_timespan(values: Vec<Value>) -> Result<ArrayRef> {
     let durations: Vec<Option<i64>> = strings
         .iter()
         .map(|s| {
-            KustoTimespan::from_str(s)
+            s.parse::<Timespan>()
                 .ok()
-                .and_then(|d| i64::try_from(d.whole_nanoseconds()).ok())
+                .and_then(|d| i64::try_from(d.0.whole_nanoseconds()).ok())
         })
         .collect();
     Ok(Arc::new(DurationNanosecondArray::from(durations)))
@@ -124,7 +122,7 @@ pub fn convert_table(table: DataTable) -> Result<RecordBatch> {
         buffer.push(Vec::with_capacity(table.rows.len()));
     }
     table.rows.into_iter().for_each(|row| match row {
-        Value::Array(v) => {
+        Values(v) => {
             v.into_iter().enumerate().for_each(|(i, v)| {
                 buffer[i].push(v);
             });

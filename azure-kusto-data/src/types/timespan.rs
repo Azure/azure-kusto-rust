@@ -1,4 +1,4 @@
-use crate::error::{Error, InvalidArgumentError};
+use crate::error::{Error};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::fmt::{Debug, Display, Formatter};
@@ -6,6 +6,7 @@ use std::str::FromStr;
 use derive_more::{From, Into};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use time::Duration;
+use crate::error::ParseError;
 
 /// Timespan that serializes to a string in the format `[-][d.]hh:mm:ss[.fffffff]`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, SerializeDisplay, DeserializeFromStr, From, Into)]
@@ -28,7 +29,7 @@ impl FromStr for Timespan {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let captures = KUSTO_DURATION_REGEX
             .captures(s)
-            .ok_or_else(|| Error::from(InvalidArgumentError::InvalidDuration(s.to_string())))?;
+            .ok_or_else(|| ParseError::Timespan(s.to_string()))?;
 
         let neg = match captures.name("neg") {
             None => 1,

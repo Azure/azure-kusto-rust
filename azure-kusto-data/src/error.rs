@@ -1,7 +1,6 @@
 //! Defines [Error] for representing failures in various operations.
 use azure_core::StatusCode;
 use std::fmt::Debug;
-use std::num::TryFromIntError;
 
 use thiserror;
 use crate::models::v2::OneApiError;
@@ -21,9 +20,9 @@ pub enum Error {
     #[error("Error in HTTP: {0} {1}")]
     HttpError(StatusCode, String),
 
-    /// Error raised when an invalid argument / option is provided.
-    #[error("Invalid argument {0}")]
-    InvalidArgumentError(#[from] InvalidArgumentError),
+    /// Error in parsing
+    #[error("Error in parsing: {0}")]
+    ParseError(#[from] ParseError),
 
     /// Error raised when specific functionality is not (yet) implemented
     #[error("Feature not implemented")]
@@ -58,21 +57,26 @@ pub enum Error {
     QueryApiError(OneApiError)
 }
 
-/// Errors raised when an invalid argument or option is provided.
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
-pub enum InvalidArgumentError {
-    /// Error raised when a string denoting a duration is not valid.
-    #[error("{0} is not a valid duration")]
-    InvalidDuration(String),
-    /// Error raised when failing to convert a number to u32.
-    #[error("{0} is too large to fit in a u32")]
-    PayloadTooLarge(#[from] TryFromIntError),
-
-    #[error("Tried to convert a null value to a non-nullable type")]
+#[derive(thiserror::Error, Debug)]
+pub enum ParseError {
+    #[error("Error parsing null value for {0}")]
     ValueNull(String),
-
-    #[error("Failed to parse value: {0}")]
-    ParseError(#[from] Box<Error>),
+    #[error("Error parsing int: {0}")]
+    Int(#[from] std::num::ParseIntError),
+    #[error("Error parsing float: {0}")]
+    Float(#[from] std::num::ParseFloatError),
+    #[error("Error parsing bool: {0}")]
+    Bool(#[from] std::str::ParseBoolError),
+    #[error("Error parsing timespan: {0}")]
+    Timespan(String),
+    #[error("Error parsing datetime: {0}")]
+    DateTime(#[from] time::error::Parse),
+    #[error("Error parsing guid: {0}")]
+    Guid(#[from] uuid::Error),
+    #[error("Error parsing decimal")]
+    Decimal(()),
+    #[error("Error parsing dynamic: {0}")]
+    Dynamic(#[from] serde_json::Error),
 }
 
 /// Errors raised when parsing connection strings.
