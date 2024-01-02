@@ -4,7 +4,7 @@ use crate::client::{KustoClient, QueryKind};
 
 use crate::error::{Error, Result};
 use crate::models::v1::Dataset as V1Dataset;
-use crate::models::v2::{DataTable, TableFragmentType, TableKind};
+use crate::models::v2::{DataTable, Frame, TableFragmentType, TableKind};
 use crate::operations::v2;
 use crate::prelude::ClientRequestProperties;
 use crate::query::QueryBody;
@@ -17,7 +17,6 @@ use azure_core::prelude::*;
 use azure_core::{CustomHeaders, Method, Request, Response as HttpResponse, Response};
 use futures::future::BoxFuture;
 use futures::{Stream, TryFutureExt, TryStreamExt};
-use serde::{Deserialize, Serialize};
 use std::future::IntoFuture;
 use std::io::ErrorKind;
 use std::sync::Arc;
@@ -41,7 +40,7 @@ pub struct V1QueryRunner(pub QueryRunner);
 pub struct V2QueryRunner(pub QueryRunner);
 
 impl V2QueryRunner {
-    pub async fn into_stream(self) -> Result<impl Stream<Item = Result<DataSet>>> {
+    pub async fn into_stream(self) -> Result<impl Stream<Item = Result<Frame>>> {
         let V2QueryRunner(query_runner) = self;
         query_runner.into_stream().await
     }
@@ -87,7 +86,7 @@ impl QueryRunner {
         Ok(response)
     }
 
-    pub async fn into_stream(self) -> Result<impl Stream<Item = Result<DataSet>>> {
+    pub async fn into_stream(self) -> Result<impl Stream<Item = Result<Frame>>> {
         if self.kind != QueryKind::Query {
             return Err(Error::UnsupportedOperation(
                 "Progressive streaming is only supported for queries".to_string(),
@@ -173,7 +172,7 @@ pub enum KustoResponse {
 #[derive(Debug, Clone)]
 pub struct KustoResponseDataSetV2 {
     /// All of the raw results in the response.
-    pub results: Vec<DataSet>,
+    pub results: Vec<Frame>,
 }
 
 impl std::convert::TryFrom<KustoResponse> for KustoResponseDataSetV2 {
@@ -198,12 +197,12 @@ impl std::convert::TryFrom<KustoResponse> for V1Dataset {
     }
 }
 
-struct KustoResponseDataSetV2TableIterator<T: Iterator<Item = DataSet>> {
+struct KustoResponseDataSetV2TableIterator<T: Iterator<Item = Frame>> {
     tables: T,
     finished: bool,
 }
 
-impl<T: Iterator<Item = DataSet>> KustoResponseDataSetV2TableIterator<T> {
+impl<T: Iterator<Item = Frame>> KustoResponseDataSetV2TableIterator<T> {
     fn new(tables: T) -> Self {
         Self {
             tables,
@@ -212,7 +211,7 @@ impl<T: Iterator<Item = DataSet>> KustoResponseDataSetV2TableIterator<T> {
     }
 }
 
-impl<T: Iterator<Item = DataSet>> Iterator for KustoResponseDataSetV2TableIterator<T> {
+impl<T: Iterator<Item = Frame>> Iterator for KustoResponseDataSetV2TableIterator<T> {
     type Item = DataTable;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -220,11 +219,11 @@ impl<T: Iterator<Item = DataSet>> Iterator for KustoResponseDataSetV2TableIterat
             return None;
         }
         let next_table = self.tables.find_map(|t| match t {
-            DataSet::DataTable(_) | DataSet::TableHeader(_) => Some(t),
+            Frame::DataTable(_) | Frame::TableHeader(_) => Some(t),
             _ => None,
         });
 
-        if let Some(DataSet::DataTable(t)) = next_table {
+        if let Some(Frame::DataTable(t)) = next_table {
             return Some(t);
         }
 
@@ -236,7 +235,7 @@ impl<T: Iterator<Item = DataSet>> Iterator for KustoResponseDataSetV2TableIterat
             rows: vec![],
         };
 
-        if let Some(DataSet::TableHeader(header)) = next_table {
+        if let Some(Frame::TableHeader(header)) = next_table {
             table.table_id = header.table_id;
             table.table_kind = header.table_kind;
             table.table_name = header.table_name;
@@ -250,17 +249,17 @@ impl<T: Iterator<Item = DataSet>> Iterator for KustoResponseDataSetV2TableIterat
 
         for result in &mut self.tables {
             match result {
-                DataSet::TableFragment(fragment) => {
+                Frame::TableFragment(fragment) => {
                     assert_eq!(fragment.table_id, table.table_id);
                     match fragment.table_fragment_type {
                         TableFragmentType::DataAppend => table.rows.extend(fragment.rows),
                         TableFragmentType::DataReplace => table.rows = fragment.rows,
                     };
                 }
-                DataSet::TableProgress(progress) => {
+                Frame::TableProgress(progress) => {
                     assert_eq!(progress.table_id, table.table_id);
                 }
-                DataSet::TableCompletion(completion) => {
+                Frame::TableCompletion(completion) => {
                     assert_eq!(completion.table_id, table.table_id);
                     assert_eq!(
                         completion.row_count,
@@ -291,8 +290,8 @@ impl KustoResponseDataSetV2 {
     ///
     /// let data_set = KustoResponseDataSetV2 {
     ///    results: vec![
-    ///         DataSet::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
-    ///         DataSet::DataTable(DataTable {
+    ///         Frame::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
+    ///         Frame::DataTable(DataTable {
     ///         table_id: 0,
     ///         table_name: "table_1".to_string(),
     ///         table_kind: TableKind::PrimaryResult,
@@ -320,21 +319,21 @@ impl KustoResponseDataSetV2 {
     ///
     ///let data_set = KustoResponseDataSetV2 {
     ///results: vec![
-    ///    DataSet::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
-    ///    DataSet::DataTable(DataTable {
+    ///    Frame::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
+    ///    Frame::DataTable(DataTable {
     ///        table_id: 0,
     ///        table_name: "table_1".to_string(),
     ///        table_kind: TableKind::QueryCompletionInformation,
     ///        columns: vec![],
     ///        rows: vec![],
     ///    }),
-    ///    DataSet::TableHeader(TableHeader {
+    ///    Frame::TableHeader(TableHeader {
     ///        table_id: 1,
     ///        table_name: "table_2".to_string(),
     ///        table_kind: TableKind::PrimaryResult,
     ///        columns: vec![],
     ///    }),
-    ///    DataSet::TableCompletion(TableCompletion {
+    ///    Frame::TableCompletion(TableCompletion {
     ///        table_id: 1,
     ///        row_count: 0,
     ///    }),
@@ -363,21 +362,21 @@ impl KustoResponseDataSetV2 {
     ///
     ///let data_set = KustoResponseDataSetV2 {
     ///results: vec![
-    ///    DataSet::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
-    ///    DataSet::DataTable(DataTable {
+    ///    Frame::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
+    ///    Frame::DataTable(DataTable {
     ///        table_id: 0,
     ///        table_name: "table_1".to_string(),
     ///        table_kind: TableKind::QueryCompletionInformation,
     ///        columns: vec![],
     ///        rows: vec![],
     ///    }),
-    ///    DataSet::TableHeader(TableHeader {
+    ///    Frame::TableHeader(TableHeader {
     ///        table_id: 1,
     ///        table_name: "table_2".to_string(),
     ///        table_kind: TableKind::PrimaryResult,
     ///        columns: vec![],
     ///    }),
-    ///    DataSet::TableCompletion(TableCompletion {
+    ///    Frame::TableCompletion(TableCompletion {
     ///        table_id: 1,
     ///        row_count: 0,
     ///    }),
@@ -409,27 +408,27 @@ impl KustoResponseDataSetV2 {
     ///
     ///let data_set = KustoResponseDataSetV2 {
     ///results: vec![
-    ///    DataSet::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
-    ///    DataSet::DataTable(DataTable {
+    ///    Frame::DataSetHeader(DataSetHeader {is_progressive: false,version: "".to_string()}),
+    ///    Frame::DataTable(DataTable {
     ///        table_id: 0,
     ///        table_name: "table_1".to_string(),
     ///        table_kind: TableKind::PrimaryResult,
     ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::Long}],
     ///        rows: vec![Value::Array(vec![Value::from(3u64)])],
     ///    }),
-    ///    DataSet::TableHeader(TableHeader {
+    ///    Frame::TableHeader(TableHeader {
     ///        table_id: 1,
     ///        table_name: "table_2".to_string(),
     ///        table_kind: TableKind::PrimaryResult,
     ///        columns: vec![Column{column_name: "col1".to_string(), column_type: ColumnType::String}],
     ///    }),
-    ///    DataSet::TableFragment(TableFragment {
+    ///    Frame::TableFragment(TableFragment {
     ///       table_id: 1,
     ///       rows: vec![Value::Array(vec![Value::from("first")]), Value::Array(vec![Value::from("second")])],
     ///       field_count: Some(1),
     ///       table_fragment_type: TableFragmentType::DataAppend,
     ///     }),
-    ///    DataSet::TableCompletion(TableCompletion {
+    ///    Frame::TableCompletion(TableCompletion {
     ///        table_id: 1,
     ///        row_count: 2,
     ///    }),
@@ -473,7 +472,7 @@ impl TryFrom<HttpResponse> for KustoResponseDataSetV2 {
     async fn try_from(response: HttpResponse) -> Result<Self> {
         let (_status_code, _header_map, pinned_stream) = response.deconstruct();
         let data = pinned_stream.collect().await?;
-        let tables: Vec<DataSet> = serde_json::from_slice(&data)?;
+        let tables: Vec<Frame> = serde_json::from_slice(&data)?;
         Ok(Self { results: tables })
     }
 }

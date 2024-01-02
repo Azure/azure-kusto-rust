@@ -1,4 +1,3 @@
-use crate::models::v2::errors::OneApiError;
 use crate::models::ColumnType;
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +48,21 @@ pub enum Row {
     Values(Vec<serde_json::Value>),
     /// An error in a table.
     Error(OneApiError),
+}
+
+impl Into<Result<Vec<serde_json::Value>, OneApiError>> for Row {
+    fn into(self) -> Result<Vec<serde_json::Value>, OneApiError> {
+        match self {
+            Row::Values(v) => Ok(v),
+            Row::Error(e) => Err(e),
+        }
+    }
+}
+
+impl Row {
+    pub fn into_result(self) -> Result<Vec<serde_json::Value>, OneApiError> {
+        self.into()
+    }
 }
 
 pub type DataSet = Vec<Frame>;

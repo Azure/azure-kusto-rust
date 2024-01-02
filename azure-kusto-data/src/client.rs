@@ -15,6 +15,8 @@ use serde::de::DeserializeOwned;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
+use serde_json::Value;
+use crate::models::v2::Row;
 
 /// Options for specifying how a Kusto client will behave
 #[derive(Clone, Default)]
@@ -245,11 +247,16 @@ impl KustoClient {
         let results = response
             .into_primary_results()
             .next()
-            .ok_or_else(|| Error::QueryError("No primary results found".into()))?;
+            .ok_or_else(|| Error::QueryError("No primary results found".into()))?
+            .rows
+            .into_iter()
+            .map(|row| match row {
+                Row::Values(v) => serde_json::from_value(Value::Array(v)).map_err(Error::from),
+                Row::Error(e) => Err(Error::QueryApiError(e)),
+            })
+            .collect::<Result<Vec<T>>>()?;
 
-        Ok(serde_json::from_value::<Vec<T>>(serde_json::Value::Array(
-            results.rows,
-        ))?)
+        Ok(results)
     }
 
     /// Execute a management command with additional options.

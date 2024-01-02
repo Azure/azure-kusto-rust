@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -8,6 +6,7 @@ use arrow_array::{
     RecordBatch, StringArray, TimestampNanosecondArray,
 };
 use arrow_schema::{DataType, Field, Schema, TimeUnit};
+use async_convert::TryInto;
 use azure_core::error::{ErrorKind, ResultExt};
 use serde_json::Value;
 
@@ -27,10 +26,11 @@ fn convert_array_datetime(values: Vec<Value>) -> Result<ArrayRef> {
     let timestamps = dates
         .into_iter()
         .map(|d| {
-            KustoDateTime::from_str(&d)
+            let duration = d.try_into()
                 .ok()
-                .map(|d| d.unix_timestamp_nanos())
-                .and_then(|n| n.try_into().ok())
+                .map(KustoDateTime::from)
+                .map(|d| d.0.unix_timestamp_nanos())
+                .and_then(|n| n.try_into().ok());
         })
         .collect::<Vec<Option<i64>>>();
     let dates_array = Arc::new(TimestampNanosecondArray::from(timestamps));

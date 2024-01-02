@@ -1,11 +1,15 @@
 use crate::error::{Error, InvalidArgumentError};
-use crate::types::KustoTimespan;
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
-use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
+use derive_more::{From, Into};
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use time::Duration;
+
+/// Timespan that serializes to a string in the format `[-][d.]hh:mm:ss[.fffffff]`.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, SerializeDisplay, DeserializeFromStr, From, Into)]
+pub struct Timespan(pub Duration);
 
 fn parse_regex_segment(captures: &Captures, name: &str) -> i64 {
     captures
@@ -18,53 +22,54 @@ static KUSTO_DURATION_REGEX: Lazy<Regex> = Lazy::new(|| {
         .expect("Failed to compile KustoTimespan regex, this should never happen - please report this issue to the Kusto team")
 });
 
-impl FromStr for KustoTimespan {
+impl FromStr for Timespan {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        KUSTO_DURATION_REGEX
+        let captures = KUSTO_DURATION_REGEX
             .captures(s)
-            .map(|captures| {
-                let neg = match captures.name("neg") {
-                    None => 1,
-                    Some(_) => -1,
-                };
-                let days = parse_regex_segment(&captures, "days");
-                let hours = parse_regex_segment(&captures, "hours");
-                let minutes = parse_regex_segment(&captures, "minutes");
-                let seconds = parse_regex_segment(&captures, "seconds");
-                let nanos = parse_regex_segment(&captures, "nanos");
-                let duration = neg
-                    * (Duration::days(days)
-                        + Duration::hours(hours)
-                        + Duration::minutes(minutes)
-                        + Duration::seconds(seconds)
-                        + Duration::nanoseconds(nanos * 100)); // Ticks
-                Self(duration)
-            })
-            .ok_or_else(|| InvalidArgumentError::InvalidDuration(s.to_string()).into())
+            .ok_or_else(|| Error::from(InvalidArgumentError::InvalidDuration(s.to_string())))?;
+
+        let neg = match captures.name("neg") {
+            None => 1,
+            Some(_) => -1,
+        };
+
+        let days = parse_regex_segment(&captures, "days");
+        let hours = parse_regex_segment(&captures, "hours");
+        let minutes = parse_regex_segment(&captures, "minutes");
+        let seconds = parse_regex_segment(&captures, "seconds");
+        let nanos = parse_regex_segment(&captures, "nanos");
+        let duration = neg
+            * (Duration::days(days)
+            + Duration::hours(hours)
+            + Duration::minutes(minutes)
+            + Duration::seconds(seconds)
+            + Duration::nanoseconds(nanos * 100)); // Ticks
+
+        Ok(Self(duration))
     }
 }
 
-impl Display for KustoTimespan {
+impl Display for Timespan {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let neg = if self.is_negative() {
+        let neg = if self.0.is_negative() {
             write!(f, "-")?;
             -1
         } else {
             1
         };
-        if self.whole_days().abs() > 0 {
-            write!(f, "{}.", self.whole_days().abs())?;
+        if self.0.whole_days().abs() > 0 {
+            write!(f, "{}.", self.0.whole_days().abs())?;
         }
         write!(
             f,
             "{:02}:{:02}:{:02}.{:07}",
-            neg * (self.whole_hours() - self.whole_days() * 24),
-            neg * (self.whole_minutes() - self.whole_hours() * 60),
-            neg * (self.whole_seconds() - self.whole_minutes() * 60),
+            neg * (self.0.whole_hours() - self.0.whole_days() * 24),
+            neg * (self.0.whole_minutes() - self.0.whole_hours() * 60),
+            neg * (self.0.whole_seconds() - self.0.whole_minutes() * 60),
             i128::from(neg)
-                * (self.whole_nanoseconds() - i128::from(self.whole_seconds()) * 1_000_000_000)
+                * (self.0.whole_nanoseconds() - i128::from(self.0.whole_seconds()) * 1_000_000_000)
                 / 100 // Ticks
         )?;
 
@@ -72,7 +77,7 @@ impl Display for KustoTimespan {
     }
 }
 
-impl Debug for KustoTimespan {
+impl Debug for Timespan {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self}")
     }
@@ -81,7 +86,6 @@ impl Debug for KustoTimespan {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::KustoTimespan;
 
     #[test]
     fn string_conversion() {
@@ -98,9 +102,9 @@ mod tests {
 
         for (from, to) in refs {
             assert_eq!(
-                KustoTimespan::from_str(from)
+                Timespan::from_str(from)
                     .unwrap_or_else(|_| panic!("Failed to parse duration {}", from))
-                    .whole_nanoseconds(),
+                    .0.whole_nanoseconds(),
                 i128::from(to)
             );
         }
@@ -118,7 +122,7 @@ mod tests {
         ];
 
         for duration in refs {
-            let parsed = KustoTimespan::from_str(duration)
+            let parsed = Timespan::from_str(duration)
                 .unwrap_or_else(|_| panic!("Failed to parse duration {}", duration));
             assert_eq!(format!("{:?}", parsed), duration);
         }

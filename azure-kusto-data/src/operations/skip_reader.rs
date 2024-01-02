@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use futures::{AsyncBufRead, AsyncRead, AsyncReadExt};
+use futures::{AsyncRead, AsyncReadExt};
 use std::pin::{pin, Pin};
 use std::task::{Context, Poll};
 
@@ -30,6 +30,7 @@ impl<T: AsyncRead> AsyncRead for ToJsonLinesReader<T> {
         buf: &mut [u8],
     ) -> Poll<std::io::Result<usize>> {
         pin!(self);
+        pin!(buf);
         if !self.read_initial_bracket {
             let mut bracket = [0u8; 1];
             futures::ready!(self.reader.read_exact(&mut bracket))?;

@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::num::TryFromIntError;
 
 use thiserror;
+use crate::models::v2::OneApiError;
 
 /// Error type for kusto operations.
 #[derive(thiserror::Error, Debug)]
@@ -51,6 +52,10 @@ pub enum Error {
     /// Errors raised for IO operations
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    /// Errors raised from the api calls to kusto
+    #[error("Query API error: {0}")]
+    QueryApiError(OneApiError)
 }
 
 /// Errors raised when an invalid argument or option is provided.
@@ -62,6 +67,12 @@ pub enum InvalidArgumentError {
     /// Error raised when failing to convert a number to u32.
     #[error("{0} is too large to fit in a u32")]
     PayloadTooLarge(#[from] TryFromIntError),
+
+    #[error("Tried to convert a null value to a non-nullable type")]
+    ValueNull(String),
+
+    #[error("Failed to parse value: {0}")]
+    ParseError(#[from] Box<Error>),
 }
 
 /// Errors raised when parsing connection strings.

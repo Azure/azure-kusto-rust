@@ -75,7 +75,7 @@ impl Policy for AuthorizationPolicy {
 
         let token = cred.get_token(&resource).await?;
 
-        request.insert_header(AUTHORIZATION, &format!("Bearer {}", token.token.secret()));
+        request.insert_header(AUTHORIZATION, &format!("Bearer {}", dbg!(token.token.secret())));
 
         next[0].send(ctx, request, &next[1..]).await
     }

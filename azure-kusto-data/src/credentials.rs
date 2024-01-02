@@ -15,7 +15,7 @@ pub struct ConstTokenCredential {
 }
 #[async_trait::async_trait]
 impl TokenCredential for ConstTokenCredential {
-    async fn get_token(&self, _resource: &str) -> azure_core::Result<AccessToken> {
+    async fn get_token(&self, _: &[&str]) -> azure_core::Result<AccessToken> {
         Ok(AccessToken {
             token: self.token.clone().into(),
             expires_on: OffsetDateTime::now_utc() + Duration::from_secs(SECONDS_IN_50_YEARS),
@@ -44,10 +44,10 @@ impl Debug for CallbackTokenCredential {
 
 #[async_trait::async_trait]
 impl TokenCredential for CallbackTokenCredential {
-    async fn get_token(&self, resource: &str) -> azure_core::Result<AccessToken> {
+    async fn get_token(&self, scopes: &[&str]) -> azure_core::Result<AccessToken> {
         let callback = &self.token_callback;
         Ok(AccessToken {
-            token: callback(resource).into(),
+            token: callback(scopes).into(),
             expires_on: OffsetDateTime::now_utc()
                 + self
                     .time_to_live
