@@ -1,11 +1,11 @@
-use azure_kusto_data::models::V2QueryResult;
 use azure_kusto_data::prelude::*;
-use azure_kusto_data::types::timespan::{KustoDateTime, KustoTimespan};
 use clap::Parser;
 use futures::{pin_mut, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::error::Error;
+use azure_kusto_data::{KustoBool, KustoDateTime, KustoDecimal, KustoDynamic, KustoGuid, KustoInt, KustoLong, KustoReal, KustoString, KustoTimespan};
+use azure_kusto_data::models::v2::Frame;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug, Clone)]
@@ -78,15 +78,15 @@ async fn progressive(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Er
 
     while let Some(table) = stream.try_next().await? {
         match table {
-            V2QueryResult::DataSetHeader(header) => println!("header: {:#?}", header),
-            V2QueryResult::DataTable(table) => println!("table: {:#?}", table),
-            V2QueryResult::DataSetCompletion(completion) => {
+            Frame::DataSetHeader(header) => println!("header: {:#?}", header),
+            Frame::DataTable(table) => println!("table: {:#?}", table),
+            Frame::DataSetCompletion(completion) => {
                 println!("completion: {:#?}", completion)
             }
-            V2QueryResult::TableHeader(header) => println!("header: {:#?}", header),
-            V2QueryResult::TableFragment(fragment) => println!("fragment: {:#?}", fragment),
-            V2QueryResult::TableProgress(progress) => println!("progress: {:#?}", progress),
-            V2QueryResult::TableCompletion(completion) => {
+            Frame::TableHeader(header) => println!("header: {:#?}", header),
+            Frame::TableFragment(fragment) => println!("fragment: {:#?}", fragment),
+            Frame::TableProgress(progress) => println!("progress: {:#?}", progress),
+            Frame::TableCompletion(completion) => {
                 println!("completion: {:#?}", completion)
             }
         }
@@ -116,15 +116,15 @@ async fn non_progressive(args: &Args, client: &KustoClient) {
 
     for table in &response.results {
         match table {
-            V2QueryResult::DataSetHeader(header) => println!("header: {:#?}", header),
-            V2QueryResult::DataTable(table) => println!("table: {:#?}", table),
-            V2QueryResult::DataSetCompletion(completion) => {
+            Frame::DataSetHeader(header) => println!("header: {:#?}", header),
+            Frame::DataTable(table) => println!("table: {:#?}", table),
+            Frame::DataSetCompletion(completion) => {
                 println!("completion: {:#?}", completion)
             }
-            V2QueryResult::TableHeader(header) => println!("header: {:#?}", header),
-            V2QueryResult::TableFragment(fragment) => println!("fragment: {:#?}", fragment),
-            V2QueryResult::TableProgress(progress) => println!("progress: {:#?}", progress),
-            V2QueryResult::TableCompletion(completion) => {
+            Frame::TableHeader(header) => println!("header: {:#?}", header),
+            Frame::TableFragment(fragment) => println!("fragment: {:#?}", fragment),
+            Frame::TableProgress(progress) => println!("progress: {:#?}", progress),
+            Frame::TableCompletion(completion) => {
                 println!("completion: {:#?}", completion)
             }
         }
@@ -137,16 +137,16 @@ async fn non_progressive(args: &Args, client: &KustoClient) {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 struct Item {
-    vnum: i32,
-    vdec: String, // optionally, you can use a decimal type here
+    vnum: KustoInt,
+    vdec: KustoDecimal,
     vdate: KustoDateTime,
     vspan: KustoTimespan,
-    vobj: Value,
-    vb: bool,
-    vreal: f64,
-    vstr: String,
-    vlong: i64,
-    vguid: String, // optionally, you can use a guid type here
+    vobj: KustoDynamic,
+    vb: KustoBool,
+    vreal: KustoReal,
+    vstr: KustoString,
+    vlong: KustoLong,
+    vguid: KustoGuid
 }
 
 async fn to_struct(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Error>> {
@@ -172,7 +172,7 @@ async fn to_struct(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Erro
         .next()
         .ok_or_else(|| "Expected to get a primary result, but got none".to_string())?;
 
-    let rows = results.rows;
+    let rows = results.rows.into_iter().map(|r| Value::Array(r.into_result().unwrap())).collect::<Vec<_>>();
 
     let items = serde_json::from_value::<Vec<Item>>(Value::Array(rows))?;
 

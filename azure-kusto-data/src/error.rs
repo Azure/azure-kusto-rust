@@ -4,7 +4,6 @@ use std::fmt::Debug;
 
 use thiserror;
 use crate::models::v2::OneApiError;
-
 /// Error type for kusto operations.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -74,7 +73,7 @@ pub enum ParseError {
     #[error("Error parsing guid: {0}")]
     Guid(#[from] uuid::Error),
     #[error("Error parsing decimal")]
-    Decimal(()),
+    Decimal(#[from] rust_decimal::Error),
     #[error("Error parsing dynamic: {0}")]
     Dynamic(#[from] serde_json::Error),
 }

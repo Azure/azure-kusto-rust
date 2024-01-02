@@ -4,26 +4,31 @@ use std::convert::Infallible;
 use derive_more::{Display, From, Into, FromStr};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
+use rust_decimal::Decimal;
 use crate::error::{Error, ParseError};
-pub use crate::types::timespan::Timespan;
 
 mod timespan;
+mod datetime;
 
 macro_rules! kusto_type {
     ($name:ident, $type:ty, primitive) => {
-        kusto_type!($name, $type, Copy, PartialEq, PartialOrd, Eq, Ord);
+        kusto_type!($name, $type, Copy, PartialOrd, Eq, Ord);
     };
     ($name:ident, $type:ty, $($additional:tt),* ) => {
         #[doc = concat!("Represents a ", stringify!($type), " for kusto, for serialization and deserialization.")]
-        #[derive(Deserialize, Serialize, Default, Clone, From, Into, Debug,  $($additional),*)]
+        #[derive(Deserialize, Serialize, Default, Clone, From, Into, Debug, PartialEq, $($additional),*)]
         #[serde(transparent)]
         pub struct $name(pub Option<$type>);
 
         impl $name {
+            #[doc = concat!("Creates a new ", stringify!($type), " for kusto.")]
             pub fn new(value: $type) -> Self {
                 Self(Some(value))
+            }
+
+            #[doc = concat!("Creates a null ", stringify!($type), " for kusto.")]
+            pub fn null() -> Self {
+                Self(None)
             }
         }
 
@@ -72,39 +77,21 @@ macro_rules! kusto_from_str {
 kusto_type!(KustoBool, bool, primitive);
 kusto_type!(KustoInt, i32, primitive);
 kusto_type!(KustoLong, i64, primitive);
-kusto_type!(KustoReal, f64, Copy, PartialEq, PartialOrd);
-kusto_type!(KustoDecimal, decimal::d128, Copy);
-kusto_type!(KustoString, String, PartialEq, PartialOrd, Eq, Ord);
-kusto_type!(KustoDynamic, serde_json::Value, PartialEq, Eq);
+kusto_type!(KustoReal, f64, Copy, PartialOrd);
+kusto_type!(KustoDecimal, Decimal, primitive);
+kusto_type!(KustoString, String, PartialOrd, Eq, Ord);
+kusto_type!(KustoDynamic, serde_json::Value, Eq);
 kusto_type!(KustoGuid, uuid::Uuid, primitive);
-kusto_type!(KustoDateTime, OffsetDateTime, primitive);
-kusto_type!(KustoTimespan, Timespan, primitive);
-
+pub use datetime::KustoDateTime;
+pub use timespan::KustoTimespan;
 
 kusto_from_str!(KustoBool, bool, ParseError::Bool);
 kusto_from_str!(KustoInt, i32, ParseError::Int);
 kusto_from_str!(KustoLong, i64, ParseError::Int);
 kusto_from_str!(KustoReal, f64, ParseError::Float);
-kusto_from_str!(KustoDecimal, decimal::d128, ParseError::Decimal);
+kusto_from_str!(KustoDecimal, Decimal, ParseError::Decimal);
 kusto_from_str!(KustoGuid, uuid::Uuid, ParseError::Guid);
 
-impl FromStr for KustoDateTime {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self::new(OffsetDateTime::parse(s, &Rfc3339).map_err(
-            |e| Error::from(ParseError::DateTime(e)))?
-        ))
-    }
-}
-
-impl FromStr for KustoTimespan {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self::new(s.parse::<Timespan>()?))
-    }
-}
 
 impl FromStr for KustoString {
     type Err = Infallible;

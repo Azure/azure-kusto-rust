@@ -40,6 +40,8 @@ time = { version = "0.3", features = [
 derive_builder = "0.12"
 derive_more = { version = "1.0.0-beta.6" , features = ["from", "into", "display", "from_str"] }
 once_cell = "1"
+rust_decimal = { version = "1.33.1", features = ["serde-str"] }
+uuid = { version = "1.3.0", features = ["serde"] }
 
 [dev-dependencies]
 arrow = { version = "49.0.0", features = ["prettyprint"] }
@@ -49,8 +51,6 @@ tokio = { version = "1.25.0", features = ["macros"] }
 oauth2 = "4.3.0"
 criterion = "0.5"
 clap = { version = "4.1.6", features = ["derive", "env"] }
-decimal = "2.1.0"
-uuid = { version = "1.3.0", features = ["serde"] }
 
 [features]
 default = ["arrow"]

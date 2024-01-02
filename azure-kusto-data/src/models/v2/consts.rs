@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 /// Where errors are reported - within the data, at the end of the table, or at the end of the dataset.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename_all = "snake_case")]
 pub enum ErrorReportingPlacement {
     /// Errors are reported within the data.
     InData,

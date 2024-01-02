@@ -73,9 +73,11 @@ impl Policy for AuthorizationPolicy {
             }
         };
 
-        let token = cred.get_token(&[".default"]).await?;
+        let scope = format!("{}/.default", resource);
 
-        request.insert_header(AUTHORIZATION, &format!("Bearer {}", dbg!(token.token.secret())));
+        let token = cred.get_token(&[&scope]).await?;
+
+        request.insert_header(AUTHORIZATION, &format!("Bearer {}", token.token.secret()));
 
         next[0].send(ctx, request, &next[1..]).await
     }

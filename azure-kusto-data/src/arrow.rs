@@ -12,7 +12,7 @@ use crate::error::Result;
 use crate::models::v2::{Column, DataTable};
 use crate::models::ColumnType;
 use crate::models::v2::Row::Values;
-use crate::types::{KustoDateTime, Timespan};
+use crate::types::{KustoDateTime, KustoTimespan};
 
 fn convert_array_string(values: Vec<Value>) -> Result<ArrayRef> {
     let strings: Vec<Option<String>> = serde_json::from_value(Value::Array(values))?;
@@ -57,9 +57,10 @@ fn convert_array_timespan(values: Vec<Value>) -> Result<ArrayRef> {
     let durations: Vec<Option<i64>> = strings
         .iter()
         .map(|s| {
-            s.parse::<Timespan>()
+            s.parse::<KustoTimespan>()
                 .ok()
-                .and_then(|d| i64::try_from(d.0.whole_nanoseconds()).ok())
+                .and_then(|d| d.0)
+                .and_then(|d| i64::try_from(d.whole_nanoseconds()).ok())
         })
         .collect();
     Ok(Arc::new(DurationNanosecondArray::from(durations)))
