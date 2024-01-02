@@ -1,11 +1,14 @@
+use azure_kusto_data::models::v2::Frame;
 use azure_kusto_data::prelude::*;
+use azure_kusto_data::{
+    KustoBool, KustoDateTime, KustoDecimal, KustoDynamic, KustoGuid, KustoInt, KustoLong,
+    KustoReal, KustoString, KustoTimespan,
+};
 use clap::Parser;
 use futures::{pin_mut, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::error::Error;
-use azure_kusto_data::{KustoBool, KustoDateTime, KustoDecimal, KustoDynamic, KustoGuid, KustoInt, KustoLong, KustoReal, KustoString, KustoTimespan};
-use azure_kusto_data::models::v2::Frame;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug, Clone)]
@@ -146,7 +149,7 @@ struct Item {
     vreal: KustoReal,
     vstr: KustoString,
     vlong: KustoLong,
-    vguid: KustoGuid
+    vguid: KustoGuid,
 }
 
 async fn to_struct(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Error>> {
@@ -172,7 +175,11 @@ async fn to_struct(args: &Args, client: &KustoClient) -> Result<(), Box<dyn Erro
         .next()
         .ok_or_else(|| "Expected to get a primary result, but got none".to_string())?;
 
-    let rows = results.rows.into_iter().map(|r| Value::Array(r.into_result().unwrap())).collect::<Vec<_>>();
+    let rows = results
+        .rows
+        .into_iter()
+        .map(|r| Value::Array(r.into_result().unwrap()))
+        .collect::<Vec<_>>();
 
     let items = serde_json::from_value::<Vec<Item>>(Value::Array(rows))?;
 

@@ -2,8 +2,8 @@
 use azure_core::StatusCode;
 use std::fmt::Debug;
 
-use thiserror;
 use crate::models::v2::OneApiError;
+use thiserror;
 /// Error type for kusto operations.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -53,7 +53,7 @@ pub enum Error {
 
     /// Errors raised from the api calls to kusto
     #[error("Query API error: {0}")]
-    QueryApiError(OneApiError)
+    QueryApiError(OneApiError),
 }
 
 #[derive(thiserror::Error, Debug)]

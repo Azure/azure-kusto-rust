@@ -1,16 +1,14 @@
-use crate::error::{Error};
+use crate::error::Error;
+use crate::error::ParseError;
+use derive_more::{From, Into};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
-use std::fmt::{Debug, Display, Formatter};
-use std::str::FromStr;
-use std::convert::TryInto;
-use std::num::TryFromIntError;
-use derive_more::{From, Into};
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
+use std::fmt::{Debug, Display, Formatter};
+use std::num::TryFromIntError;
+use std::str::FromStr;
 use time::Duration;
-use crate::error::ParseError;
-
-
 
 fn parse_regex_segment(captures: &Captures, name: &str) -> i64 {
     captures
@@ -61,7 +59,6 @@ impl KustoTimespan {
     }
 }
 
-
 impl FromStr for KustoTimespan {
     type Err = Error;
 
@@ -82,10 +79,10 @@ impl FromStr for KustoTimespan {
         let nanos = parse_regex_segment(&captures, "nanos");
         let duration = neg
             * (Duration::days(days)
-            + Duration::hours(hours)
-            + Duration::minutes(minutes)
-            + Duration::seconds(seconds)
-            + Duration::nanoseconds(nanos * 100)); // Ticks
+                + Duration::hours(hours)
+                + Duration::minutes(minutes)
+                + Duration::seconds(seconds)
+                + Duration::nanoseconds(nanos * 100)); // Ticks
 
         Ok(Self(Some(duration)))
     }
@@ -102,7 +99,6 @@ impl Display for KustoTimespan {
         } else {
             write!(f, "null")
         }
-
     }
 }
 
@@ -131,19 +127,22 @@ impl<'de> Deserialize<'de> for KustoTimespan {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let opt = Option::<String>::deserialize(deserializer)?;
         if let Some(s) = opt {
-            Ok(s.parse::<KustoTimespan>().map_err(|e| serde::de::Error::custom(e.to_string()))?)
+            Ok(s.parse::<KustoTimespan>()
+                .map_err(|e| serde::de::Error::custom(e.to_string()))?)
         } else {
             Ok(Self::null())
         }
     }
 }
 
-
 impl TryFrom<std::time::Duration> for KustoTimespan {
     type Error = TryFromIntError;
 
     fn try_from(d: std::time::Duration) -> Result<Self, Self::Error> {
-        Ok(Self(Some(Duration::new(d.as_secs().try_into()?, d.subsec_nanos().try_into()?))))
+        Ok(Self(Some(Duration::new(
+            d.as_secs().try_into()?,
+            d.subsec_nanos().try_into()?,
+        ))))
     }
 }
 
@@ -174,7 +173,9 @@ mod tests {
             assert_eq!(
                 KustoTimespan::from_str(from)
                     .unwrap_or_else(|_| panic!("Failed to parse duration {}", from))
-                    .0.unwrap().whole_nanoseconds(),
+                    .0
+                    .unwrap()
+                    .whole_nanoseconds(),
                 i128::from(to)
             );
         }

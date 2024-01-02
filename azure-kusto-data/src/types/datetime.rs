@@ -1,10 +1,10 @@
-use std::fmt::Display;
-use std::str::FromStr;
+use crate::error::{Error, ParseError};
 use derive_more::{From, Into};
 use serde::{Deserialize, Serialize};
-use time::{OffsetDateTime};
+use std::fmt::Display;
+use std::str::FromStr;
 use time::format_description::well_known::Rfc3339;
-use crate::error::{Error, ParseError};
+use time::OffsetDateTime;
 
 /// Datetime for kusto, for serialization and deserialization.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Into, Debug)]
@@ -44,7 +44,8 @@ impl<'de> Deserialize<'de> for KustoDateTime {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let opt = Option::<String>::deserialize(deserializer)?;
         if let Some(s) = opt {
-            Ok(s.parse::<KustoDateTime>().map_err(|e| serde::de::Error::custom(e.to_string()))?)
+            Ok(s.parse::<KustoDateTime>()
+                .map_err(|e| serde::de::Error::custom(e.to_string()))?)
         } else {
             Ok(Self::null())
         }
@@ -55,8 +56,8 @@ impl FromStr for KustoDateTime {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self::new(OffsetDateTime::parse(s, &Rfc3339).map_err(
-            |e| Error::from(ParseError::DateTime(e)))?
+        Ok(Self::new(
+            OffsetDateTime::parse(s, &Rfc3339).map_err(|e| Error::from(ParseError::DateTime(e)))?,
         ))
     }
 }

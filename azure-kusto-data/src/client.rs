@@ -8,15 +8,15 @@ use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V
 use azure_core::{ClientOptions, Pipeline};
 
 use crate::client_details::ClientDetails;
+use crate::models::v2::Row;
 use crate::prelude::ClientRequestProperties;
 use azure_core::headers::Headers;
 use azure_core::prelude::{Accept, AcceptEncoding, ClientVersion, ContentType};
 use serde::de::DeserializeOwned;
+use serde_json::Value;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
-use serde_json::Value;
-use crate::models::v2::Row;
 
 /// Options for specifying how a Kusto client will behave
 #[derive(Clone, Default)]

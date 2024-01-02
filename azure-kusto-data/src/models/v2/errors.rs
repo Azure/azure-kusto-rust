@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "PascalCase")]
@@ -10,7 +10,11 @@ pub struct OneApiError {
 
 impl Display for OneApiError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", serde_json::to_string_pretty(&self.error_message).unwrap())
+        write!(
+            f,
+            "{}",
+            serde_json::to_string_pretty(&self.error_message).unwrap()
+        )
     }
 }
 

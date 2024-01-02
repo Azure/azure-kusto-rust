@@ -1,14 +1,14 @@
 //! Types used for serialization and deserialization of ADX data.
 
-use std::convert::Infallible;
-use derive_more::{Display, From, Into, FromStr};
-use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-use rust_decimal::Decimal;
 use crate::error::{Error, ParseError};
+use derive_more::{Display, From, FromStr, Into};
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
+use std::convert::Infallible;
+use std::fmt::Debug;
 
-mod timespan;
 mod datetime;
+mod timespan;
 
 macro_rules! kusto_type {
     ($name:ident, $type:ty, primitive) => {
@@ -64,11 +64,9 @@ macro_rules! kusto_from_str {
             type Err = Error;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Ok(
-                    Self::new(
-                        s.parse::<$t>().map_err(|e| Error::from($err(e)))?
-                    )
-                )
+                Ok(Self::new(
+                    s.parse::<$t>().map_err(|e| Error::from($err(e)))?,
+                ))
             }
         }
     };
@@ -91,7 +89,6 @@ kusto_from_str!(KustoLong, i64, ParseError::Int);
 kusto_from_str!(KustoReal, f64, ParseError::Float);
 kusto_from_str!(KustoDecimal, Decimal, ParseError::Decimal);
 kusto_from_str!(KustoGuid, uuid::Uuid, ParseError::Guid);
-
 
 impl FromStr for KustoString {
     type Err = Infallible;

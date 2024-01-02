@@ -9,9 +9,9 @@ use azure_core::error::{ErrorKind, ResultExt};
 use serde_json::Value;
 
 use crate::error::Result;
+use crate::models::v2::Row::Values;
 use crate::models::v2::{Column, DataTable};
 use crate::models::ColumnType;
-use crate::models::v2::Row::Values;
 use crate::types::{KustoDateTime, KustoTimespan};
 
 fn convert_array_string(values: Vec<Value>) -> Result<ArrayRef> {
