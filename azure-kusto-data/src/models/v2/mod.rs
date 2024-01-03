@@ -4,10 +4,13 @@ use serde::{Deserialize, Serialize};
 mod consts;
 mod errors;
 mod frames;
+mod known_tables;
 
 pub use consts::*;
 pub use errors::*;
 pub use frames::*;
+pub use known_tables::*;
+use crate::error::Error;
 
 /// A result of a V2 query.
 /// Could be a table, a part of a table, or metadata about the dataset.
@@ -62,6 +65,35 @@ impl Into<Result<Vec<serde_json::Value>, OneApiError>> for Row {
 impl Row {
     pub fn into_result(self) -> Result<Vec<serde_json::Value>, OneApiError> {
         self.into()
+    }
+}
+
+impl DataTable {
+    pub fn collect_values(&self) -> (serde_json::Value, Vec<OneApiError>) {
+        let mut errors = vec![];
+        let mut values = vec![];
+        for row in &self.rows {
+            match row.clone().into_result() {
+                Ok(v) => values.push(serde_json::Value::Array(v)),
+                Err(e) => errors.push(e),
+            }
+        }
+        (serde_json::Value::Array(values), errors)
+    }
+
+    pub fn deserialize_values<T: serde::de::DeserializeOwned>(&self) -> (Vec<T>, Vec<Error>) {
+        let mut errors = vec![];
+        let mut values = vec![];
+        for row in &self.rows {
+            match row.clone().into_result() {
+                Ok(v) => match serde_json::from_value::<T>(serde_json::Value::Array(v)) {
+                    Ok(v) => values.push(v),
+                    Err(e) => errors.push(e.into()),
+                },
+                Err(e) => errors.push(e.into()),
+            }
+        }
+        (values, errors)
     }
 }
 
