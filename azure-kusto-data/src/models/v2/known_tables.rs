@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::{KustoInt, KustoString, KustoDateTime};
+use crate::{KustoInt, KustoString, KustoDateTime, KustoDynamic, KustoGuid};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]

@@ -54,8 +54,6 @@ pub struct TableHeader {
 pub struct TableFragment {
     /// Table id - unique identifier of the table. Corresponds to the table_id in the TableHeader.
     pub table_id: i32,
-    /// The amount of fields
-    pub field_count: Option<i32>,
     /// The type of the fragment, instructs to how to use it.
     pub table_fragment_type: TableFragmentType,
     /// Rows in the table. Each row is a list of values, corresponding to the columns in the TableHeader, or an error.

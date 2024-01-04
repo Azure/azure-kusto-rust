@@ -94,7 +94,7 @@ pub fn convert_column(data: Vec<Value>, column: &Column) -> Result<(Field, Array
             .map(|data| (Field::new(column_name, DataType::Int64, true), data)),
         ColumnType::Real => convert_array_float(data)
             .map(|data| (Field::new(column_name, DataType::Float64, true), data)),
-        ColumnType::Datetime => convert_array_datetime(data).map(|data| {
+        ColumnType::DateTime => convert_array_datetime(data).map(|data| {
             (
                 Field::new(
                     column_name,

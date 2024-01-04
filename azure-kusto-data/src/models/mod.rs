@@ -1,6 +1,9 @@
 pub mod v1;
 pub mod v2;
 
+#[cfg(test)]
+pub(crate) mod test_helpers;
+
 use serde::{Deserialize, Serialize};
 
 /// Represents the scalar data types of ADX. see [the docs for more information](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/scalar-data-types/)
@@ -11,7 +14,7 @@ pub enum ColumnType {
     Bool,
     /// Datetime, represents a specific point in time.
     #[serde(rename = "datetime")]
-    Datetime,
+    DateTime,
     /// A complex type, that is either an array or a dictionary of other values.
     #[serde(rename = "dynamic")]
     Dynamic,

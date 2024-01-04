@@ -26,7 +26,7 @@ pub struct KustoTimespan(pub Option<Duration>);
 
 impl KustoTimespan {
     /// Creates a new `KustoTimespan` from a `std::time::Duration`.
-    fn new(duration: Duration) -> Self {
+    pub fn new(duration: Duration) -> Self {
         Self(Some(duration))
     }
 

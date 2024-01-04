@@ -1,2 +1,3 @@
 [workspace]
 members = ["azure-kusto-data"]
+resolver = "2"

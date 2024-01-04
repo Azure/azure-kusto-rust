@@ -13,7 +13,6 @@ use crate::prelude::ClientRequestProperties;
 use azure_core::headers::Headers;
 use azure_core::prelude::{Accept, AcceptEncoding, ClientVersion, ContentType};
 use serde::de::DeserializeOwned;
-use serde_json::Value;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -250,10 +249,8 @@ impl KustoClient {
             .ok_or_else(|| Error::QueryError("No primary results found".into()))?
             .rows
             .into_iter()
-            .map(|row| match row {
-                Row::Values(v) => serde_json::from_value(Value::Array(v)).map_err(Error::from),
-                Row::Error(e) => Err(Error::QueryApiError(e)),
-            })
+            .map(Row::into_result)
+            .map(|r| r.and_then(|v| serde_json::from_value::<T>(serde_json::Value::Array(v)).map_err(Error::from)))
             .collect::<Result<Vec<T>>>()?;
 
         Ok(results)

@@ -90,6 +90,20 @@ kusto_from_str!(KustoReal, f64, ParseError::Float);
 kusto_from_str!(KustoDecimal, Decimal, ParseError::Decimal);
 kusto_from_str!(KustoGuid, uuid::Uuid, ParseError::Guid);
 
+enum KustoValue {
+    Bool(KustoBool),
+    Int(KustoInt),
+    Long(KustoLong),
+    Real(KustoReal),
+    Decimal(KustoDecimal),
+    String(KustoString),
+    Guid(KustoGuid),
+    DateTime(KustoDateTime),
+    TimeSpan(KustoTimespan),
+    Dynamic(KustoDynamic),
+}
+
+
 impl FromStr for KustoString {
     type Err = Infallible;
 

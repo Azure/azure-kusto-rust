@@ -54,26 +54,50 @@ pub enum Error {
     /// Errors raised from the api calls to kusto
     #[error("Query API error: {0}")]
     QueryApiError(OneApiError),
+
+    /// Multiple errors
+    #[error("Multiple errors: {0:?}")]
+    MultipleErrors(Vec<Error>),
 }
 
+impl From<Vec<Error>> for Error {
+    fn from(errors: Vec<Error>) -> Self {
+        if errors.len() == 1 {
+            Error::from(errors.into_iter().next().unwrap())
+        } else {
+            Error::MultipleErrors(errors)
+        }
+    }
+}
+
+/// Errors raised when parsing values.
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {
+    /// Raised when a value is null, but the type is not nullable.
     #[error("Error parsing null value for {0}")]
     ValueNull(String),
+    /// Raised when an int value is failed to be parsed.
     #[error("Error parsing int: {0}")]
     Int(#[from] std::num::ParseIntError),
+    /// Raised when a long value is failed to be parsed.
     #[error("Error parsing float: {0}")]
     Float(#[from] std::num::ParseFloatError),
+    /// Raised when a bool value is failed to be parsed.
     #[error("Error parsing bool: {0}")]
     Bool(#[from] std::str::ParseBoolError),
+    /// Raised when a timespan value is failed to be parsed.
     #[error("Error parsing timespan: {0}")]
     Timespan(String),
+    /// Raised when a datetime value is failed to be parsed.
     #[error("Error parsing datetime: {0}")]
     DateTime(#[from] time::error::Parse),
+    /// Raised when a guid value is failed to be parsed.
     #[error("Error parsing guid: {0}")]
     Guid(#[from] uuid::Error),
+    /// Raised when a decimal value is failed to be parsed.
     #[error("Error parsing decimal")]
     Decimal(#[from] rust_decimal::Error),
+    /// Raised when a dynamic value is failed to be parsed.
     #[error("Error parsing dynamic: {0}")]
     Dynamic(#[from] serde_json::Error),
 }
@@ -115,3 +139,4 @@ impl ConnectionStringError {
 
 /// Result type for kusto operations.
 pub type Result<T> = std::result::Result<T, Error>;
+pub type Partial<T> = std::result::Result<T, (Option<T>, Error)>;
