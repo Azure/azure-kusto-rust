@@ -1,6 +1,7 @@
 //! Defines [Error] for representing failures in various operations.
 use azure_core::StatusCode;
 use std::fmt::Debug;
+use oauth2::url;
 
 use crate::models::v2::OneApiError;
 use thiserror;
@@ -70,6 +71,16 @@ impl From<Vec<Error>> for Error {
     }
 }
 
+impl From<Vec<OneApiError>> for Error {
+    fn from(errors: Vec<OneApiError>) -> Self {
+        if errors.len() == 1 {
+            Error::from(errors.into_iter().next().map(Error::QueryApiError).expect("Should be one"))
+        } else {
+            Error::MultipleErrors(errors.into_iter().map(Error::QueryApiError).collect())
+        }
+    }
+}
+
 /// Errors raised when parsing values.
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {
@@ -100,6 +111,9 @@ pub enum ParseError {
     /// Raised when a dynamic value is failed to be parsed.
     #[error("Error parsing dynamic: {0}")]
     Dynamic(#[from] serde_json::Error),
+
+    #[error("Error parsing url: {0}")]
+    Url(#[from] url::ParseError),
 }
 
 /// Errors raised when parsing connection strings.

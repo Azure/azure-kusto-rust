@@ -57,7 +57,7 @@ impl Into<Result<Vec<serde_json::Value>, Error>> for Row {
     fn into(self) -> Result<Vec<serde_json::Value>, Error> {
         match self {
             Row::Values(v) => Ok(v),
-            Row::Error(e) => Err(e.errors.into_iter().map(Error::QueryApiError).collect::<Vec<_>>().into()),
+            Row::Error(e) => Err(e.errors.into()),
         }
     }
 }

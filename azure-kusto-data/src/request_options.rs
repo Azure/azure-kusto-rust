@@ -235,9 +235,11 @@ pub struct Options {
     pub truncation_max_size: Option<i64>,
     /// Validates user's permissions to perform the query and doesn't run the query itself.
     pub validate_permissions: Option<bool>,
-    /// If set, enables the newlines between frames in the progressive query stream.
-    #[builder(default = "Some(true)")]
+    ///
     results_v2_newlines_between_frames: Option<bool>,
+///
+    results_v2_fragment_primary_tables: Option<bool>,
+    error_reporting_placement: Option<String>,
     /// Additional options to be passed to the service.
     #[serde(flatten)]
     pub additional: HashMap<String, String>,

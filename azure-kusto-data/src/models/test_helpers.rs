@@ -564,7 +564,7 @@ fn expected_v2_partial_error_full_dataset() -> Vec<Frame> {
                     serde_json::Value::String("Visualization".to_string()),
                     serde_json::Value::String("{\"Visualization\":null,\"Title\":null,\"XColumn\":null,\"Series\":null,\"YColumns\":null,\"AnomalyColumns\":null,\"XTitle\":null,\"YTitle\":null,\"XAxis\":null,\"YAxis\":null,\"Legend\":null,\"YSplit\":null,\"Accumulate\":false,\"IsQuerySorted\":false,\"Kind\":null,\"Ymin\":\"NaN\",\"Ymax\":\"NaN\",\"Xmin\":null,\"Xmax\":null}".to_string()),
                 ]),
-                Row::Error((OneApiErrors {
+                Row::Error(OneApiErrors {
                     errors: vec![OneApiError {
                         error_message: crate::models::v2::ErrorMessage {
                             code: "LimitsExceeded".to_string(),
@@ -588,7 +588,7 @@ fn expected_v2_partial_error_full_dataset() -> Vec<Frame> {
                             is_permanent: false,
                         },
                     }]
-                })),
+                }),
             ],
         }),
         Frame::DataSetCompletion(DataSetCompletion {
