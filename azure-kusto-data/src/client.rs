@@ -5,22 +5,24 @@ use crate::connection_string::{ConnectionString, ConnectionStringAuth};
 use crate::error::{Error, ParseError, Partial, Result};
 use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V2QueryRunner};
 
-use azure_core::{ClientOptions, Context, CustomHeaders, Method, Pipeline, Request, Response, ResponseBody};
+use azure_core::{
+    ClientOptions, Context, CustomHeaders, Method, Pipeline, Request, Response, ResponseBody,
+};
 
 use crate::client_details::ClientDetails;
 use crate::models::v2::Row;
+use crate::operations;
+use crate::operations::v2::{FullDataset, IterativeDataset};
 use crate::prelude::{ClientRequestProperties, ClientRequestPropertiesBuilder, OptionsBuilder};
+use crate::query::QueryBody;
+use crate::request_options::Options;
 use azure_core::headers::Headers;
 use azure_core::prelude::{Accept, AcceptEncoding, ClientVersion, ContentType};
+use futures::TryStreamExt;
 use serde::de::DeserializeOwned;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::sync::Arc;
-use futures::TryStreamExt;
-use crate::operations;
-use crate::operations::v2::{FullDataset, IterativeDataset};
-use crate::query::QueryBody;
-use crate::request_options::Options;
 
 /// Options for specifying how a Kusto client will behave
 #[derive(Clone, Default)]
@@ -255,7 +257,11 @@ impl KustoClient {
             .rows
             .into_iter()
             .map(Row::into_result)
-            .map(|r| r.and_then(|v| serde_json::from_value::<T>(serde_json::Value::Array(v)).map_err(Error::from)))
+            .map(|r| {
+                r.and_then(|v| {
+                    serde_json::from_value::<T>(serde_json::Value::Array(v)).map_err(Error::from)
+                })
+            })
             .collect::<Result<Vec<T>>>()?;
 
         Ok(results)
@@ -292,29 +298,74 @@ impl KustoClient {
     }
 
     #[must_use]
-    pub async fn query(&self, database: impl Into<String>, query: impl Into<String>, options: impl Into<Option<ClientRequestProperties>>) -> Partial<FullDataset> {
-        let body = self.execute(QueryKind::Query, database.into(), query.into(), options.into()).await.map_err(|e| (None, e))?;
+    pub async fn query(
+        &self,
+        database: impl Into<String>,
+        query: impl Into<String>,
+        options: impl Into<Option<ClientRequestProperties>>,
+    ) -> Partial<FullDataset> {
+        let body = self
+            .execute(
+                QueryKind::Query,
+                database.into(),
+                query.into(),
+                options.into(),
+            )
+            .await
+            .map_err(|e| (None, e))?;
 
-        FullDataset::from_async_buf_read(body.into_stream().map_err(|e| std::io::Error::other(e)).into_async_read()).await
+        FullDataset::from_async_buf_read(
+            body.into_stream()
+                .map_err(|e| std::io::Error::other(e))
+                .into_async_read(),
+        )
+        .await
     }
 
     #[must_use]
-    pub async fn iterative_query(&self, database: impl Into<String>, query: impl Into<String>, options: impl Into<Option<ClientRequestProperties>>) -> Result<Arc<IterativeDataset>> {
-        let iterative_options = ClientRequestPropertiesBuilder::default().with_options(
-            OptionsBuilder::default()
-                .with_results_v2_newlines_between_frames(true)
-                .with_results_v2_fragment_primary_tables(true)
-                .with_error_reporting_placement("end_of_table").build().expect("Failed to build options"))
+    pub async fn iterative_query(
+        &self,
+        database: impl Into<String>,
+        query: impl Into<String>,
+        options: impl Into<Option<ClientRequestProperties>>,
+    ) -> Result<Arc<IterativeDataset>> {
+        let iterative_options = ClientRequestPropertiesBuilder::default()
+            .with_options(
+                OptionsBuilder::default()
+                    .with_results_v2_newlines_between_frames(true)
+                    .with_results_v2_fragment_primary_tables(true)
+                    .with_error_reporting_placement("end_of_table")
+                    .build()
+                    .expect("Failed to build options"),
+            )
             .build()
             .expect("Failed to build options");
 
         //TODO merge options
 
-        let body = self.execute(QueryKind::Query, database.into(), query.into(), iterative_options.into()).await?;
-        Ok(IterativeDataset::from_async_buf_read(body.into_stream().map_err(|e| std::io::Error::other(e)).into_async_read()).await)
+        let body = self
+            .execute(
+                QueryKind::Query,
+                database.into(),
+                query.into(),
+                iterative_options.into(),
+            )
+            .await?;
+        Ok(IterativeDataset::from_async_buf_read(
+            body.into_stream()
+                .map_err(|e| std::io::Error::other(e))
+                .into_async_read(),
+        )
+        .await)
     }
 
-    async fn execute(&self, kind: QueryKind, database: String, query: String, options: Option<ClientRequestProperties>) -> Result<ResponseBody> {
+    async fn execute(
+        &self,
+        kind: QueryKind,
+        database: String,
+        query: String,
+        options: Option<ClientRequestProperties>,
+    ) -> Result<ResponseBody> {
         let url = match kind {
             QueryKind::Management => self.management_url(),
             QueryKind::Query => self.query_url(),
@@ -324,7 +375,6 @@ impl KustoClient {
         let mut request = Request::new(url.parse().map_err(ParseError::from)?, Method::Post);
 
         let mut headers = (*self.default_headers).clone();
-
 
         if let Some(client_request_properties) = &options {
             if let Some(client_request_id) = &client_request_properties.client_request_id {
@@ -346,16 +396,16 @@ impl KustoClient {
         let bytes = bytes::Bytes::from(serde_json::to_string(&body)?);
         request.set_body(bytes);
 
-        let response = self
-            .pipeline()
-            .send(&mut context, &mut request)
-            .await?;
+        let response = self.pipeline().send(&mut context, &mut request).await?;
 
         let status = response.status();
         if !status.is_success() {
             let body = response.into_body().collect_string().await;
 
-            return Err(Error::HttpError(status, body.unwrap_or_else(|e| format!("{:?}", e))));
+            return Err(Error::HttpError(
+                status,
+                body.unwrap_or_else(|e| format!("{:?}", e)),
+            ));
         }
 
         Ok(response.into_body())

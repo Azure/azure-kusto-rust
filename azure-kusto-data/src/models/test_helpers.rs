@@ -1,12 +1,26 @@
-use crate::models::ColumnType;
-use crate::models::v2::{Column, DataSetCompletion, DataSetHeader, DataTable, Frame, OneApiError, OneApiErrors, Row, TableCompletion, TableFragment, TableFragmentType, TableHeader, TableKind};
 use crate::models::v2::ErrorReportingPlacement::EndOfTable;
+use crate::models::v2::{
+    Column, DataSetCompletion, DataSetHeader, DataTable, Frame, OneApiError, OneApiErrors, Row,
+    TableCompletion, TableFragment, TableFragmentType, TableHeader, TableKind,
+};
+use crate::models::ColumnType;
 
-const V2_VALID_FRAMES: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/inputs/v2/validFrames.json"));
-const V2_TWO_TABLES: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/inputs/v2/twoTables.json"));
-const V2_PARTIAL_ERROR: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/inputs/v2/partialError.json"));
-const V2_PARTIAL_ERROR_FULL_DATASET: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/inputs/v2/partialErrorFullDataset.json"));
-
+const V2_VALID_FRAMES: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/inputs/v2/validFrames.json"
+));
+const V2_TWO_TABLES: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/inputs/v2/twoTables.json"
+));
+const V2_PARTIAL_ERROR: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/inputs/v2/partialError.json"
+));
+const V2_PARTIAL_ERROR_FULL_DATASET: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/inputs/v2/partialErrorFullDataset.json"
+));
 
 fn expected_v2_valid_frames() -> Vec<Frame> {
     vec![
@@ -204,7 +218,6 @@ fn expected_v2_valid_frames() -> Vec<Frame> {
         }),
     ]
 }
-
 
 fn expected_v2_two_tables() -> Vec<Frame> {
     vec![
@@ -623,16 +636,17 @@ fn expected_v2_partial_error_full_dataset() -> Vec<Frame> {
     ]
 }
 
-
 pub fn v2_files_full() -> Vec<(&'static str, Vec<Frame>)> {
     vec![
         (V2_VALID_FRAMES, expected_v2_valid_frames()),
         (V2_TWO_TABLES, expected_v2_two_tables()),
         (V2_PARTIAL_ERROR, expected_v2_partial_error()),
-        (V2_PARTIAL_ERROR_FULL_DATASET, expected_v2_partial_error_full_dataset()),
+        (
+            V2_PARTIAL_ERROR_FULL_DATASET,
+            expected_v2_partial_error_full_dataset(),
+        ),
     ]
 }
-
 
 pub fn v2_files_iterative() -> Vec<(&'static str, Vec<Frame>)> {
     vec![

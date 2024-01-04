@@ -237,7 +237,7 @@ pub struct Options {
     pub validate_permissions: Option<bool>,
     ///
     results_v2_newlines_between_frames: Option<bool>,
-///
+    ///
     results_v2_fragment_primary_tables: Option<bool>,
     error_reporting_placement: Option<String>,
     /// Additional options to be passed to the service.

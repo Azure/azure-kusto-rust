@@ -6,11 +6,11 @@ mod errors;
 mod frames;
 mod known_tables;
 
+use crate::error::{Error, Partial};
 pub use consts::*;
 pub use errors::*;
 pub use frames::*;
 pub use known_tables::*;
-use crate::error::{Error, Partial};
 
 /// A result of a V2 query.
 /// Could be a table, a part of a table, or metadata about the dataset.
@@ -78,7 +78,7 @@ impl DataTable {
                 Err(e) => match e {
                     Error::MultipleErrors(e) => errors.extend(e),
                     _ => errors.push(e),
-                }
+                },
             }
         }
         match (values.len(), errors.len()) {
@@ -100,7 +100,7 @@ impl DataTable {
                 Err(e) => match e {
                     Error::MultipleErrors(e) => errors.extend(e),
                     _ => errors.push(e),
-                }
+                },
             }
         }
 

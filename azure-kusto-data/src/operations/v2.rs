@@ -1,14 +1,19 @@
-use std::sync::Arc;
 use crate::error::{Error, Error::JsonError, Partial, Result};
 use crate::models::v2;
-use futures::{stream, AsyncBufRead, AsyncBufReadExt, AsyncReadExt, Stream, StreamExt, TryStreamExt, pin_mut};
+use crate::models::v2::{
+    DataSetCompletion, DataSetHeader, DataTable, Frame, QueryCompletionInformation,
+    QueryProperties, Row, TableKind,
+};
 use futures::lock::Mutex;
+use futures::{
+    pin_mut, stream, AsyncBufRead, AsyncBufReadExt, AsyncReadExt, Stream, StreamExt, TryStreamExt,
+};
+use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use crate::models::v2::{DataSetCompletion, DataSetHeader, DataTable, Frame, QueryCompletionInformation, QueryProperties, Row, TableKind};
 
 pub fn parse_frames_iterative(
     reader: impl AsyncBufRead + Unpin,
-) -> impl Stream<Item=Result<Frame>> {
+) -> impl Stream<Item = Result<Frame>> {
     let buf = Vec::with_capacity(4096);
     stream::unfold((reader, buf), |(mut reader, mut buf)| async move {
         buf.clear();
@@ -30,14 +35,11 @@ pub fn parse_frames_iterative(
     })
 }
 
-async fn parse_frames_full(
-    mut reader: (impl AsyncBufRead + Send + Unpin),
-) -> Result<Vec<Frame>> {
+async fn parse_frames_full(mut reader: (impl AsyncBufRead + Send + Unpin)) -> Result<Vec<Frame>> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf).await?;
     return Ok(serde_json::from_slice(&buf)?);
 }
-
 
 /// Arc Mutex
 type M<T> = Arc<Mutex<T>>;
@@ -66,7 +68,7 @@ impl IterativeDataset {
         Self::new(stream)
     }
 
-    fn new(stream: impl Stream<Item=Result<Frame>> + Send + 'static) -> Arc<Self> {
+    fn new(stream: impl Stream<Item = Result<Frame>> + Send + 'static) -> Arc<Self> {
         // TODO: make channel size configurable
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let res = IterativeDataset {
@@ -86,7 +88,11 @@ impl IterativeDataset {
         res
     }
 
-    async fn populate_with_stream(&self, stream: impl Stream<Item=Result<Frame>>, tx: Sender<Result<IterativeTable>>) {
+    async fn populate_with_stream(
+        &self,
+        stream: impl Stream<Item = Result<Frame>>,
+        tx: Sender<Result<IterativeTable>>,
+    ) {
         pin_mut!(stream);
 
         let mut rows_tx = None;
@@ -94,7 +100,11 @@ impl IterativeDataset {
         while let Some(frame) = stream.try_next().await.transpose() {
             // TODO: handle errors
             let Ok(frame) = frame else {
-                tx.send(Err(Error::ExternalError("Failed to parse frames".to_string()))).await.expect("failed to send error");
+                tx.send(Err(Error::ExternalError(
+                    "Failed to parse frames".to_string(),
+                )))
+                .await
+                .expect("failed to send error");
                 continue;
             };
 
@@ -105,16 +115,28 @@ impl IterativeDataset {
                 Frame::DataSetCompletion(completion) => {
                     if let Some(errs) = &completion.one_api_errors {
                         // todo - better error than crashing when failing to send
-                        tx.send(Err(errs.clone().into())).await.expect("failed to send error");
+                        tx.send(Err(errs.clone().into()))
+                            .await
+                            .expect("failed to send error");
                     }
                     self.completion.lock().await.replace(completion);
                 }
                 // TODO: properly handle errors/missing
                 Frame::DataTable(table) if table.table_kind == TableKind::QueryProperties => {
-                    self.query_properties.lock().await.replace(table.deserialize_values::<QueryProperties>().expect("failed to deserialize query properties"));
+                    self.query_properties.lock().await.replace(
+                        table
+                            .deserialize_values::<QueryProperties>()
+                            .expect("failed to deserialize query properties"),
+                    );
                 }
-                Frame::DataTable(table) if table.table_kind == TableKind::QueryCompletionInformation => {
-                    self.query_completion_information.lock().await.replace(table.deserialize_values::<QueryCompletionInformation>().expect("failed to deserialize query completion information"));
+                Frame::DataTable(table)
+                    if table.table_kind == TableKind::QueryCompletionInformation =>
+                {
+                    self.query_completion_information.lock().await.replace(
+                        table
+                            .deserialize_values::<QueryCompletionInformation>()
+                            .expect("failed to deserialize query completion information"),
+                    );
                 }
                 Frame::DataTable(table) => {
                     let (datatable_tx, datatable_rx) = tokio::sync::mpsc::channel(1);
@@ -125,9 +147,14 @@ impl IterativeDataset {
                         table_kind: table.table_kind,
                         columns: table.columns,
                         rows: datatable_rx,
-                    })).await.expect("failed to send table");
+                    }))
+                    .await
+                    .expect("failed to send table");
 
-                    datatable_tx.send(Ok(table.rows)).await.expect("failed to send rows");
+                    datatable_tx
+                        .send(Ok(table.rows))
+                        .await
+                        .expect("failed to send rows");
                 }
                 Frame::TableHeader(table_header) => {
                     let (rows_tx_, rows_rx) = tokio::sync::mpsc::channel(1);
@@ -138,20 +165,28 @@ impl IterativeDataset {
                         table_kind: table_header.table_kind,
                         columns: table_header.columns,
                         rows: rows_rx,
-                    })).await.expect("failed to send table");
+                    }))
+                    .await
+                    .expect("failed to send table");
 
                     rows_tx = Some(rows_tx_);
                 }
                 Frame::TableFragment(table_fragment) => {
                     if let Some(rows_tx) = &mut rows_tx {
-                        rows_tx.send(Ok(table_fragment.rows)).await.expect("failed to send rows");
+                        rows_tx
+                            .send(Ok(table_fragment.rows))
+                            .await
+                            .expect("failed to send rows");
                     }
                 }
                 Frame::TableCompletion(table_completion) => {
                     if let Some(rows_tx) = rows_tx.take() {
                         if let Some(errs) = &table_completion.one_api_errors {
                             // todo - better error than crashing when failing to send
-                            rows_tx.send(Err(errs.clone().into())).await.expect("failed to send rows");
+                            rows_tx
+                                .send(Err(errs.clone().into()))
+                                .await
+                                .expect("failed to send rows");
                         }
                     }
                 }
@@ -170,12 +205,16 @@ pub struct FullDataset {
 }
 
 impl FullDataset {
-    pub async fn from_async_buf_read(reader: impl AsyncBufRead + Send + Unpin + 'static) -> Partial<FullDataset> {
+    pub async fn from_async_buf_read(
+        reader: impl AsyncBufRead + Send + Unpin + 'static,
+    ) -> Partial<FullDataset> {
         let vec = parse_frames_full(reader).await.map_err(|e| (None, e))?;
         Self::from_frame_stream(stream::iter(vec.into_iter())).await
     }
 
-    async fn from_frame_stream(stream: impl Stream<Item=Frame> + Send + 'static) -> Partial<FullDataset> {
+    async fn from_frame_stream(
+        stream: impl Stream<Item = Frame> + Send + 'static,
+    ) -> Partial<FullDataset> {
         pin_mut!(stream);
 
         let mut dataset = FullDataset {
@@ -195,7 +234,6 @@ impl FullDataset {
         });
 
         let mut errors: Vec<Error> = Vec::new();
-
 
         while let Some(frame) = stream.next().await {
             match frame {
@@ -220,10 +258,13 @@ impl FullDataset {
                         }
                     }
                 }
-                Frame::DataTable(table) if table.table_kind == TableKind::QueryCompletionInformation => {
+                Frame::DataTable(table)
+                    if table.table_kind == TableKind::QueryCompletionInformation =>
+                {
                     match table.deserialize_values::<QueryCompletionInformation>() {
                         Ok(query_completion_information) => {
-                            dataset.query_completion_information = Some(query_completion_information);
+                            dataset.query_completion_information =
+                                Some(query_completion_information);
                         }
                         Err((q, e)) => {
                             dataset.query_completion_information = q;
@@ -269,9 +310,9 @@ impl FullDataset {
 
 #[cfg(test)]
 mod tests {
+    use crate::models::test_helpers::{v2_files_full, v2_files_iterative};
     use futures::io::Cursor;
     use futures::StreamExt;
-    use crate::models::test_helpers::{v2_files_full, v2_files_iterative};
 
     #[tokio::test]
     async fn test_parse_frames_full() {
@@ -290,9 +331,9 @@ mod tests {
             let reader = Cursor::new(contents.as_bytes());
             let parsed_frames = super::parse_frames_iterative(reader)
                 .map(|f| f.expect("failed to parse frame"))
-                .collect::<Vec<_>>().await;
+                .collect::<Vec<_>>()
+                .await;
             assert_eq!(parsed_frames, frames);
         }
     }
 }
-
