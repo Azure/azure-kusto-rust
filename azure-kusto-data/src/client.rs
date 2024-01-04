@@ -250,7 +250,11 @@ impl KustoClient {
             .rows
             .into_iter()
             .map(Row::into_result)
-            .map(|r| r.and_then(|v| serde_json::from_value::<T>(serde_json::Value::Array(v)).map_err(Error::from)))
+            .map(|r| {
+                r.and_then(|v| {
+                    serde_json::from_value::<T>(serde_json::Value::Array(v)).map_err(Error::from)
+                })
+            })
             .collect::<Result<Vec<T>>>()?;
 
         Ok(results)
