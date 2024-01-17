@@ -24,7 +24,7 @@ pub use crate::request_options::{
 
 // Token credentials are re-exported for user convenience
 pub use azure_identity::{
-    AutoRefreshingTokenCredential, AzureCliCredential, ClientSecretCredential,
+    AzureCliCredential, ClientSecretCredential,
     DefaultAzureCredential, DefaultAzureCredentialBuilder, EnvironmentCredential,
     TokenCredentialOptions,
 };
