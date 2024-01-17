@@ -22,7 +22,7 @@ use crate::error::ConnectionStringError;
 /// Function that handles the device code flow.
 pub type DeviceCodeFunction = Arc<dyn Fn(&str) -> String + Send + Sync>;
 /// Function that returns a token.
-pub type TokenCallbackFunction = Arc<dyn Fn(&str) -> String + Send + Sync>;
+pub type TokenCallbackFunction = Arc<dyn Fn(&[&str]) -> String + Send + Sync>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum ConnectionStringKey {
