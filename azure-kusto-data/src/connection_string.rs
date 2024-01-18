@@ -22,7 +22,7 @@ use crate::error::ConnectionStringError;
 /// Function that handles the device code flow.
 pub type DeviceCodeFunction = Arc<dyn Fn(&str) -> String + Send + Sync>;
 /// Function that returns a token.
-pub type TokenCallbackFunction = Arc<dyn Fn(&str) -> String + Send + Sync>;
+pub type TokenCallbackFunction = Arc<dyn Fn(&[&str]) -> String + Send + Sync>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum ConnectionStringKey {
@@ -775,7 +775,7 @@ impl ConnectionString {
     /// use std::sync::Arc;
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_token_callback_auth("https://mycluster.kusto.windows.net", Arc::new(|resource_uri| resource_uri.to_string()), None);
+    /// let conn = ConnectionString::with_token_callback_auth("https://mycluster.kusto.windows.net", Arc::new(|scopes| scopes[0].to_string()), None);
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert!(matches!(conn.auth, ConnectionStringAuth::TokenCallback { .. }));
