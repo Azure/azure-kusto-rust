@@ -6,12 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-azure-kusto-data = {path = "../azure-kusto-data"}
+azure-kusto-data = { path = "../azure-kusto-data", default-features = false }
 # Azure SDK for Rust crates versions must be kept in sync
-azure_core = "0.17"
-azure_storage = "0.17"
-azure_storage_blobs = "0.17"
-azure_storage_queues = "0.17"
+azure_core = "0.19"
+azure_storage = "0.19"
+azure_storage_blobs = "0.19"
+azure_storage_queues = "0.19"
 
 chrono = { version = "0.4", default-features = false, features = ["serde"] }
 rand = "0.8"
@@ -21,4 +21,4 @@ thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 url = "2"
-uuid = {version = "1", features = ["v4", "serde"]}
+uuid = { version = "1", features = ["v4", "serde"] }

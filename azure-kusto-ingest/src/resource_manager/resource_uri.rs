@@ -15,6 +15,9 @@ pub enum ResourceUriError {
     #[error("SAS token is missing in the URI as a query parameter")]
     MissingSasToken,
 
+    #[error("Account name is missing in the URI")]
+    MissingAccountName,
+
     #[error(transparent)]
     ParseError(#[from] url::ParseError),
 
@@ -27,6 +30,7 @@ pub enum ResourceUriError {
 pub(crate) struct ResourceUri {
     pub(crate) service_uri: String,
     pub(crate) object_name: String,
+    pub(crate) account_name: String,
     pub(crate) sas_token: StorageCredentials,
 }
 
@@ -41,11 +45,18 @@ impl TryFrom<&str> for ResourceUri {
             other_scheme => return Err(ResourceUriError::InvalidScheme(other_scheme.to_string())),
         };
 
-        let service_uri = scheme
-            + "://"
-            + parsed_uri
-                .host_str()
-                .expect("Url::parse should always return a host for a URI");
+        let host_string = parsed_uri
+            .host_str()
+            .expect("Url::parse should always return a host for a URI");
+
+        let service_uri = scheme + "://" + host_string;
+
+        let host_string_components = host_string.split_terminator('.').collect::<Vec<_>>();
+        if host_string_components.len() < 2 {
+            return Err(ResourceUriError::MissingAccountName);
+        }
+
+        let account_name = host_string_components[0].to_string();
 
         let object_name = match parsed_uri.path().trim_start().trim_start_matches('/') {
             "" => return Err(ResourceUriError::MissingObjectName),
@@ -61,6 +72,7 @@ impl TryFrom<&str> for ResourceUri {
         Ok(Self {
             service_uri,
             object_name,
+            account_name,
             sas_token,
         })
     }
@@ -76,6 +88,7 @@ impl ClientFromResourceUri for QueueClient {
         QueueServiceClientBuilder::with_location(
             azure_storage::CloudLocation::Custom {
                 uri: resource_uri.service_uri,
+                account: resource_uri.account_name,
             },
             resource_uri.sas_token,
         )
@@ -90,6 +103,7 @@ impl ClientFromResourceUri for ContainerClient {
         ClientBuilder::with_location(
             azure_storage::CloudLocation::Custom {
                 uri: resource_uri.service_uri,
+                account: resource_uri.account_name,
             },
             resource_uri.sas_token,
         )
@@ -183,6 +197,7 @@ mod tests {
         let resource_uri = ResourceUri {
             service_uri: "https://mystorageaccount.queue.core.windows.net".to_string(),
             object_name: "queuename".to_string(),
+            account_name: "mystorageaccount".to_string(),
             sas_token: StorageCredentials::sas_token("sas=token").unwrap(),
         };
 
@@ -197,6 +212,7 @@ mod tests {
         let resource_uri = ResourceUri {
             service_uri: "https://mystorageaccount.blob.core.windows.net".to_string(),
             object_name: "containername".to_string(),
+            account_name: "mystorageaccount".to_string(),
             sas_token: StorageCredentials::sas_token("sas=token").unwrap(),
         };
 
