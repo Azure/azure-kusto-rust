@@ -7,12 +7,12 @@ use super::{
     resource_uri::{ClientFromResourceUri, ResourceUri},
     utils, RESOURCE_REFRESH_PERIOD,
 };
+use async_lock::RwLock;
 use azure_core::ClientOptions;
 use azure_kusto_data::{models::TableV1, prelude::KustoClient};
 use azure_storage_blobs::prelude::ContainerClient;
 use azure_storage_queues::QueueClient;
 use serde_json::Value;
-use tokio::sync::RwLock;
 
 #[derive(Debug, thiserror::Error)]
 pub enum IngestionResourceError {

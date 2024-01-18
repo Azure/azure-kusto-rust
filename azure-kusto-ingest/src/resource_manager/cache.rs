@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use tokio::sync::RwLock;
+use async_lock::RwLock;
 
 /// Wrapper around a value that allows for storing when the value was last updated,
 /// as well as the period after which it should be refreshed (i.e. expired)

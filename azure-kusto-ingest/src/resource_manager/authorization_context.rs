@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use async_lock::RwLock;
 use azure_kusto_data::prelude::KustoClient;
 use serde_json::Value;
-use tokio::sync::RwLock;
 
 use super::cache::{Cached, ThreadSafeCachedValue};
 use super::utils::get_column_index;
