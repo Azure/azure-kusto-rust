@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::error::Result;
 use azure_core::base64;
 use azure_kusto_data::prelude::KustoClient;
-use tracing::debug;
 
 use crate::client_options::QueuedIngestClientOptions;
 use crate::descriptors::BlobDescriptor;
@@ -45,24 +44,18 @@ impl QueuedIngestClient {
         ingestion_properties: IngestionProperties,
     ) -> Result<()> {
         let queue_client = self.resource_manager.ingestion_queue().await?;
-        debug!("ingestion queues: {:#?}", queue_client);
 
         let auth_context = self.resource_manager.authorization_context().await?;
-        debug!("auth_context: {:#?}\n", auth_context);
 
         let message =
             QueuedIngestionMessage::new(&blob_descriptor, &ingestion_properties, auth_context);
-        debug!("message: {:#?}\n", message);
 
         let message = serde_json::to_string(&message)?;
-        debug!("message as string: {}\n", message);
 
         // Base64 encode the ingestion message
         let message = base64::encode(&message);
-        debug!("message as base64 encoded string: {}\n", message);
 
-        let resp = queue_client.put_message(message).await?;
-        debug!("resp: {:#?}\n", resp);
+        let _resp = queue_client.put_message(message).await?;
 
         Ok(())
     }
