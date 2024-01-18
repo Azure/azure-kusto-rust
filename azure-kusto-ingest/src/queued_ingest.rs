@@ -1,11 +1,8 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use crate::error::Result;
 use azure_core::base64;
 use azure_kusto_data::prelude::KustoClient;
-use rand::rngs::StdRng;
-use rand::seq::SliceRandom;
-use rand::SeedableRng;
 use tracing::debug;
 
 use crate::client_options::QueuedIngestClientOptions;
@@ -47,8 +44,8 @@ impl QueuedIngestClient {
         blob_descriptor: BlobDescriptor,
         ingestion_properties: IngestionProperties,
     ) -> Result<()> {
-        let ingestion_queues = self.resource_manager.ingestion_queues().await?;
-        debug!("ingestion queues: {:#?}", ingestion_queues);
+        let queue_client = self.resource_manager.ingestion_queue().await?;
+        debug!("ingestion queues: {:#?}", queue_client);
 
         let auth_context = self.resource_manager.authorization_context().await?;
         debug!("auth_context: {:#?}\n", auth_context);
@@ -57,14 +54,7 @@ impl QueuedIngestClient {
             QueuedIngestionMessage::new(&blob_descriptor, &ingestion_properties, auth_context);
         debug!("message: {:#?}\n", message);
 
-        // Pick a random queue from the queue clients returned by the resource manager
-        let mut rng: StdRng = SeedableRng::from_entropy();
-        let queue_client = ingestion_queues
-            .choose(&mut rng)
-            .ok_or(anyhow::anyhow!("Failed to pick a random queue"))?;
-        debug!("randomly seeded queue_client: {:#?}\n", queue_client);
-
-        let message = serde_json::to_string(&message).unwrap();
+        let message = serde_json::to_string(&message)?;
         debug!("message as string: {}\n", message);
 
         // Base64 encode the ingestion message

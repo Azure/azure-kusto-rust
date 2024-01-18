@@ -4,7 +4,23 @@ use azure_storage_blobs::prelude::{ClientBuilder, ContainerClient};
 use azure_storage_queues::{QueueClient, QueueServiceClientBuilder};
 use url::Url;
 
-use anyhow::Result;
+#[derive(Debug, thiserror::Error)]
+pub enum ResourceUriError {
+    #[error("URI scheme must be 'https', was '{0}'")]
+    InvalidScheme(String),
+
+    #[error("Object name is missing in the URI")]
+    MissingObjectName,
+
+    #[error("SAS token is missing in the URI as a query parameter")]
+    MissingSasToken,
+
+    #[error(transparent)]
+    ParseError(#[from] url::ParseError),
+
+    #[error(transparent)]
+    AzureError(#[from] azure_core::Error),
+}
 
 /// Parsing logic of resource URIs as returned by the Kusto management endpoint
 #[derive(Debug, Clone)]
@@ -15,18 +31,14 @@ pub(crate) struct ResourceUri {
 }
 
 impl TryFrom<&str> for ResourceUri {
-    type Error = anyhow::Error;
+    type Error = ResourceUriError;
 
-    fn try_from(uri: &str) -> Result<Self> {
+    fn try_from(uri: &str) -> Result<Self, Self::Error> {
         let parsed_uri = Url::parse(uri)?;
 
         let scheme = match parsed_uri.scheme() {
             "https" => "https".to_string(),
-            other_scheme => {
-                return Err(anyhow::anyhow!(
-                    "URI scheme must be 'https', was '{other_scheme}'"
-                ))
-            }
+            other_scheme => return Err(ResourceUriError::InvalidScheme(other_scheme.to_string())),
         };
 
         let service_uri = scheme
@@ -36,17 +48,13 @@ impl TryFrom<&str> for ResourceUri {
                 .expect("Url::parse should always return a host for a URI");
 
         let object_name = match parsed_uri.path().trim_start().trim_start_matches('/') {
-            "" => return Err(anyhow::anyhow!("Object name is missing in the URI")),
+            "" => return Err(ResourceUriError::MissingObjectName),
             name => name.to_string(),
         };
 
         let sas_token = match parsed_uri.query() {
             Some(query) => query.to_string(),
-            None => {
-                return Err(anyhow::anyhow!(
-                    "SAS token is missing in the URI as a query parameter"
-                ))
-            }
+            None => return Err(ResourceUriError::MissingSasToken),
         };
         let sas_token = StorageCredentials::sas_token(sas_token)?;
 
@@ -138,6 +146,10 @@ mod tests {
         println!("{:#?}", resource_uri);
 
         assert!(resource_uri.is_err());
+        assert!(matches!(
+            resource_uri.unwrap_err(),
+            ResourceUriError::ParseError(_)
+        ));
     }
 
     #[test]
@@ -147,6 +159,10 @@ mod tests {
         println!("{:#?}", resource_uri);
 
         assert!(resource_uri.is_err());
+        assert!(matches!(
+            resource_uri.unwrap_err(),
+            ResourceUriError::MissingObjectName
+        ));
     }
 
     #[test]
@@ -156,6 +172,10 @@ mod tests {
         println!("{:#?}", resource_uri);
 
         assert!(resource_uri.is_err());
+        assert!(matches!(
+            resource_uri.unwrap_err(),
+            ResourceUriError::MissingSasToken
+        ));
     }
 
     #[test]

@@ -1,6 +1,5 @@
 use std::env;
 
-use anyhow::Result;
 use azure_kusto_data::prelude::{ConnectionString, KustoClient, KustoClientOptions};
 use azure_kusto_ingest::data_format::DataFormat;
 use azure_kusto_ingest::descriptors::{BlobAuth, BlobDescriptor};
@@ -16,7 +15,7 @@ use azure_kusto_ingest::queued_ingest::QueuedIngestClient;
 /// - Permissions for Kusto to access storage
 ///     https://learn.microsoft.com/en-us/azure/data-explorer/ingest-data-managed-identity
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let cluster_ingest_uri = env::var("KUSTO_INGEST_URI").expect("Must define KUSTO_INGEST_URI");
     let user_mi_object_id =
         env::var("KUSTO_USER_MI_OBJECT_ID").expect("Must define KUSTO_USER_MI_OBJECT_ID");
@@ -54,7 +53,9 @@ async fn main() -> Result<()> {
     let blob_descriptor = BlobDescriptor::new(blob_uri, blob_size, None)
         .with_blob_auth(BlobAuth::SystemAssignedManagedIdentity);
 
-    queued_ingest_client
+    let _ = queued_ingest_client
         .ingest_from_blob(blob_descriptor, ingestion_properties)
-        .await
+        .await?;
+
+    Ok(())
 }
