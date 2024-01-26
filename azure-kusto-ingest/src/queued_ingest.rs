@@ -43,7 +43,7 @@ impl QueuedIngestClient {
         blob_descriptor: BlobDescriptor,
         ingestion_properties: IngestionProperties,
     ) -> Result<()> {
-        let queue_client = self.resource_manager.ingestion_queue().await?;
+        let queue_client = self.resource_manager.random_ingestion_queue().await?;
 
         let auth_context = self.resource_manager.authorization_context().await?;
 

@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -7,6 +6,18 @@ use crate::{
     ingestion_properties::IngestionProperties,
     resource_manager::authorization_context::KustoIdentityToken,
 };
+
+use time::{
+    format_description::well_known::{iso8601, Iso8601},
+    OffsetDateTime,
+};
+/// The [DEFAULT](iso8601::Config::DEFAULT) ISO8601 format that the time crate serializes to uses a 6 digit year,
+/// Here we create our own serializer function that uses a 4 digit year which is exposed as `kusto_ingest_iso8601_format`
+const CONFIG: iso8601::EncodedConfig = iso8601::Config::DEFAULT
+    .set_year_is_six_digits(false)
+    .encode();
+const FORMAT: Iso8601<CONFIG> = Iso8601::<CONFIG>;
+time::serde::format_description!(kusto_ingest_iso8601_format, OffsetDateTime, FORMAT);
 
 /// Message to be serialized as JSON and sent to the ingestion queue
 ///
@@ -37,7 +48,9 @@ pub(crate) struct QueuedIngestionMessage {
     /// If set to `true`, any server side aggregation will be skipped - thus overriding the batching policy. Default is `false`.
     #[serde(skip_serializing_if = "Option::is_none")]
     flush_immediately: Option<bool>,
-    source_message_creation_time: DateTime<Utc>,
+    #[serde(with = "kusto_ingest_iso8601_format")]
+    source_message_creation_time: OffsetDateTime,
+    // source_message_creation_time: DateTime<Utc>,
     // Extra properties added to the ingestion command
     additional_properties: AdditionalProperties,
 }
@@ -61,7 +74,7 @@ impl QueuedIngestionMessage {
             table_name: ingestion_properties.table_name.clone(),
             retain_blob_on_success: ingestion_properties.retain_blob_on_success,
             flush_immediately: ingestion_properties.flush_immediately,
-            source_message_creation_time: Utc::now(),
+            source_message_creation_time: OffsetDateTime::now_utc(),
             additional_properties,
         }
     }
@@ -76,4 +89,31 @@ struct AdditionalProperties {
     authorization_context: KustoIdentityToken,
     #[serde(rename = "format")]
     data_format: DataFormat,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn time_custom_iso8601_serialization() {
+        #[derive(Serialize, Debug)]
+        struct TestTimeSerialize {
+            #[serde(with = "kusto_ingest_iso8601_format")]
+            customised_time_format: time::OffsetDateTime,
+        }
+
+        let test_message = TestTimeSerialize {
+            customised_time_format: time::OffsetDateTime::from_unix_timestamp_nanos(
+                1_234_567_890_123_456_789,
+            )
+            .unwrap(),
+        };
+
+        let serialized_message = serde_json::to_string(&test_message).unwrap();
+        assert_eq!(
+            serialized_message,
+            "{\"customised_time_format\":\"2009-02-13T23:31:30.123456789Z\"}"
+        );
+    }
 }

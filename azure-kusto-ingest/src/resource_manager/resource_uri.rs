@@ -9,6 +9,9 @@ pub enum ResourceUriError {
     #[error("URI scheme must be 'https', was '{0}'")]
     InvalidScheme(String),
 
+    #[error("URI host must be a domain")]
+    InvalidHost,
+
     #[error("Object name is missing in the URI")]
     MissingObjectName,
 
@@ -40,39 +43,49 @@ impl TryFrom<&str> for ResourceUri {
     fn try_from(uri: &str) -> Result<Self, Self::Error> {
         let parsed_uri = Url::parse(uri)?;
 
-        let scheme = match parsed_uri.scheme() {
-            "https" => "https".to_string(),
+        match parsed_uri.scheme() {
+            "https" => {}
             other_scheme => return Err(ResourceUriError::InvalidScheme(other_scheme.to_string())),
         };
 
-        let host_string = parsed_uri
-            .host_str()
-            .expect("Url::parse should always return a host for a URI");
-
-        let service_uri = scheme + "://" + host_string;
-
-        let host_string_components = host_string.split_terminator('.').collect::<Vec<_>>();
-        if host_string_components.len() < 2 {
-            return Err(ResourceUriError::MissingAccountName);
-        }
-
-        let account_name = host_string_components[0].to_string();
-
-        let object_name = match parsed_uri.path().trim_start().trim_start_matches('/') {
-            "" => return Err(ResourceUriError::MissingObjectName),
-            name => name.to_string(),
+        let host_string = match parsed_uri.host() {
+            Some(url::Host::Domain(host_string)) => host_string,
+            _ => return Err(ResourceUriError::InvalidHost),
         };
 
-        let sas_token = match parsed_uri.query() {
-            Some(query) => query.to_string(),
-            None => return Err(ResourceUriError::MissingSasToken),
+        let service_uri = String::from("https://") + host_string;
+
+        // WIBNI: better parsing that this conforms to a storage resource URI,
+        // perhaps then ResourceUri could take a type like ResourceUri<Queue> or ResourceUri<Container>
+        let (account_name, _service_endpoint) = host_string
+            .split_once('.')
+            .ok_or(ResourceUriError::MissingAccountName)?;
+
+        let object_name = match parsed_uri.path_segments() {
+            Some(mut path_segments) => {
+                let object_name = match path_segments.next() {
+                    Some(object_name) if !object_name.is_empty() => object_name,
+                    _ => return Err(ResourceUriError::MissingObjectName),
+                };
+                // Ensure there is only one path segment (i.e. the object name)
+                if path_segments.next().is_some() {
+                    return Err(ResourceUriError::MissingObjectName);
+                };
+                object_name
+            }
+            None => return Err(ResourceUriError::MissingObjectName),
         };
+
+        let sas_token = parsed_uri
+            .query()
+            .ok_or(ResourceUriError::MissingSasToken)?;
+
         let sas_token = StorageCredentials::sas_token(sas_token)?;
 
         Ok(Self {
             service_uri,
-            object_name,
-            account_name,
+            object_name: object_name.to_string(),
+            account_name: account_name.to_string(),
             sas_token,
         })
     }
@@ -151,6 +164,10 @@ mod tests {
         let resource_uri = ResourceUri::try_from(uri);
 
         assert!(resource_uri.is_err());
+        assert!(matches!(
+            resource_uri.unwrap_err(),
+            ResourceUriError::InvalidScheme(_)
+        ));
     }
 
     #[test]
@@ -163,6 +180,31 @@ mod tests {
         assert!(matches!(
             resource_uri.unwrap_err(),
             ResourceUriError::ParseError(_)
+        ));
+    }
+
+    #[test]
+    fn invalid_host_ipv4() {
+        let uri = "https://127.0.0.1/containerobjectname?sas=token";
+        let resource_uri = ResourceUri::try_from(uri);
+
+        assert!(resource_uri.is_err());
+        assert!(matches!(
+            resource_uri.unwrap_err(),
+            ResourceUriError::InvalidHost
+        ));
+    }
+
+    #[test]
+    fn invalid_host_ipv6() {
+        let uri = "https://[3FFE:FFFF:0::CD30]/containerobjectname?sas=token";
+        let resource_uri = ResourceUri::try_from(uri);
+        println!("{:#?}", resource_uri);
+
+        assert!(resource_uri.is_err());
+        assert!(matches!(
+            resource_uri.unwrap_err(),
+            ResourceUriError::InvalidHost
         ));
     }
 

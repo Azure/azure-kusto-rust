@@ -17,7 +17,7 @@ use self::{
     ingest_client_resources::IngestClientResources,
 };
 
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use rand::{seq::SliceRandom, thread_rng};
 
 pub const RESOURCE_REFRESH_PERIOD: Duration = Duration::from_secs(60 * 60);
 
@@ -60,9 +60,14 @@ impl ResourceManager {
 
     /// Returns a [QueueClient] to ingest to.
     /// This is a random selection from the list of ingestion queues
-    pub async fn ingestion_queue(&self) -> Result<QueueClient> {
+    pub async fn random_ingestion_queue(&self) -> Result<QueueClient> {
         let ingestion_queues = self.ingestion_queues().await?;
-        let selected_queue = select_random_resource(ingestion_queues)?;
+
+        let mut rng = thread_rng();
+        let selected_queue = ingestion_queues
+            .choose(&mut rng)
+            .ok_or(ResourceManagerError::NoResourcesFound)?;
+
         Ok(selected_queue.clone())
     }
 
@@ -72,44 +77,5 @@ impl ResourceManager {
             .get()
             .await
             .map_err(ResourceManagerError::AuthorizationContextError)
-    }
-}
-/// Selects a random resource from the given list of resources
-fn select_random_resource<T: Clone>(resources: Vec<T>) -> Result<T> {
-    let mut rng: StdRng = SeedableRng::from_entropy();
-    resources
-        .choose(&mut rng)
-        .ok_or(ResourceManagerError::NoResourcesFound)
-        .cloned()
-}
-
-#[cfg(test)]
-mod select_random_resource_tests {
-    use super::*;
-
-    #[test]
-    fn single_resource() {
-        const VALUE: i32 = 1;
-        let resources = vec![VALUE];
-        let selected_resource = select_random_resource(resources).unwrap();
-        assert!(selected_resource == VALUE)
-    }
-
-    #[test]
-    fn multiple_resources() {
-        let resources = vec![1, 2, 3, 4, 5];
-        let selected_resource = select_random_resource(resources.clone()).unwrap();
-        assert!(resources.contains(&selected_resource));
-    }
-
-    #[test]
-    fn no_resources() {
-        let resources: Vec<i32> = vec![];
-        let selected_resource = select_random_resource(resources);
-        assert!(selected_resource.is_err());
-        assert!(matches!(
-            selected_resource.unwrap_err(),
-            ResourceManagerError::NoResourcesFound
-        ))
     }
 }

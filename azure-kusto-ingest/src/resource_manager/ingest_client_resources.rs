@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
 use crate::client_options::QueuedIngestClientOptions;
 
 use super::{
-    cache::{Cached, ThreadSafeCachedValue},
+    cache::ThreadSafeCachedValue,
     resource_uri::{ClientFromResourceUri, ResourceUri},
     utils, RESOURCE_REFRESH_PERIOD,
 };
-use async_lock::RwLock;
+
 use azure_core::ClientOptions;
 use azure_kusto_data::{models::TableV1, prelude::KustoClient};
 use azure_storage_blobs::prelude::ContainerClient;
@@ -99,19 +97,22 @@ impl TryFrom<(&TableV1, &QueuedIngestClientOptions)> for InnerIngestClientResour
         Ok(Self {
             ingestion_queues: create_clients_vec(
                 &secured_ready_for_aggregation_queues,
-                &client_options.queue_service,
+                &client_options.queue_service_options,
             ),
             temp_storage_containers: create_clients_vec(
                 &temp_storage,
-                &client_options.blob_service,
+                &client_options.blob_service_options,
             ),
         })
     }
 }
 
 pub struct IngestClientResources {
+    /// A client against a Kusto ingestion cluster
     client: KustoClient,
-    resources: ThreadSafeCachedValue<Option<InnerIngestClientResources>>,
+    /// Cache of the ingest client resources
+    resources_cache: ThreadSafeCachedValue<InnerIngestClientResources>,
+    /// Options to customise the storage clients
     client_options: QueuedIngestClientOptions,
 }
 
@@ -119,7 +120,7 @@ impl IngestClientResources {
     pub fn new(client: KustoClient, client_options: QueuedIngestClientOptions) -> Self {
         Self {
             client,
-            resources: Arc::new(RwLock::new(Cached::new(None, RESOURCE_REFRESH_PERIOD))),
+            resources_cache: ThreadSafeCachedValue::new(RESOURCE_REFRESH_PERIOD),
             client_options,
         }
     }
@@ -141,29 +142,8 @@ impl IngestClientResources {
 
     /// Gets the latest resources either from cache, or fetching from Kusto and updating the cached resources
     pub async fn get(&self) -> Result<InnerIngestClientResources> {
-        // first, try to get the resources from the cache by obtaining a read lock
-        {
-            let resources = self.resources.read().await;
-            if !resources.is_expired() {
-                if let Some(inner_value) = resources.get() {
-                    return Ok(inner_value.clone());
-                }
-            }
-        }
-
-        // obtain a write lock to refresh the kusto response
-        let mut resources = self.resources.write().await;
-
-        // check again in case another thread refreshed while we were waiting on the write lock
-        if !resources.is_expired() {
-            if let Some(inner_value) = resources.get() {
-                return Ok(inner_value.clone());
-            }
-        }
-
-        let new_resources = self.query_ingestion_resources().await?;
-        resources.update(Some(new_resources.clone()));
-
-        Ok(new_resources)
+        self.resources_cache
+            .get(self.query_ingestion_resources())
+            .await
     }
 }

@@ -1,10 +1,7 @@
-use std::sync::Arc;
-
-use async_lock::RwLock;
 use azure_kusto_data::prelude::KustoClient;
 use serde_json::Value;
 
-use super::cache::{Cached, ThreadSafeCachedValue};
+use super::cache::ThreadSafeCachedValue;
 use super::utils::get_column_index;
 use super::RESOURCE_REFRESH_PERIOD;
 
@@ -40,14 +37,14 @@ pub(crate) struct AuthorizationContext {
     /// A client against a Kusto ingestion cluster
     client: KustoClient,
     /// Cache of the Kusto identity token
-    token_cache: ThreadSafeCachedValue<Option<KustoIdentityToken>>,
+    token_cache: ThreadSafeCachedValue<KustoIdentityToken>,
 }
 
 impl AuthorizationContext {
     pub fn new(client: KustoClient) -> Self {
         Self {
             client,
-            token_cache: Arc::new(RwLock::new(Cached::new(None, RESOURCE_REFRESH_PERIOD))),
+            token_cache: ThreadSafeCachedValue::new(RESOURCE_REFRESH_PERIOD),
         }
     }
 
@@ -99,31 +96,8 @@ impl AuthorizationContext {
 
     /// Fetches the latest Kusto identity token, either retrieving from cache if valid, or by executing a KQL query
     pub(crate) async fn get(&self) -> Result<KustoIdentityToken> {
-        // first, try to get the resources from the cache by obtaining a read lock
-        {
-            let token_cache = self.token_cache.read().await;
-            if !token_cache.is_expired() {
-                if let Some(token) = token_cache.get() {
-                    return Ok(token.clone());
-                }
-            }
-        }
-
-        // obtain a write lock to refresh the kusto response
-        let mut token_cache = self.token_cache.write().await;
-
-        // Again attempt to return from cache, check is done in case another thread
-        // refreshed the token while we were waiting on the write lock
-        if !token_cache.is_expired() {
-            if let Some(token) = token_cache.get() {
-                return Ok(token.clone());
-            }
-        }
-
-        // Fetch new token from Kusto, update the cache, and return the token
-        let token = self.query_kusto_identity_token().await?;
-        token_cache.update(Some(token.clone()));
-
-        Ok(token)
+        self.token_cache
+            .get(self.query_kusto_identity_token())
+            .await
     }
 }
