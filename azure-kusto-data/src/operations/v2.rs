@@ -1,4 +1,4 @@
-use crate::error::{Error::JsonError, Result};
+use crate::error::{Error::JsonError, Partial, PartialExt, Result};
 use crate::models::v2;
 use crate::models::v2::{DataTable, Frame, QueryCompletionInformation, QueryProperties, TableKind};
 use futures::lock::Mutex;
@@ -7,10 +7,11 @@ use futures::{
 };
 use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
+use crate::error::ParseError;
 
 pub fn parse_frames_iterative(
     reader: impl AsyncBufRead + Unpin,
-) -> impl Stream<Item = Result<v2::Frame>> {
+) -> impl Stream<Item=Result<Frame>> {
     let buf = Vec::with_capacity(4096);
     stream::unfold((reader, buf), |(mut reader, mut buf)| async move {
         buf.clear();
@@ -34,7 +35,7 @@ pub fn parse_frames_iterative(
 
 pub async fn parse_frames_full(
     mut reader: (impl AsyncBufRead + Send + Unpin),
-) -> Result<Vec<v2::Frame>> {
+) -> Result<Vec<Frame>> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf).await?;
     return Ok(serde_json::from_slice(&buf)?);
@@ -50,11 +51,11 @@ struct StreamingDataset {
     completion: OM<v2::DataSetCompletion>,
     query_properties: OM<Vec<QueryProperties>>,
     query_completion_information: OM<Vec<QueryCompletionInformation>>,
-    results: Receiver<DataTable>,
+    results: Receiver<Result<DataTable>>,
 }
 
 impl StreamingDataset {
-    fn new(stream: impl Stream<Item = Result<Frame>> + Send + 'static) -> Arc<Self> {
+    fn new(stream: impl Stream<Item=Result<Frame>> + Send + 'static) -> Arc<Self> {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let res = StreamingDataset {
             header: Arc::new(Mutex::new(None)),
@@ -67,7 +68,9 @@ impl StreamingDataset {
         let tokio_res = res.clone();
         // TODO: to spawn a task we have to have a runtime. We wanted to be runtime independent, and that may still be a desire, but currently azure core isn't, so we might as well use tokio here.
         tokio::spawn(async move {
-            tokio_res.populate_with_stream(stream, tx).await;
+            if let Err(e) = tokio_res.populate_with_stream(stream, tx).await {
+                let _ = tx.send(Err(e)).await; // Best effort to send the error to the receiver
+            }
         });
 
         res
@@ -75,9 +78,9 @@ impl StreamingDataset {
 
     async fn populate_with_stream(
         &self,
-        stream: impl Stream<Item = Result<Frame>>,
-        tx: Sender<DataTable>,
-    ) {
+        stream: impl Stream<Item=Result<Frame>>,
+        tx: Sender<Partial<DataTable>>,
+    ) -> Result<()> {
         pin_mut!(stream);
 
         let mut current_table = Some(DataTable {
@@ -89,59 +92,54 @@ impl StreamingDataset {
         });
 
         while let Some(frame) = stream.try_next().await.transpose() {
-            // TODO: handle errors
-            let frame = frame.expect("failed to read frame");
+            let frame = frame?;
             match frame {
-                v2::Frame::DataSetHeader(header) => {
+                Frame::DataSetHeader(header) => {
                     self.header.lock().await.replace(header);
                 }
-                v2::Frame::DataSetCompletion(completion) => {
+                Frame::DataSetCompletion(completion) => {
                     self.completion.lock().await.replace(completion);
                 }
-                // TODO: properly handle errors/missing
-                v2::Frame::DataTable(table) if table.table_kind == TableKind::QueryProperties => {
-                    self.query_properties.lock().await.replace(
-                        table
-                            .deserialize_values::<QueryProperties>()
-                            .expect("failed to deserialize query properties"),
-                    );
-                }
-                v2::Frame::DataTable(table)
-                    if table.table_kind == TableKind::QueryCompletionInformation =>
-                {
-                    self.query_completion_information.lock().await.replace(
-                        table
-                            .deserialize_values::<QueryCompletionInformation>()
-                            .expect("failed to deserialize query completion information"),
-                    );
-                }
-                v2::Frame::DataTable(table) => {
-                    tx.send(table).await.expect("failed to send table");
-                }
-                // TODO - handle errors
-                v2::Frame::TableHeader(table_header) => {
-                    if let Some(table) = &mut current_table {
-                        table.table_id = table_header.table_id;
-                        table.table_name = table_header.table_name.clone();
-                        table.table_kind = table_header.table_kind;
-                        table.columns = table_header.columns.clone();
+                Frame::DataTable(table) if table.table_kind == TableKind::QueryProperties => {
+                    let mut query_properties = self.query_properties.lock().await;
+                    match table.deserialize_values::<QueryProperties>().ignore_partial_results() {
+                        Ok(v) => {query_properties.replace(v);},
+                        Err(e) => tx.send(e.into()).await?,
                     }
                 }
-                v2::Frame::TableFragment(table_fragment) => {
-                    if let Some(table) = &mut current_table {
-                        table.rows.extend(table_fragment.rows);
+                Frame::DataTable(table)
+                if table.table_kind == TableKind::QueryCompletionInformation =>
+                    {
+                        let mut query_completion = self.query_completion_information.lock().await;
+                        match table.deserialize_values::<QueryCompletionInformation>().ignore_partial_results() {
+                            Ok(v) => {query_completion.replace(v);},
+                            Err(e) => tx.send(e.into()).await?,
+                        }
                     }
+                Frame::DataTable(table) => {
+                    tx.send(Ok(table)).await?;
                 }
-                v2::Frame::TableCompletion(table_completion) => {
-                    if let Some(table) = current_table.take() {
-                        // TODO - handle errors
-
-                        tx.send(table).await.expect("failed to send table");
-                    }
+                Frame::TableHeader(table_header) => {
+                    let mut table = current_table.take().ok_or(ParseError::Frame("Table is unexpectedly none".into()))?;
+                    table.table_id = table_header.table_id;
+                    table.table_name = table_header.table_name.clone();
+                    table.table_kind = table_header.table_kind;
+                    table.columns = table_header.columns.clone();
+                }
+                Frame::TableFragment(table_fragment) => {
+                    current_table.take().ok_or(ParseError::Frame("TableFragment without TableHeader".into()))?
+                        .rows.extend(table_fragment.rows);
+                }
+                Frame::TableCompletion(table_completion) => {
+                    tx.send(
+                        Ok(current_table.take().ok_or(ParseError::Frame("TableCompletion without TableHeader".into()))?)
+                    ).await?;
                 }
                 Frame::TableProgress(_) => {}
             }
         }
+
+        Ok(())
     }
 }
 
