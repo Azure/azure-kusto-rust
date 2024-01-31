@@ -1,3 +1,4 @@
+use crate::error::ParseError;
 use crate::error::{Error, Error::JsonError, Partial, partial_from_tuple, PartialExt, Result};
 use crate::models::v2;
 use crate::models::v2::{DataTable, Frame, QueryCompletionInformation, QueryProperties, TableKind};
@@ -7,11 +8,10 @@ use futures::{
 };
 use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use crate::error::ParseError;
 
 pub fn parse_frames_iterative(
     reader: impl AsyncBufRead + Unpin,
-) -> impl Stream<Item=Result<Frame>> {
+) -> impl Stream<Item = Result<Frame>> {
     let buf = Vec::with_capacity(4096);
     stream::unfold((reader, buf), |(mut reader, mut buf)| async move {
         buf.clear();
@@ -55,7 +55,7 @@ struct StreamingDataset {
 }
 
 impl StreamingDataset {
-    fn new(stream: impl Stream<Item=Result<Frame>> + Send + 'static) -> Self {
+    fn new(stream: impl Stream<Item = Result<Frame>> + Send + 'static) -> Self {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let res = StreamingDataset {
             header: Arc::new(Mutex::new(None)),
@@ -86,7 +86,7 @@ async fn populate_with_stream(
     completion_store: OM<v2::DataSetCompletion>,
     query_properties: OM<Vec<QueryProperties>>,
     query_completion_information: OM<Vec<QueryCompletionInformation>>,
-    stream: impl Stream<Item=Result<Frame>>,
+    stream: impl Stream<Item = Result<Frame>>,
     tx: &Sender<Partial<DataTable>>,
 ) -> Result<()> {
     pin_mut!(stream);
