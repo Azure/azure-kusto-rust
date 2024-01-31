@@ -65,7 +65,6 @@ impl<T> Into<Partial<T>> for Error {
         Err((None, self))
     }
 }
-
 impl From<Vec<Error>> for Error {
     fn from(errors: Vec<Error>) -> Self {
         if errors.len() == 1 {
@@ -163,7 +162,17 @@ impl<T> PartialExt<T> for Partial<T> {
     }
 }
 
-impl<T: Send + Sync> From<tokio::sync::mpsc::error::SendError<T>> for Error {
+pub fn partial_from_tuple<T>(t: (Option<T>, Option<Error>)) -> Partial<T> {
+    match t {
+        (Some(v), None) => Ok(v),
+        (None, Some(e)) => Err((None, e)),
+        (Some(v), Some(e)) => Err((Some(v), e)),
+        (None, None) => Err((None, Error::NotImplemented("No value and no error".to_string()))),
+    }
+}
+
+
+impl<T: Send + Sync + 'static> From<tokio::sync::mpsc::error::SendError<T>> for Error {
     fn from(e: tokio::sync::mpsc::error::SendError<T>) -> Self {
         Error::ExternalError(Box::new(e))
     }
