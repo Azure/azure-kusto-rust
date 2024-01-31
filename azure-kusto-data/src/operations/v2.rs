@@ -1,3 +1,4 @@
+use crate::error::ParseError;
 use crate::error::{Error::JsonError, Partial, PartialExt, Result};
 use crate::models::v2;
 use crate::models::v2::{DataTable, Frame, QueryCompletionInformation, QueryProperties, TableKind};
@@ -7,11 +8,10 @@ use futures::{
 };
 use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use crate::error::ParseError;
 
 pub fn parse_frames_iterative(
     reader: impl AsyncBufRead + Unpin,
-) -> impl Stream<Item=Result<Frame>> {
+) -> impl Stream<Item = Result<Frame>> {
     let buf = Vec::with_capacity(4096);
     stream::unfold((reader, buf), |(mut reader, mut buf)| async move {
         buf.clear();
@@ -55,7 +55,7 @@ struct StreamingDataset {
 }
 
 impl StreamingDataset {
-    fn new(stream: impl Stream<Item=Result<Frame>> + Send + 'static) -> Arc<Self> {
+    fn new(stream: impl Stream<Item = Result<Frame>> + Send + 'static) -> Arc<Self> {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let res = StreamingDataset {
             header: Arc::new(Mutex::new(None)),
@@ -78,7 +78,7 @@ impl StreamingDataset {
 
     async fn populate_with_stream(
         &self,
-        stream: impl Stream<Item=Result<Frame>>,
+        stream: impl Stream<Item = Result<Frame>>,
         tx: Sender<Partial<DataTable>>,
     ) -> Result<()> {
         pin_mut!(stream);
@@ -102,38 +102,56 @@ impl StreamingDataset {
                 }
                 Frame::DataTable(table) if table.table_kind == TableKind::QueryProperties => {
                     let mut query_properties = self.query_properties.lock().await;
-                    match table.deserialize_values::<QueryProperties>().ignore_partial_results() {
-                        Ok(v) => {query_properties.replace(v);},
+                    match table
+                        .deserialize_values::<QueryProperties>()
+                        .ignore_partial_results()
+                    {
+                        Ok(v) => {
+                            query_properties.replace(v);
+                        }
                         Err(e) => tx.send(e.into()).await?,
                     }
                 }
                 Frame::DataTable(table)
-                if table.table_kind == TableKind::QueryCompletionInformation =>
+                    if table.table_kind == TableKind::QueryCompletionInformation =>
+                {
+                    let mut query_completion = self.query_completion_information.lock().await;
+                    match table
+                        .deserialize_values::<QueryCompletionInformation>()
+                        .ignore_partial_results()
                     {
-                        let mut query_completion = self.query_completion_information.lock().await;
-                        match table.deserialize_values::<QueryCompletionInformation>().ignore_partial_results() {
-                            Ok(v) => {query_completion.replace(v);},
-                            Err(e) => tx.send(e.into()).await?,
+                        Ok(v) => {
+                            query_completion.replace(v);
                         }
+                        Err(e) => tx.send(e.into()).await?,
                     }
+                }
                 Frame::DataTable(table) => {
                     tx.send(Ok(table)).await?;
                 }
                 Frame::TableHeader(table_header) => {
-                    let mut table = current_table.take().ok_or(ParseError::Frame("Table is unexpectedly none".into()))?;
+                    let mut table = current_table
+                        .take()
+                        .ok_or(ParseError::Frame("Table is unexpectedly none".into()))?;
                     table.table_id = table_header.table_id;
                     table.table_name = table_header.table_name.clone();
                     table.table_kind = table_header.table_kind;
                     table.columns = table_header.columns.clone();
                 }
                 Frame::TableFragment(table_fragment) => {
-                    current_table.take().ok_or(ParseError::Frame("TableFragment without TableHeader".into()))?
-                        .rows.extend(table_fragment.rows);
+                    current_table
+                        .take()
+                        .ok_or(ParseError::Frame(
+                            "TableFragment without TableHeader".into(),
+                        ))?
+                        .rows
+                        .extend(table_fragment.rows);
                 }
                 Frame::TableCompletion(table_completion) => {
-                    tx.send(
-                        Ok(current_table.take().ok_or(ParseError::Frame("TableCompletion without TableHeader".into()))?)
-                    ).await?;
+                    tx.send(Ok(current_table.take().ok_or(ParseError::Frame(
+                        "TableCompletion without TableHeader".into(),
+                    ))?))
+                    .await?;
                 }
                 Frame::TableProgress(_) => {}
             }
