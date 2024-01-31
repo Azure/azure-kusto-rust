@@ -1,5 +1,5 @@
 use crate::error::ParseError;
-use crate::error::{Error, Error::JsonError, Partial, partial_from_tuple, PartialExt, Result};
+use crate::error::{partial_from_tuple, Error, Error::JsonError, Partial, PartialExt, Result};
 use crate::models::v2;
 use crate::models::v2::{DataTable, Frame, QueryCompletionInformation, QueryProperties, TableKind};
 use futures::lock::Mutex;
@@ -72,7 +72,16 @@ impl StreamingDataset {
 
         // TODO: to spawn a task we have to have a runtime. We wanted to be runtime independent, and that may still be a desire, but currently azure core isn't, so we might as well use tokio here.
         tokio::spawn(async move {
-            if let Err(e) = populate_with_stream(header, completion, query_properties, query_completion_information, stream, &tx).await {
+            if let Err(e) = populate_with_stream(
+                header,
+                completion,
+                query_properties,
+                query_completion_information,
+                stream,
+                &tx,
+            )
+            .await
+            {
                 let _ = tx.send(e.into()).await; // Best effort to send the error to the receiver
             }
         });
@@ -110,20 +119,30 @@ async fn populate_with_stream(
             }
             Frame::DataTable(table) if table.table_kind == TableKind::QueryProperties => {
                 let mut query_properties = query_properties.lock().await;
-                match table.deserialize_values::<QueryProperties>().ignore_partial_results() {
-                    Ok(v) => {query_properties.replace(v);},
+                match table
+                    .deserialize_values::<QueryProperties>()
+                    .ignore_partial_results()
+                {
+                    Ok(v) => {
+                        query_properties.replace(v);
+                    }
                     Err(e) => tx.send(e.into()).await?,
                 }
             }
             Frame::DataTable(table)
-            if table.table_kind == TableKind::QueryCompletionInformation =>
+                if table.table_kind == TableKind::QueryCompletionInformation =>
+            {
+                let mut query_completion = query_completion_information.lock().await;
+                match table
+                    .deserialize_values::<QueryCompletionInformation>()
+                    .ignore_partial_results()
                 {
-                    let mut query_completion = query_completion_information.lock().await;
-                    match table.deserialize_values::<QueryCompletionInformation>().ignore_partial_results() {
-                        Ok(v) => {query_completion.replace(v);},
-                        Err(e) => tx.send(e.into()).await?,
+                    Ok(v) => {
+                        query_completion.replace(v);
                     }
+                    Err(e) => tx.send(e.into()).await?,
                 }
+            }
             Frame::DataTable(table) => {
                 tx.send(Ok(table)).await?;
             }
@@ -137,18 +156,26 @@ async fn populate_with_stream(
                 current_table.rows.extend(table_fragment.rows);
             }
             Frame::TableCompletion(table_completion) => {
-                let new_table = std::mem::replace(&mut current_table, DataTable {
-                    table_id: 0,
-                    table_name: "".to_string(),
-                    table_kind: TableKind::PrimaryResult,
-                    columns: Vec::new(),
-                    rows: Vec::new(),
-                });
-                tx.send(
-                    partial_from_tuple((
-                        Some(new_table),
-                        table_completion.one_api_errors.map(|e| e.into_iter().map(Error::QueryApiError).collect::<Vec<Error>>().into()),
-                    ))).await?;
+                let new_table = std::mem::replace(
+                    &mut current_table,
+                    DataTable {
+                        table_id: 0,
+                        table_name: "".to_string(),
+                        table_kind: TableKind::PrimaryResult,
+                        columns: Vec::new(),
+                        rows: Vec::new(),
+                    },
+                );
+                tx.send(partial_from_tuple((
+                    Some(new_table),
+                    table_completion.one_api_errors.map(|e| {
+                        e.into_iter()
+                            .map(Error::QueryApiError)
+                            .collect::<Vec<Error>>()
+                            .into()
+                    }),
+                )))
+                .await?;
             }
             Frame::TableProgress(_) => {}
         }

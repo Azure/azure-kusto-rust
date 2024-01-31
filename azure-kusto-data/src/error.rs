@@ -167,10 +167,12 @@ pub fn partial_from_tuple<T>(t: (Option<T>, Option<Error>)) -> Partial<T> {
         (Some(v), None) => Ok(v),
         (None, Some(e)) => Err((None, e)),
         (Some(v), Some(e)) => Err((Some(v), e)),
-        (None, None) => Err((None, Error::NotImplemented("No value and no error".to_string()))),
+        (None, None) => Err((
+            None,
+            Error::NotImplemented("No value and no error".to_string()),
+        )),
     }
 }
-
 
 impl<T: Send + Sync + 'static> From<tokio::sync::mpsc::error::SendError<T>> for Error {
     fn from(e: tokio::sync::mpsc::error::SendError<T>) -> Self {
