@@ -19,5 +19,4 @@ pub mod prelude;
 mod query;
 pub mod request_options;
 pub mod types;
-
 pub use types::*;

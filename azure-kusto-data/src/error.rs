@@ -5,6 +5,8 @@ use oauth2::url;
 
 use crate::models::v2::OneApiError;
 use thiserror;
+use crate::request_options::ClientRequestPropertiesBuilderError;
+
 /// Error type for kusto operations.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -59,6 +61,9 @@ pub enum Error {
     /// Multiple errors
     #[error("Multiple errors: {0:?}")]
     MultipleErrors(Vec<Error>),
+
+    #[error("Client Request Configuration Error: {0}")]
+    ClientRequestConfigurationError(#[from] ClientRequestPropertiesBuilderError),
 }
 
 impl<T> Into<Partial<T>> for Error {

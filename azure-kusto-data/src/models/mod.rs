@@ -7,7 +7,7 @@ pub(crate) mod test_helpers;
 use serde::{Deserialize, Serialize};
 
 /// Represents the scalar data types of ADX. see [the docs for more information](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/scalar-data-types/)
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone)]
 pub enum ColumnType {
     #[serde(rename = "bool")]
     /// Boolean type, true or false. Internally is a u8.
@@ -39,4 +39,30 @@ pub enum ColumnType {
     #[serde(alias = "decimal")]
     /// Decimal, represents a fixed-point number with a defined precision and scale.
     Decimal,
+}
+
+
+pub trait Column {
+    fn column_name(&self) -> &str;
+    fn column_type(&self) -> ColumnType;
+}
+
+impl Column for v1::Column {
+    fn column_name(&self) -> &str {
+        &self.column_name
+    }
+
+    fn column_type(&self) -> ColumnType {
+        self.column_type
+    }
+}
+
+impl Column for v2::Column {
+    fn column_name(&self) -> &str {
+        &self.column_name
+    }
+
+    fn column_type(&self) -> ColumnType {
+        self.column_type
+    }
 }

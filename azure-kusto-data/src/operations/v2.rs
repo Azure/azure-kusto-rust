@@ -1,4 +1,3 @@
-use crate::error::ParseError;
 use crate::error::{partial_from_tuple, Error, Error::JsonError, Partial, PartialExt, Result};
 use crate::models::v2;
 use crate::models::v2::{DataTable, Frame, QueryCompletionInformation, QueryProperties, TableKind};
@@ -10,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 pub fn parse_frames_iterative(
-    reader: impl AsyncBufRead + Unpin,
+    reader: impl AsyncBufRead + Unpin + Send + Sync
 ) -> impl Stream<Item = Result<Frame>> {
     let buf = Vec::with_capacity(4096);
     stream::unfold((reader, buf), |(mut reader, mut buf)| async move {
@@ -19,8 +18,6 @@ pub fn parse_frames_iterative(
         if size <= 0 {
             return None;
         }
-
-        dbg!(String::from_utf8_lossy(&buf[1..size]));
 
         if buf[0] == b']' {
             return None;
@@ -46,23 +43,25 @@ type M<T> = Arc<Mutex<T>>;
 /// Arc Mutex Option
 type OM<T> = M<Option<T>>;
 
-struct StreamingDataset {
+pub(crate) struct IterativeDataset {
     header: OM<v2::DataSetHeader>,
     completion: OM<v2::DataSetCompletion>,
     query_properties: OM<Vec<QueryProperties>>,
     query_completion_information: OM<Vec<QueryCompletionInformation>>,
     results: Receiver<Partial<DataTable>>,
+    join_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
-impl StreamingDataset {
-    fn new(stream: impl Stream<Item = Result<Frame>> + Send + 'static) -> Self {
+impl IterativeDataset {
+    pub fn new(stream: impl Stream<Item = Result<Frame>> + Send + 'static) -> Self {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
-        let res = StreamingDataset {
+        let mut res = IterativeDataset {
             header: Arc::new(Mutex::new(None)),
             completion: Arc::new(Mutex::new(None)),
             query_properties: Arc::new(Mutex::new(None)),
             query_completion_information: Arc::new(Mutex::new(None)),
             results: rx,
+            join_handle: None,
         };
 
         let header = res.header.clone();
@@ -71,7 +70,7 @@ impl StreamingDataset {
         let query_completion_information = res.query_completion_information.clone();
 
         // TODO: to spawn a task we have to have a runtime. We wanted to be runtime independent, and that may still be a desire, but currently azure core isn't, so we might as well use tokio here.
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             if let Err(e) = populate_with_stream(
                 header,
                 completion,
@@ -85,6 +84,9 @@ impl StreamingDataset {
                 let _ = tx.send(e.into()).await; // Best effort to send the error to the receiver
             }
         });
+
+        res.join_handle.replace(handle);
+
 
         res
     }
@@ -148,9 +150,9 @@ async fn populate_with_stream(
             }
             Frame::TableHeader(table_header) => {
                 current_table.table_id = table_header.table_id;
-                current_table.table_name = table_header.table_name.clone();
+                current_table.table_name = table_header.table_name;
                 current_table.table_kind = table_header.table_kind;
-                current_table.columns = table_header.columns.clone();
+                current_table.columns = table_header.columns;
             }
             Frame::TableFragment(table_fragment) => {
                 current_table.rows.extend(table_fragment.rows);
@@ -190,7 +192,7 @@ async fn populate_with_stream(
 mod tests {
     use crate::models::test_helpers::{v2_files_full, v2_files_iterative};
     use futures::io::Cursor;
-    use futures::{pin_mut, StreamExt};
+    use futures::StreamExt;
 
     #[tokio::test]
     async fn test_parse_frames_full() {
@@ -218,9 +220,8 @@ mod tests {
     #[tokio::test]
     async fn test_streaming_dataset() {
         for (contents, frames) in v2_files_iterative() {
-            println!("testing: {}", contents);
             let reader = Cursor::new(contents.as_bytes());
-            let mut dataset = super::StreamingDataset::new(super::parse_frames_iterative(reader));
+            let mut dataset = super::IterativeDataset::new(super::parse_frames_iterative(reader));
             while let Some(table) = dataset.results.recv().await {
                 dbg!(&table);
             }

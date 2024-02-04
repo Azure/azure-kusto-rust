@@ -102,6 +102,12 @@ impl ClientRequestProperties {
         }
         self.parameters.as_mut().unwrap().insert(name.into(), value);
     }
+
+    /// Add the needed flags to the options to use the new v2 API.
+    pub fn with_query_v2_flags(mut self) -> Self {
+        self.options.get_or_insert_with(Options::default).with_query_v2_flags();
+        self
+    }
 }
 
 impl From<Options> for ClientRequestProperties {
@@ -244,3 +250,13 @@ pub struct Options {
     #[serde(flatten)]
     pub additional: HashMap<String, String>,
 }
+
+impl Options {
+    /// Add the needed flags to the options to use the new v2 API.
+    pub fn with_query_v2_flags(&mut self) {
+        self.results_v2_newlines_between_frames = Some(true);
+        self.results_v2_fragment_primary_tables = Some(true);
+        self.error_reporting_placement = Some("end_of_table".into());
+    }
+}
+

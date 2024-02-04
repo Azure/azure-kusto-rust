@@ -3,9 +3,10 @@
 use crate::error::{Error, ParseError};
 use derive_more::{Display, From, FromStr, Into};
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::convert::Infallible;
 use std::fmt::Debug;
+use serde::de::DeserializeSeed;
 
 mod datetime;
 mod timespan;
@@ -82,6 +83,7 @@ kusto_type!(KustoDynamic, serde_json::Value, Eq);
 kusto_type!(KustoGuid, uuid::Uuid, primitive);
 pub use datetime::KustoDateTime;
 pub use timespan::KustoTimespan;
+use crate::models::{Column, ColumnType};
 
 kusto_from_str!(KustoBool, bool, ParseError::Bool);
 kusto_from_str!(KustoInt, i32, ParseError::Int);

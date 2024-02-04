@@ -2,14 +2,14 @@
 
 use crate::authorization_policy::AuthorizationPolicy;
 use crate::connection_string::{ConnectionString, ConnectionStringAuth};
-use crate::error::{Error, ParseError, Partial, Result};
+use crate::error::{Error, ParseError, Result};
 use crate::operations::query::{QueryRunner, QueryRunnerBuilder, V1QueryRunner, V2QueryRunner};
 
-use azure_core::{ClientOptions, Context, CustomHeaders, Method, Pipeline, Request, Response, ResponseBody};
+use azure_core::{ClientOptions, Context, CustomHeaders, Method, Pipeline, Request, ResponseBody};
 
 use crate::client_details::ClientDetails;
 use crate::models::v2::Row;
-use crate::prelude::{ClientRequestProperties, ClientRequestPropertiesBuilder, OptionsBuilder};
+use crate::prelude::ClientRequestProperties;
 use azure_core::headers::Headers;
 use azure_core::prelude::{Accept, AcceptEncoding, ClientVersion, ContentType};
 use serde::de::DeserializeOwned;
@@ -18,9 +18,8 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use futures::TryStreamExt;
 use crate::operations;
-use crate::operations::v2::{FullDataset, IterativeDataset};
+use crate::operations::v2::{IterativeDataset};
 use crate::query::QueryBody;
-use crate::request_options::Options;
 
 /// Options for specifying how a Kusto client will behave
 #[derive(Clone, Default)]
@@ -295,27 +294,21 @@ impl KustoClient {
         V1QueryRunner(self.execute_with_options(database, query, QueryKind::Management, options))
     }
 
-    #[must_use]
+/*    #[must_use]
     pub async fn query(&self, database: impl Into<String>, query: impl Into<String>, options: impl Into<Option<ClientRequestProperties>>) -> Partial<FullDataset> {
         let body = self.execute(QueryKind::Query, database.into(), query.into(), options.into()).await.map_err(|e| (None, e))?;
 
         FullDataset::from_async_buf_read(body.into_stream().map_err(|e| std::io::Error::other(e)).into_async_read()).await
-    }
+    }*/
 
     #[must_use]
-    pub async fn iterative_query(&self, database: impl Into<String>, query: impl Into<String>, options: impl Into<Option<ClientRequestProperties>>) -> Result<Arc<IterativeDataset>> {
-        let iterative_options = ClientRequestPropertiesBuilder::default().with_options(
-            OptionsBuilder::default()
-                .with_results_v2_newlines_between_frames(true)
-                .with_results_v2_fragment_primary_tables(true)
-                .with_error_reporting_placement("end_of_table").build().expect("Failed to build options"))
-            .build()
-            .expect("Failed to build options");
+    pub async fn iterative_query(&self, database: impl Into<String>, query: impl Into<String>, options: Option<impl Into<ClientRequestProperties>>) -> Result<IterativeDataset> {
+        let options = options.map(|o| o.into().with_query_v2_flags());
 
-        //TODO merge options
-
-        let body = self.execute(QueryKind::Query, database.into(), query.into(), iterative_options.into()).await?;
-        Ok(IterativeDataset::from_async_buf_read(body.into_stream().map_err(|e| std::io::Error::other(e)).into_async_read()).await)
+        let body = self.execute(QueryKind::Query, database.into(), query.into(), options.into()).await?;
+        let read = body.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)).into_async_read();
+        let stream = operations::v2::parse_frames_iterative(read);
+        Ok(IterativeDataset::new(stream))
     }
 
     async fn execute(&self, kind: QueryKind, database: String, query: String, options: Option<ClientRequestProperties>) -> Result<ResponseBody> {
