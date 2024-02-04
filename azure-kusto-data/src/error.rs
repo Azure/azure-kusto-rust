@@ -170,6 +170,7 @@ pub type Partial<T> = std::result::Result<T, (Option<T>, Error)>;
 
 pub(crate) trait PartialExt<T> {
     fn ignore_partial_results(self) -> Result<T>;
+    fn to_tuple(self) -> (Option<T>, Option<Error>);
 }
 
 impl<T> PartialExt<T> for Partial<T> {
@@ -177,6 +178,13 @@ impl<T> PartialExt<T> for Partial<T> {
         match self {
             Ok(v) => Ok(v),
             Err((_, e)) => Err(e),
+        }
+    }
+
+    fn to_tuple(self) -> (Option<T>, Option<Error>) {
+        match self {
+            Ok(v) => (Some(v), None),
+            Err((v, e)) => (v, Some(e)),
         }
     }
 }

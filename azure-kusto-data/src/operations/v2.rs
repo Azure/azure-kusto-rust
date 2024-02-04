@@ -193,11 +193,11 @@ mod tests {
     use crate::models::test_helpers::{v2_files_full, v2_files_iterative};
     use futures::io::Cursor;
     use futures::StreamExt;
+    use crate::error::PartialExt;
 
     #[tokio::test]
     async fn test_parse_frames_full() {
         for (contents, frames) in v2_files_full() {
-            println!("testing: {}", contents);
             let reader = Cursor::new(contents.as_bytes());
             let parsed_frames = super::parse_frames_full(reader).await.unwrap();
             assert_eq!(parsed_frames, frames);
@@ -207,7 +207,6 @@ mod tests {
     #[tokio::test]
     async fn test_parse_frames_iterative() {
         for (contents, frames) in v2_files_iterative() {
-            println!("testing: {}", contents);
             let reader = Cursor::new(contents.as_bytes());
             let parsed_frames = super::parse_frames_iterative(reader)
                 .map(|f| f.expect("failed to parse frame"))
@@ -222,8 +221,51 @@ mod tests {
         for (contents, frames) in v2_files_iterative() {
             let reader = Cursor::new(contents.as_bytes());
             let mut dataset = super::IterativeDataset::new(super::parse_frames_iterative(reader));
+            let mut tables = frames.into_iter();
+
+            tables.next(); // skip the header
+            tables.next(); // skip the query properties
+
+
             while let Some(table) = dataset.results.recv().await {
-                dbg!(&table);
+                let (table, errs) = table.to_tuple();
+                let errs = errs.map(|e| match &e {
+                    super::Error::QueryApiError(ex) => vec![ex.clone()],
+                    super::Error::MultipleErrors(v) => v.iter().map(|e| match e {
+                        super::Error::QueryApiError(ex) => ex.clone(),
+                        _ => panic!("expected a query api error")
+                    }).collect(),
+                    _ => panic!("expected a query api error")
+                });
+
+                let table = table.expect("missing table");
+
+                let frame = tables.next().expect("missing frame");
+                if let super::Frame::TableHeader(expected_header) = frame {
+                    assert_eq!(table.table_id, expected_header.table_id);
+                    assert_eq!(table.table_name, expected_header.table_name);
+                    assert_eq!(table.table_kind, expected_header.table_kind);
+                    assert_eq!(table.columns, expected_header.columns);
+                } else if let super::Frame::DataSetCompletion(completion) = frame {
+                    assert_eq!(completion.one_api_errors, errs);
+                    break;
+                } else {
+                    panic!("expected a table header or a completion frame");
+                }
+
+                let mut expected_rows = Vec::new();
+
+                while let Some(fragment) = tables.next() {
+                    if let super::Frame::TableFragment(expected_fragment) = fragment {
+                        assert_eq!(table.table_id, expected_fragment.table_id);
+                        expected_rows.extend(expected_fragment.rows);
+                    } else if let super::Frame::TableCompletion(c) = fragment {
+                        assert_eq!(c.one_api_errors, errs);
+                        break;
+                    }
+                }
+
+                assert_eq!(table.rows, expected_rows);
             }
         }
     }
