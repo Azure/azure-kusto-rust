@@ -103,7 +103,6 @@ enum KustoValue {
     Dynamic(KustoDynamic),
 }
 
-
 impl FromStr for KustoString {
     type Err = Infallible;
 

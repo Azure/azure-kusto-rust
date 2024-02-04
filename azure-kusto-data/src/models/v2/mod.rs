@@ -6,11 +6,11 @@ mod errors;
 mod frames;
 mod known_tables;
 
+use crate::error::{Error, Partial};
 pub use consts::*;
 pub use errors::*;
 pub use frames::*;
 pub use known_tables::*;
-use crate::error::{Error, Partial};
 
 /// A result of a V2 query.
 /// Could be a table, a part of a table, or metadata about the dataset.
@@ -57,7 +57,9 @@ impl Into<Result<Vec<serde_json::Value>, Error>> for Row {
     fn into(self) -> Result<Vec<serde_json::Value>, Error> {
         match self {
             Row::Values(v) => Ok(v),
-            Row::Error(e) => Err(e.errors.into()),
+            Row::Error(e) => Err(e
+                .errors
+                .into()),
         }
     }
 }
@@ -78,7 +80,7 @@ impl DataTable {
                 Err(e) => match e {
                     Error::MultipleErrors(e) => errors.extend(e),
                     _ => errors.push(e),
-                }
+                },
             }
         }
         match (values.len(), errors.len()) {
@@ -100,7 +102,7 @@ impl DataTable {
                 Err(e) => match e {
                     Error::MultipleErrors(e) => errors.extend(e),
                     _ => errors.push(e),
-                }
+                },
             }
         }
 

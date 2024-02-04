@@ -14,7 +14,7 @@ pub enum Error {
 
     /// Error in an external crate
     #[error("Error in external crate {0}")]
-    ExternalError(String),
+    ExternalError(Box<dyn std::error::Error + Send + Sync>),
 
     /// Error in HTTP
     #[error("Error in HTTP: {0} {1}")]
@@ -61,6 +61,11 @@ pub enum Error {
     MultipleErrors(Vec<Error>),
 }
 
+impl<T> Into<Partial<T>> for Error {
+    fn into(self) -> Partial<T> {
+        Err((None, self))
+    }
+}
 impl From<Vec<Error>> for Error {
     fn from(errors: Vec<Error>) -> Self {
         if errors.len() == 1 {
@@ -114,6 +119,9 @@ pub enum ParseError {
 
     #[error("Error parsing url: {0}")]
     Url(#[from] url::ParseError),
+
+    #[error("Error parsing Frame: {0}")]
+    Frame(String),
 }
 
 /// Errors raised when parsing connection strings.
@@ -154,3 +162,34 @@ impl ConnectionStringError {
 /// Result type for kusto operations.
 pub type Result<T> = std::result::Result<T, Error>;
 pub type Partial<T> = std::result::Result<T, (Option<T>, Error)>;
+
+pub(crate) trait PartialExt<T> {
+    fn ignore_partial_results(self) -> Result<T>;
+}
+
+impl<T> PartialExt<T> for Partial<T> {
+    fn ignore_partial_results(self) -> Result<T> {
+        match self {
+            Ok(v) => Ok(v),
+            Err((_, e)) => Err(e),
+        }
+    }
+}
+
+pub fn partial_from_tuple<T>(t: (Option<T>, Option<Error>)) -> Partial<T> {
+    match t {
+        (Some(v), None) => Ok(v),
+        (None, Some(e)) => Err((None, e)),
+        (Some(v), Some(e)) => Err((Some(v), e)),
+        (None, None) => Err((
+            None,
+            Error::NotImplemented("No value and no error".to_string()),
+        )),
+    }
+}
+
+impl<T: Send + Sync + 'static> From<tokio::sync::mpsc::error::SendError<T>> for Error {
+    fn from(e: tokio::sync::mpsc::error::SendError<T>) -> Self {
+        Error::ExternalError(Box::new(e))
+    }
+}
