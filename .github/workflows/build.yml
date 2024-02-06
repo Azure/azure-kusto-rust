@@ -5,6 +5,9 @@ name: Rust Build, Test, and Lint
 jobs:
   build-data:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
     environment: sdke2e
     env:
       RUST_BACKTRACE: 1
