@@ -5,15 +5,15 @@ on:
     branches: [ '**' ]
 
 name: Rust Build, Test, and Lint
+permissions:
+  checks: write
+  pull-requests: write
+  id-token: write
+  contents: read
 
 jobs:
   build-data:
     runs-on: ubuntu-latest
-    permissions:
-      checks: write
-      pull-requests: write
-      id-token: write
-      contents: read
     environment: build
     env:
       RUST_BACKTRACE: 1
