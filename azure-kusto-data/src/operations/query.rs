@@ -77,11 +77,7 @@ impl QueryRunner {
         let bytes = bytes::Bytes::from(serde_json::to_string(&body)?);
         request.set_body(bytes);
 
-        let response = self
-            .client
-            .pipeline()
-            .send(&mut context, &mut request)
-            .await?;
+        let response = self.client.pipeline().send(&context, &mut request).await?;
         Ok(response)
     }
 

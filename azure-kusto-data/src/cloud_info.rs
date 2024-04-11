@@ -62,7 +62,7 @@ impl CloudInfo {
         );
         request.insert_headers(&Accept::from("application/json"));
         request.insert_headers(&AcceptEncoding::from("gzip, deflate"));
-        let response = pipeline.send(&mut Context::new(), &mut request).await?;
+        let response = pipeline.send(&Context::new(), &mut request).await?;
         let (status_code, _header_map, pinned_stream) = response.deconstruct();
         match status_code {
             StatusCode::Ok => {
