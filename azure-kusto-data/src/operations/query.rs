@@ -80,7 +80,7 @@ impl QueryRunner {
         let response = self
             .client
             .pipeline()
-            .send(&mut context, &mut request)
+            .send(&context, &mut request)
             .await?;
         Ok(response)
     }
