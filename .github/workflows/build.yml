@@ -1,20 +1,30 @@
-on: [push]
+on:
+  push:
+    branches: [ 'main' ]
+  pull_request:
+    branches: [ '**' ]
 
 name: Rust Build, Test, and Lint
+permissions:
+  checks: write
+  pull-requests: write
+  id-token: write
+  contents: read
 
 jobs:
   build-data:
     runs-on: ubuntu-latest
-    environment: sdke2e
+    environment: build
     env:
       RUST_BACKTRACE: 1
       RUST_LOG: debug
-      KUSTO_CLUSTER_URL: https://sdkse2etest.eastus.kusto.windows.net
-      KUSTO_DATABASE: fastbatchinge2e
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
     steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
@@ -22,9 +32,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - uses: mbrobbel/rustfmt-check@master
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - run: cargo fmt --all -- --check
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -44,6 +52,8 @@ jobs:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
           RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          KUSTO_CLUSTER_URL: https://sdkse2etest.eastus.kusto.windows.net
+          KUSTO_DATABASE: fastbatchinge2e
       - uses: actions-rs/grcov@v0.1
         id: coverage
       - name: Publish Unit Test Results
