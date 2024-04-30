@@ -1,0 +1,26 @@
+[package]
+name = "azure-kusto-ingest"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+azure-kusto-data = { path = "../azure-kusto-data", default-features = false }
+# Azure SDK for Rust crates versions must be kept in sync
+azure_core = "0.19"
+azure_storage = "0.19"
+azure_storage_blobs = "0.19"
+azure_storage_queues = "0.19"
+
+async-lock = "3"
+rand = "0.8"
+serde = { version = "1", features = ["serde_derive"] }
+serde_json = "1"
+thiserror = "1"
+time = { version = "0.3", features = ["serde-human-readable", "macros"] }
+url = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
