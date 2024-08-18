@@ -9,13 +9,11 @@ use std::time::Duration;
 use crate::client_details;
 use crate::client_details::{ClientDetails, ConnectorDetails};
 use azure_core::auth::TokenCredential;
-use azure_identity::{
-    AzureCliCredential, ClientSecretCredential, DefaultAzureCredential,
-    ImdsManagedIdentityCredential, TokenCredentialOptions,
-};
+use azure_core::Url;
+use azure_identity::{AppServiceManagedIdentityCredential, AzureCliCredential, ClientSecretCredential, DefaultAzureCredential};
 use hashbrown::HashMap;
 use once_cell::sync::Lazy;
-
+use crate::cloud_info::CloudInfo;
 use crate::credentials::{CallbackTokenCredential, ConstTokenCredential};
 use crate::error::ConnectionStringError;
 
@@ -346,7 +344,7 @@ impl ConnectionStringAuth {
         }
     }
 
-    pub(crate) fn into_credential(self) -> Arc<dyn TokenCredential> {
+    pub(crate) fn into_credential(self, cloud_info: &CloudInfo) -> Arc<dyn TokenCredential> {
         match self {
             ConnectionStringAuth::Default => Arc::new(DefaultAzureCredential::default()),
             ConnectionStringAuth::UserAndPassword { .. } => unimplemented!(),
@@ -364,17 +362,17 @@ impl ConnectionStringAuth {
                 client_authority,
             } => Arc::new(ClientSecretCredential::new(
                 azure_core::new_http_client(),
+                Url::parse(cloud_info.login_endpoint.as_ref()).expect("Invalid login endpoint"),
                 client_authority,
                 client_id,
                 client_secret,
-                TokenCredentialOptions::default(),
             )),
             ConnectionStringAuth::ApplicationCertificate { .. } => unimplemented!(),
             ConnectionStringAuth::ManagedIdentity { user_id } => {
                 if let Some(user_id) = user_id {
-                    Arc::new(ImdsManagedIdentityCredential::default().with_object_id(user_id))
+                    Arc::new(AppServiceManagedIdentityCredential::default().with_object_id(user_id))
                 } else {
-                    Arc::new(ImdsManagedIdentityCredential::default())
+                    Arc::new(AppServiceManagedIdentityCredential::default())
                 }
             }
             ConnectionStringAuth::AzureCli => Arc::new(AzureCliCredential::default()),

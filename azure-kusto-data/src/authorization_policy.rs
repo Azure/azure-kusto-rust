@@ -65,7 +65,7 @@ impl Policy for AuthorizationPolicy {
                 .unwrap_or_default();
 
                 *lock = Some((
-                    self.auth.clone().into_credential(),
+                    self.auth.clone().into_credential(&cloud_info),
                     cloud_info.get_resource_uri().to_string(),
                 ));
 
