@@ -8,14 +8,17 @@ use std::time::Duration;
 
 use crate::client_details;
 use crate::client_details::{ClientDetails, ConnectorDetails};
-use azure_core::auth::TokenCredential;
-use azure_core::Url;
-use azure_identity::{AppServiceManagedIdentityCredential, AzureCliCredential, ClientSecretCredential, DefaultAzureCredential};
-use hashbrown::HashMap;
-use once_cell::sync::Lazy;
 use crate::cloud_info::CloudInfo;
 use crate::credentials::{CallbackTokenCredential, ConstTokenCredential};
 use crate::error::ConnectionStringError;
+use azure_core::auth::TokenCredential;
+use azure_core::Url;
+use azure_identity::{
+    AppServiceManagedIdentityCredential, AzureCliCredential, ClientSecretCredential,
+    DefaultAzureCredential,
+};
+use hashbrown::HashMap;
+use once_cell::sync::Lazy;
 
 /// Function that handles the device code flow.
 pub type DeviceCodeFunction = Arc<dyn Fn(&str) -> String + Send + Sync>;
