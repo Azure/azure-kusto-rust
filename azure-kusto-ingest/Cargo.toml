@@ -1,6 +1,6 @@
 [package]
 name = "azure-kusto-ingest"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -8,10 +8,10 @@ edition = "2021"
 [dependencies]
 azure-kusto-data = { path = "../azure-kusto-data", default-features = false }
 # Azure SDK for Rust crates versions must be kept in sync
-azure_core = "0.19"
-azure_storage = "0.19"
-azure_storage_blobs = "0.19"
-azure_storage_queues = "0.19"
+azure_core = "0.20.0"
+azure_storage = "0.20.0"
+azure_storage_blobs = "0.20.0"
+azure_storage_queues = "0.20.0"
 
 async-lock = "3"
 rand = "0.8"
