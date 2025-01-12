@@ -52,8 +52,8 @@ jobs:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
           RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          KUSTO_CLUSTER_URL: https://sdkse2etest.eastus.kusto.windows.net
-          KUSTO_DATABASE: fastbatchinge2e
+          KUSTO_CLUSTER_URL: ${{ secrets.ENGINE_CONNECTION_STRING }}
+          KUSTO_DATABASE: ${{ secrets.TEST_DATABASE }}
       - uses: actions-rs/grcov@v0.1
         id: coverage
       - name: Publish Unit Test Results
