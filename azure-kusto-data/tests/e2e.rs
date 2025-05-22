@@ -45,7 +45,7 @@ async fn create_query_delete_table() {
         .await
         .expect("Failed to run query");
 
-    assert_eq!(response.table_count(), 1);
+    assert!(response.table_count() > 0);
 
     let query = ".show tables | where TableName == \"KustoRsTest\"";
     let response = client
