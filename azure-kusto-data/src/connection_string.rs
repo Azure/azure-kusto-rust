@@ -204,8 +204,6 @@ pub enum ConnectionStringAuth {
     },
     /// Application - uses the application client id and key to authenticate.
     Application {
-        /// The authority or tenant id to use.
-        // authority_host: Url,
         /// The application client id to use.
         client_id: String,
         /// The application key to use.
@@ -228,8 +226,6 @@ pub enum ConnectionStringAuth {
     ManagedIdentity {
         /// An optional user id to use. If not specified, system-based MSI is used.
         user_id: Option<String>,
-        /// The authority or tenant id to use.
-        // authority_host: Url,
         /// The application client id to use.
         client_id: String,
         /// The EntraId tenant id to use.
@@ -328,7 +324,6 @@ impl ConnectionStringAuth {
             )),
             ConnectionStringAuth::ManagedIdentity { 
                 user_id,
-                // authority_host,
                 tenant_id,
                 client_id,
                 client_authority,
@@ -376,7 +371,6 @@ impl ConnectionStringAuth {
                 time_to_live,
             }),
             ConnectionStringAuth::Application {
-                // authority_host,
                 client_id,
                 client_secret,
                 client_authority,
@@ -389,14 +383,12 @@ impl ConnectionStringAuth {
             )),
             ConnectionStringAuth::ApplicationCertificate { .. } => unimplemented!(),
             ConnectionStringAuth::ManagedIdentity { user_id ,
-                // authority_host,
                 client_id,
                 tenant_id,
                 client_authority,} => {
                 if let Some(user_id) = user_id {
                     Arc::new(WorkloadIdentityCredential::new(             
                         azure_core::new_http_client(),
-                        // authority_host,
                         Url::parse("https://login.microsoftonline.com").unwrap(),
                         tenant_id,
                         client_id,
@@ -404,7 +396,6 @@ impl ConnectionStringAuth {
                 } else {
                     Arc::new(WorkloadIdentityCredential::new(            
                         azure_core::new_http_client(),
-                        // authority_host,
                         Url::parse("https://login.microsoftonline.com").unwrap(),
                         tenant_id,
                         client_id,
