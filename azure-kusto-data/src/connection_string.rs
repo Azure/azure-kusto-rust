@@ -386,17 +386,19 @@ impl ConnectionStringAuth {
                 client_id,
                 tenant_id,
                 client_authority,} => {
+                    
+                let authority_host: Url = Url::parse("https://login.microsoftonline.com").unwrap();
                 if let Some(user_id) = user_id {
                     Arc::new(WorkloadIdentityCredential::new(             
                         azure_core::new_http_client(),
-                        Url::parse("https://login.microsoftonline.com").unwrap(),
+                        authority_host,
                         tenant_id,
                         client_id,
                         user_id))
                 } else {
                     Arc::new(WorkloadIdentityCredential::new(            
                         azure_core::new_http_client(),
-                        Url::parse("https://login.microsoftonline.com").unwrap(),
+                        authority_host,
                         tenant_id,
                         client_id,
                         String::new(),))
@@ -861,7 +863,6 @@ impl ConnectionString {
                 client_id: client_id.into(),
                 client_secret: client_secret.into(),
                 client_authority: client_authority.into(),
-                // authority_host: authority_host.into(),
             },
             application: None,
             user: None,
