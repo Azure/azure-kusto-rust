@@ -6,6 +6,7 @@ use futures::{pin_mut, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::error::Error;
+use azure_core::Url;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug, Clone)]

@@ -1,5 +1,6 @@
 use azure_kusto_data::prelude::*;
 use std::error::Error;
+use azure_core::Url;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -21,8 +22,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         std::env::var("AZURE_CLIENT_SECRET").expect("Set env variable AZURE_CLIENT_SECRET first!");
     let authority_id =
         std::env::var("AZURE_TENANT_ID").expect("Set env variable AZURE_TENANT_ID first!");
-
-    let kcsb = ConnectionString::with_application_auth(
+    
+        let kcsb = ConnectionString::with_application_auth(
         service_url,
         client_id,
         client_secret,

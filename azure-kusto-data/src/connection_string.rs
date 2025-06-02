@@ -12,7 +12,7 @@ use crate::client_details::{ClientDetails, ConnectorDetails};
 use azure_core::auth;
 use azure_core::{auth::TokenCredential, Url};
 use azure_identity::{
-    AzureCliCredential, ClientSecretCredential, DefaultAzureCredential, WorkloadIdentityCredential, TokenCredentialOptions
+    tenant_ids, AzureCliCredential, ClientSecretCredential, DefaultAzureCredential, TokenCredentialOptions, WorkloadIdentityCredential
 };
 use hashbrown::HashMap;
 use once_cell::sync::Lazy;
@@ -36,7 +36,6 @@ enum ConnectionStringKey {
     ApplicationCertificate,
     ApplicationCertificateThumbprint,
     AuthorityId,
-    AuthorityHost,
     ApplicationToken,
     UserToken,
     MsiAuth,
@@ -63,7 +62,6 @@ impl ConnectionStringKey {
                 "Application Certificate Thumbprint"
             }
             ConnectionStringKey::AuthorityId => "Authority Id",
-            ConnectionStringKey::AuthorityHost => "Authority Host",
             ConnectionStringKey::ApplicationToken => "ApplicationToken",
             ConnectionStringKey::UserToken => "UserToken",
             ConnectionStringKey::MsiAuth => "MSI Authentication",
@@ -207,7 +205,7 @@ pub enum ConnectionStringAuth {
     /// Application - uses the application client id and key to authenticate.
     Application {
         /// The authority or tenant id to use.
-        authority_host: Url,
+        // authority_host: Url,
         /// The application client id to use.
         client_id: String,
         /// The application key to use.
@@ -231,7 +229,7 @@ pub enum ConnectionStringAuth {
         /// An optional user id to use. If not specified, system-based MSI is used.
         user_id: Option<String>,
         /// The authority or tenant id to use.
-        authority_host: Url,
+        // authority_host: Url,
         /// The application client id to use.
         client_id: String,
         /// The EntraId tenant id to use.
@@ -303,7 +301,6 @@ impl ConnectionStringAuth {
                 client_id,
                 client_secret,
                 client_authority,
-                authority_host,
             } => Some(format!(
                 "{}={};{}={};{}={}",
                 ConnectionStringKey::ApplicationClientId.to_str(),
@@ -311,7 +308,7 @@ impl ConnectionStringAuth {
                 ConnectionStringKey::ApplicationKey.to_str(),
                 if safe { CENSORED_VALUE } else { client_secret },
                 ConnectionStringKey::AuthorityId.to_str(),
-                client_authority
+                client_authority,
             )),
             ConnectionStringAuth::ApplicationCertificate {
                 client_id,
@@ -331,7 +328,7 @@ impl ConnectionStringAuth {
             )),
             ConnectionStringAuth::ManagedIdentity { 
                 user_id,
-                authority_host,
+                // authority_host,
                 tenant_id,
                 client_id,
                 client_authority,
@@ -379,34 +376,36 @@ impl ConnectionStringAuth {
                 time_to_live,
             }),
             ConnectionStringAuth::Application {
-                authority_host,
+                // authority_host,
                 client_id,
                 client_secret,
                 client_authority,
             } => Arc::new(ClientSecretCredential::new(
                 azure_core::new_http_client(),
-                authority_host,
+                Url::parse(client_authority.as_str()).unwrap(),
                 client_authority,
                 client_id,
                 client_secret,
             )),
             ConnectionStringAuth::ApplicationCertificate { .. } => unimplemented!(),
             ConnectionStringAuth::ManagedIdentity { user_id ,
-                authority_host,
+                // authority_host,
                 client_id,
                 tenant_id,
                 client_authority,} => {
                 if let Some(user_id) = user_id {
                     Arc::new(WorkloadIdentityCredential::new(             
                         azure_core::new_http_client(),
-                        authority_host,
+                        // authority_host,
+                        Url::parse("https://login.microsoftonline.com").unwrap(),
                         tenant_id,
                         client_id,
                         user_id))
                 } else {
                     Arc::new(WorkloadIdentityCredential::new(            
                         azure_core::new_http_client(),
-                        authority_host,
+                        // authority_host,
+                        Url::parse("https://login.microsoftonline.com").unwrap(),
                         tenant_id,
                         client_id,
                         String::new(),))
@@ -443,13 +442,11 @@ impl PartialEq for ConnectionStringAuth {
                     client_id: c1,
                     client_secret: s1,
                     client_authority: a1,
-                    authority_host: ah1,
                 },
                 ConnectionStringAuth::Application {
                     client_id: c2,
                     client_secret: s2,
                     client_authority: a2,
-                    authority_host: ah2,
                 },
             ) => c1 == c2 && s1 == s2 && a1 == a2,
             (
@@ -494,10 +491,9 @@ impl Debug for ConnectionStringAuth {
                 client_id,
                 client_authority,
                 client_secret,
-                authority_host,
             } => write!(
                 f,
-                "Application({client_id}, {client_authority}, {client_secret}, {authority_host})"
+                "Application({client_id}, {client_authority}, {client_secret})"
             ),
             ConnectionStringAuth::ApplicationCertificate {
                 client_id,
@@ -635,8 +631,8 @@ impl ConnectionString {
             let client_authority = result_map
                 .get(&ConnectionStringKey::AuthorityId)
                 .ok_or_else(|| ConnectionStringError::from_missing_value("authority_id"))?;
-            let authority_host = result_map.get(&ConnectionStringKey::AuthorityHost)
-            .ok_or_else(|| ConnectionStringError::from_missing_value("authority_host"))?;
+            let authority_host = result_map.get(&ConnectionStringKey::AuthorityId)
+            .ok_or_else(|| ConnectionStringError::from_missing_value("authority_id"))?;
             Ok(Self {
                 data_source,
                 federated_security,
@@ -644,7 +640,6 @@ impl ConnectionString {
                     client_id: (*client_id).to_string(),
                     client_secret: (*client_secret).to_string(),
                     client_authority: (*client_authority).to_string(),
-                    authority_host: Url::parse(*authority_host).unwrap(),
                 },
                 application: None,
                 user: None,
@@ -690,7 +685,7 @@ impl ConnectionString {
                 federated_security,
                 auth: ConnectionStringAuth::ManagedIdentity {
                     user_id: msi_user_id,
-                    authority_host: Url::parse("").unwrap(),
+                    // authority_host: Url::parse("").unwrap(),
                     tenant_id: String::new(),
                     client_id: String::new(),
                     client_authority: String::new(),
@@ -866,7 +861,7 @@ impl ConnectionString {
         client_id: impl Into<String>,
         client_secret: impl Into<String>,
         client_authority: impl Into<String>,
-        authority_host: impl Into<Url>,
+        // authority_host: impl Into<Url>,
     ) -> Self {
         Self {
             data_source: data_source.into(),
@@ -875,7 +870,7 @@ impl ConnectionString {
                 client_id: client_id.into(),
                 client_secret: client_secret.into(),
                 client_authority: client_authority.into(),
-                authority_host: authority_host.into(),
+                // authority_host: authority_host.into(),
             },
             application: None,
             user: None,
@@ -927,7 +922,7 @@ impl ConnectionString {
     /// let conn = ConnectionString::with_managed_identity_auth("https://mycluster.kusto.windows.net", None);
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
-    /// assert_eq!(conn.auth, ConnectionStringAuth::ManagedIdentity { user_id: None });
+    /// assert_eq!(conn.auth, ConnectionStringAuth::ManagedIdentity { user_id: None, client_id: String::new(), tenant_id: String::new(), client_authority: String::new() });
     ///
     /// assert_eq!(conn.build(), Some("Data Source=https://mycluster.kusto.windows.net;AAD Federated Security=True;MSI Authentication=True".to_string()))
     /// ```
@@ -941,9 +936,8 @@ impl ConnectionString {
             federated_security: true,
             auth: ConnectionStringAuth::ManagedIdentity {
                 user_id: user_id.into(),
-                    authority_host: Url::parse("").unwrap(),
-                tenant_id: String::new(),
                 client_id: String::new(),
+                tenant_id: String::new(),
                 client_authority: String::new(),
             },
             application: None,
@@ -1032,10 +1026,10 @@ impl ConnectionString {
     /// # Example
     /// ```rust
     /// use std::sync::Arc;
-    /// use azure_identity::DefaultAzureCredential;
+    /// use azure_identity::{DefaultAzureCredential, TokenCredentialOptions};
     /// use azure_kusto_data::prelude::{ConnectionString, ConnectionStringAuth};
     ///
-    /// let conn = ConnectionString::with_token_credential("https://mycluster.kusto.windows.net", Arc::new(DefaultAzureCredential::default()));
+    /// let conn = ConnectionString::with_token_credential("https://mycluster.kusto.windows.net", Arc::new(DefaultAzureCredential::create(TokenCredentialOptions::default()).unwrap()));
     ///
     /// assert_eq!(conn.data_source, "https://mycluster.kusto.windows.net".to_string());
     /// assert!(matches!(conn.auth, ConnectionStringAuth::TokenCredential { .. }));
